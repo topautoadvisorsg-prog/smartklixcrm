@@ -1,0 +1,185 @@
+SMART KLIX CRM – FULL SYSTEM AUDIT PROMPT
+
+(Copy and send this EXACTLY to the CRM developer)
+
+IMPORTANT
+This is NOT an implementation request.
+This is a full audit and recommendation pass only.
+Do NOT write code.
+Do NOT start implementation.
+Only review, analyze, and report.
+
+🧠 AUDIT REQUEST
+
+Please perform a full, deep audit of the entire Smart Klix CRM system.
+This includes:
+
+• All tabs
+• All pages
+• All UI elements
+• All configuration screens
+• All forms
+• All inputs
+• All agent-related pages
+• All routing
+• All tool usage
+• All API wiring
+• All approval flows
+• All CRM record creation flows
+• All validations
+• All chat behavior
+• All receptionist behavior
+• All intake behavior
+• All email behavior
+• All settings pages
+• All architecture boundaries
+
+This is a complete system audit, not a partial review.
+
+📌 WHAT TO AUDIT, PAGE BY PAGE
+
+Please audit every one of these pages:
+
+Dashboard
+Contacts
+Jobs
+Estimates
+Invoices
+Payments
+Calendar
+Pipeline
+CRM Agent Chat
+CRM Agent Config
+ChatGPT Actions
+AI Receptionist
+Approval Hub
+Emails
+Intake Builder
+Settings
+
+📌 WHAT YOU MUST REPORT FOR EACH PAGE
+
+For each page, provide:
+
+1. What exists now
+
+A clear explanation of current UI, logic, and behavior.
+
+2. What is missing
+
+Any missing UI fields, missing actions, missing buttons, missing validation.
+
+3. What is broken
+
+Anything that does not work, fails silently, or behaves incorrectly.
+
+4. UX improvements
+
+Any improvements for layout, clarity, consistency, ease of use, and workflow.
+
+5. Architectural correctness
+
+Whether the page uses the correct AI brain (Master Architect), correct services, correct data models, correct API endpoints.
+
+6. Clean code issues
+
+Any places where the code does not follow clean code patterns or needs improvement.
+
+7. Recommend improvements
+
+ONLY recommend, do NOT implement.
+Include recommendations for:
+
+• missing config
+• missing toggles
+• missing UI
+• missing logic
+• missing validations
+• missing architectural wires
+• anything that will matter when integrating with n8n
+• anything that will affect Master Architect behavior
+
+📌 SPECIAL FOCUS AREAS
+A. AI Receptionist
+
+• Test both “Economy” and “Premium Real-Time API” modes
+• Premium mode currently shows “coming soon”
+• Clarify what UI we still need
+• Clarify what logic needs wiring
+• Recommend improvements
+
+B. CRM Agent Chat
+
+• Should be able to execute tools through Master Architect
+• Verify tool execution path
+• Verify approval flow
+• Recommend missing UI or missing logic
+
+C. Emails Page
+
+• Audit everything: IMAP/SMTP configuration, outbound email config, templates
+• Recommend missing fields or missing workflow components
+
+D. Intake Builder
+
+• Audit the flexibility for multiple companies
+• Audit how instructions are stored
+• Verify Master Architect can read correct company instructions
+• Recommend improvements on intake types and form logic
+
+E. Approval Hub
+
+• Audit all task flows
+• Verify ✓ and ✓✓ behavior
+• Make sure UI is correct and complete
+
+F. General UI Consistency
+
+• Color use
+• Spacing
+• Alignment
+• Section logic
+• Naming conventions
+• Tab consistency
+• Panel layouts
+• Where components belong or don’t belong
+
+📌 FINAL DELIVERABLE
+
+Please return a written audit report including:
+
+Full breakdown per page
+
+Missing features
+
+Missing UI
+
+Missing logic
+
+Code cleanliness issues
+
+Architectural gaps
+
+Recommendations only
+
+No code, no implementation
+
+Confirm if anything is unclear
+
+Confirm if you need deeper detail on any page
+
+We will decide on next steps AFTER your audit.
+
+📌 CLEAN CODE REMINDER
+
+Everything must be evaluated with:
+
+• Expandability
+• Maintainability
+• Single-responsibility
+• Proper directory structure
+• Consistent naming conventions
+• Zero dead code
+• Zero unused components
+• Zero untyped logic
+• Fully documented behavior

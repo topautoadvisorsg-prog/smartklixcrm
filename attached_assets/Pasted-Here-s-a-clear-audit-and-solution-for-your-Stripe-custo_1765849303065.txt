@@ -1,0 +1,62 @@
+Here’s a clear audit and solution for your Stripe customer flow blocker:
+
+1. Intended Stripe Architecture
+The workflow is designed to process payments after CRM approval.
+The CRM does not create Stripe customers or send a stripeCustomerId.
+The n8n flow is responsible for:
+Ensuring a Stripe customer exists for the contact.
+Creating a payment object and sending a payment link.
+Logging results back to the CRM.
+2. Current Problem
+The node “Resolve or Create Stripe Customer” is set to Get a customer using {{ $json.stripeCustomerId || '' }}.
+Since the CRM never provides a stripeCustomerId, this always fails if the customer does not already exist in Stripe.
+There is no logic to search for a customer by email or to create one if not found.
+3. Correct and Safe Pattern
+The best practice is:
+
+Search for an existing Stripe customer by email.
+If not found, create a new Stripe customer.
+Use the resulting customer ID for all downstream payment actions.
+Store the Stripe customer ID in the CRM for future use.
+This ensures:
+
+No duplicate customers.
+No broken payment flows.
+Fully automatic execution after CRM approval.
+4. Concrete Node Changes
+A. Remove or repurpose the “Resolve or Create Stripe Customer” node.
+
+B. Add these nodes in sequence:
+
+1. Stripe Node: Search Customer by Email
+Type: Stripe
+Resource: Customer
+Operation: Get All
+Filters: Email = {{ $('Fetch Contact from CRM1').first().json.email }}
+Return All: false (limit to 1)
+2. IF Node: Customer Found?
+Condition: {{ $json.data.length > 0 }}
+True branch: Use {{ $json.data[0].id }} as the customer ID.
+False branch: Proceed to create a new customer.
+3. Stripe Node: Create Customer (only if not found)
+Type: Stripe
+Resource: Customer
+Operation: Create
+Email: {{ $('Fetch Contact from CRM1').first().json.email }}
+Name: {{ $('Fetch Contact from CRM1').first().json.name }}
+4. Merge/Set Node: Normalize Output
+After both branches, set a field stripeCustomerId to either the found or newly created customer’s ID.
+Use this value for all downstream Stripe payment nodes.
+Update all downstream nodes (e.g., Create Payable Object, Attach Metadata, Store Stripe IDs in CRM) to use this normalized stripeCustomerId.
+
+5. Human Review / Approval
+No additional human review or “Master Architect” step is needed in n8n for this flow.
+Stripe execution should be fully automatic once triggered by the CRM.
+6. Summary
+The original intent was to “resolve or create” a Stripe customer, but the current node only attempts to “get” by ID, which is not provided.
+The correct pattern is: search by email → create if not found → use resulting ID.
+This change will make the flow deterministic, prevent duplicate customers, and ensure no payment path is broken.
+Once you implement these changes, your Stripe flow will be robust, automatic, and fully aligned with your architecture.
+If you need help with the exact field mappings or node configuration, let me know!
+
+Did this answer solve your question?

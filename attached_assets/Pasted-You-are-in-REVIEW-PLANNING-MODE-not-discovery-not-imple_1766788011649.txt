@@ -1,0 +1,188 @@
+You are in REVIEW & PLANNING MODE, not discovery, not implementation yet.
+
+This system already has:
+
+Intake Hub ✅
+
+AI Action Console (Action CRM) ✅
+
+Review Queue ✅
+
+Ready Execution ✅
+
+Automation Ledger ✅
+
+Neo8 automations wired ✅
+
+All of that is assumed common knowledge. Do not ask how the system works globally.
+
+Your Task
+
+You are reviewing the Estimates tab and preparing a tab-scoped plan that fits the existing CRM execution pipeline.
+
+You are NOT inventing a new flow.
+You are NOT bypassing Review Queue.
+You are NOT letting AI execute final actions.
+
+1️⃣ Purpose — Confirm You Understand This Tab
+
+Explain, in your own words:
+
+The Estimates tab is a drafting + commercial modeling surface
+
+It is owned by the AI Action CRM for proposal generation
+
+It is human-gated before execution
+
+It feeds downstream into Review Queue and Ready Execution
+
+It writes to the Automation Ledger at every state transition
+
+If your understanding differs, state why.
+
+2️⃣ Authority & Flow (MANDATORY)
+
+You must explicitly acknowledge and respect this flow:
+
+Intake Hub
+→ AI Action CRM (drafts estimate)
+→ Estimates Tab (human edits / validation)
+→ Review Queue (approval gate)
+→ Ready Execution (send / convert / invoice)
+
+
+Clarify:
+
+Where AI-generated drafts appear
+
+What humans can modify
+
+What becomes read-only after approval
+
+When an estimate becomes execution-locked
+
+3️⃣ Read vs Execute (NON-NEGOTIABLE)
+
+You must clearly separate:
+
+AI / System Capabilities
+
+Draft line items
+
+Propose pricing, discounts, tax
+
+Generate invoice preview
+
+Suggest “Convert to Job” or “Send Invoice”
+
+Human-Only Actions
+
+Approve estimate
+
+Approve invoice
+
+Trigger send
+
+Convert to job
+
+No AI execution.
+No silent sends.
+No bypassing Review Queue.
+
+4️⃣ Automation & Ledger Requirements
+
+Explicitly list:
+
+Ledger Events this tab MUST emit
+
+Examples (not exhaustive):
+
+ESTIMATE_DRAFT_CREATED
+
+ESTIMATE_UPDATED
+
+ESTIMATE_SUBMITTED_FOR_REVIEW
+
+ESTIMATE_APPROVED
+
+ESTIMATE_REJECTED
+
+ESTIMATE_CONVERTED_TO_INVOICE
+
+ESTIMATE_CONVERTED_TO_JOB
+
+Neo8 Touchpoints
+
+Draft creation (inbound from Action CRM)
+
+Invoice send (outbound, post-approval)
+
+Status updates (webhooks back)
+
+If something is unclear, flag it, don’t guess.
+
+5️⃣ What You Will Review (STRICT)
+
+You are reviewing:
+
+UI layout vs mockup
+
+WBS / line item structure
+
+Draft vs locked states
+
+Invoice inclusion (YES — invoices are part of this tab)
+
+Approval gating
+
+Ledger alignment
+
+Neo8 readiness
+
+You are not changing:
+
+Global theme
+
+Colors
+
+Fonts
+
+Architecture
+
+Execution flow
+
+6️⃣ Your Output (REQUIRED FORMAT)
+
+Your response must include:
+
+What the Estimates tab is responsible for
+
+What it must NOT do
+
+How AI drafts enter this tab
+
+How Review Queue interacts with it
+
+How invoices are handled here
+
+Ledger + Neo8 interactions
+
+Exact implementation plan (tab-only)
+
+Blocking questions ONLY if truly necessary
+
+If something is “assumed system knowledge,” do not ask about it.
+
+Final Rule
+
+If you are unsure about something:
+
+Ask once
+
+At the end
+
+Clearly
+
+Without rehashing the entire system
+
+Proceed.

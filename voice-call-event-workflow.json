@@ -1,0 +1,592 @@
+{
+  "name": "Voice Call Event Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/webhook/voice-call-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Voice Call Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "voice-call-event-webhook",
+      "notes": "Receives voice call events from Twilio/voice server.\nExpected payloads:\n- call_completed: Full call data with AI summary\n- call_missed: Minimal missed call data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.event }}",
+              "operation": "equals",
+              "value2": "call_completed"
+            }
+          ]
+        }
+      },
+      "id": "route-event-type",
+      "name": "Route by Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "notes": "Routes to different processing paths:\n- call_completed: Full pipeline (contact → job/lead → activity)\n- call_missed: Simplified pipeline (contact → lead → SMS)"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.APP_BASE_URL}}/api/contacts/create",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_INTERNAL_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.from_number }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json.caller_name || '' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-contact-completed",
+      "name": "Create or Update Contact (Completed)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 200],
+      "notes": "Upserts contact by phone number.\nCRM handles deduplication automatically:\n- If phone exists: updates with new name\n- If phone doesn't exist: creates new contact\nReturns contact.id for downstream nodes"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.details?.job_type }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-job-type",
+      "name": "Has Job Type?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "notes": "Determines whether to create a Job or Lead:\n- If details.job_type exists: Create Job\n- Otherwise: Create Lead with reason"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.APP_BASE_URL}}/api/jobs/create",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_INTERNAL_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contactId",
+              "value": "={{ $('Create or Update Contact (Completed)').first().json.id }}"
+            },
+            {
+              "name": "jobType",
+              "value": "={{ $('Voice Call Webhook').first().json.details.job_type }}"
+            },
+            {
+              "name": "propertyType",
+              "value": "={{ $('Voice Call Webhook').first().json.details.property_type || '' }}"
+            },
+            {
+              "name": "address",
+              "value": "={{ $('Voice Call Webhook').first().json.details.address || '' }}"
+            },
+            {
+              "name": "city",
+              "value": "={{ $('Voice Call Webhook').first().json.details.city || '' }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ $('Voice Call Webhook').first().json.ai_summary || $('Voice Call Webhook').first().json.reason || 'Job created from voice call' }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify({ budget: $('Voice Call Webhook').first().json.details.budget, preferred_time: $('Voice Call Webhook').first().json.details.preferred_time, notes: $('Voice Call Webhook').first().json.details.notes, call_id: $('Voice Call Webhook').first().json.call_id }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-job",
+      "name": "Create Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 100],
+      "notes": "Creates a Job when details.job_type is present.\nIncludes all relevant details:\n- Property type, address, city\n- Budget, preferred time, notes\n- AI summary as description\n- Call ID in metadata"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.APP_BASE_URL}}/api/leads/create",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_INTERNAL_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contactId",
+              "value": "={{ $('Create or Update Contact (Completed)').first().json.id }}"
+            },
+            {
+              "name": "reason",
+              "value": "={{ $('Voice Call Webhook').first().json.reason || 'Inbound call inquiry' }}"
+            },
+            {
+              "name": "summary",
+              "value": "={{ $('Voice Call Webhook').first().json.ai_summary || 'Customer called for information' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-lead-completed",
+      "name": "Create Lead (No Job Type)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 300],
+      "notes": "Creates a Lead when no job_type is specified.\nUses:\n- reason from payload\n- ai_summary as summary\nFallback values provided for missing data"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.APP_BASE_URL}}/api/activity-log/write",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_INTERNAL_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contactId",
+              "value": "={{ $('Create or Update Contact (Completed)').first().json.id }}"
+            },
+            {
+              "name": "type",
+              "value": "call"
+            },
+            {
+              "name": "direction",
+              "value": "inbound"
+            },
+            {
+              "name": "summary",
+              "value": "={{ $('Voice Call Webhook').first().json.ai_summary || 'Inbound call from ' + $('Voice Call Webhook').first().json.from_number }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify({ call_id: $('Voice Call Webhook').first().json.call_id, job_type: $('Voice Call Webhook').first().json.details?.job_type, budget: $('Voice Call Webhook').first().json.details?.budget, tags: $('Voice Call Webhook').first().json.tags, language: $('Voice Call Webhook').first().json.language }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-activity-completed",
+      "name": "Log Activity (Completed Call)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 200],
+      "notes": "Logs the completed call activity.\nIncludes:\n- AI summary or fallback summary\n- Call metadata (ID, job type, budget, tags)\n- Direction: inbound, Type: call"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.APP_BASE_URL}}/api/contacts/create",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_INTERNAL_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.from_number }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-contact-missed",
+      "name": "Create or Update Contact (Missed)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 400],
+      "notes": "Upserts contact by phone number only.\nNo name available for missed calls.\nCRM handles deduplication automatically."
+    },
+    {
+      "parameters": {
+        "url": "={{$env.APP_BASE_URL}}/api/leads/create",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_INTERNAL_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contactId",
+              "value": "={{ $('Create or Update Contact (Missed)').first().json.id }}"
+            },
+            {
+              "name": "reason",
+              "value": "Missed call from {{ $('Voice Call Webhook').first().json.from_number }}"
+            },
+            {
+              "name": "summary",
+              "value": "Customer called but we were unable to answer. Follow-up required."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-lead-missed",
+      "name": "Create Lead (Missed Call)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 400],
+      "notes": "Creates a lead for follow-up on missed calls.\nStandardized reason and summary for consistency."
+    },
+    {
+      "parameters": {
+        "fromNumber": "={{ $env.TWILIO_FROM_NUMBER }}",
+        "toNumber": "={{ $('Voice Call Webhook').first().json.from_number }}",
+        "message": "Hi! We missed your call. We'll call you back shortly. Thank you!"
+      },
+      "id": "send-sms-missed",
+      "name": "Send SMS (Missed Call)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-credentials",
+          "name": "Twilio Account"
+        }
+      },
+      "notes": "Sends immediate SMS to caller.\nRequires Twilio credentials configured.\nMessage confirms we'll follow up."
+    },
+    {
+      "parameters": {
+        "url": "={{$env.APP_BASE_URL}}/api/activity-log/write",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_INTERNAL_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contactId",
+              "value": "={{ $('Create or Update Contact (Missed)').first().json.id }}"
+            },
+            {
+              "name": "type",
+              "value": "call"
+            },
+            {
+              "name": "direction",
+              "value": "inbound"
+            },
+            {
+              "name": "summary",
+              "value": "Missed call - SMS notification sent"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ JSON.stringify({ call_id: $('Voice Call Webhook').first().json.call_id, from_number: $('Voice Call Webhook').first().json.from_number, to_number: $('Voice Call Webhook').first().json.to_number, sms_sent: true }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-activity-missed",
+      "name": "Log Activity (Missed Call)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 400],
+      "notes": "Logs the missed call activity.\nRecords that SMS was sent.\nIncludes call metadata."
+    },
+    {
+      "parameters": {
+        "url": "={{$env.APP_BASE_URL}}/api/events/update",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_INTERNAL_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "eventId",
+              "value": "={{ $('Voice Call Webhook').first().json.call_id }}"
+            },
+            {
+              "name": "eventType",
+              "value": "={{ $('Voice Call Webhook').first().json.event === 'call_completed' ? 'call_completed' : 'missed_call' }}"
+            },
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "result",
+              "value": "={{ JSON.stringify({ contactId: $('Create or Update Contact (Completed)').first()?.json?.id || $('Create or Update Contact (Missed)').first()?.json?.id, processed: true, timestamp: new Date().toISOString() }) }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "report-event-update",
+      "name": "Report Event Update (Optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1450, 300],
+      "notes": "Optional: Reports processing result back to CRM.\nUses call_id as eventId.\nIncludes contactId and processing status.\nHelps CRM track Neo8 workflow execution."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, contactId: $('Create or Update Contact (Completed)').first()?.json?.id || $('Create or Update Contact (Missed)').first()?.json?.id, event: $('Voice Call Webhook').first().json.event, processed: true }) }}"
+      },
+      "id": "webhook-response",
+      "name": "Send Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300],
+      "notes": "Returns success response to voice server.\nIncludes contactId for reference.\nConfirms event was processed."
+    }
+  ],
+  "connections": {
+    "Voice Call Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route by Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Event Type": {
+      "main": [
+        [
+          {
+            "node": "Create or Update Contact (Completed)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create or Update Contact (Missed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or Update Contact (Completed)": {
+      "main": [
+        [
+          {
+            "node": "Has Job Type?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Job Type?": {
+      "main": [
+        [
+          {
+            "node": "Create Job",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Lead (No Job Type)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Job": {
+      "main": [
+        [
+          {
+            "node": "Log Activity (Completed Call)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Lead (No Job Type)": {
+      "main": [
+        [
+          {
+            "node": "Log Activity (Completed Call)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Activity (Completed Call)": {
+      "main": [
+        [
+          {
+            "node": "Report Event Update (Optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or Update Contact (Missed)": {
+      "main": [
+        [
+          {
+            "node": "Create Lead (Missed Call)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Lead (Missed Call)": {
+      "main": [
+        [
+          {
+            "node": "Send SMS (Missed Call)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS (Missed Call)": {
+      "main": [
+        [
+          {
+            "node": "Log Activity (Missed Call)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Activity (Missed Call)": {
+      "main": [
+        [
+          {
+            "node": "Report Event Update (Optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Event Update (Optional)": {
+      "main": [
+        [
+          {
+            "node": "Send Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "meta": {
+    "instanceId": "voice-call-handler-v1"
+  },
+  "id": "voice-call-event-workflow",
+  "tags": []
+}

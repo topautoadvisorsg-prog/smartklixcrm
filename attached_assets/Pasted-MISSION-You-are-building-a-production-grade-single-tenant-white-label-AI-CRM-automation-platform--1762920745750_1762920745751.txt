@@ -1,0 +1,519 @@
+MISSION
+
+You are building a production-grade, single-tenant, white-label AI CRM automation platform — the internal project known as TopOut.
+
+Each tenant operates as a fully isolated SaaS instance, with its own:
+
+Dedicated database, storage bucket, and secrets
+
+Independent workflow runtime
+
+Separate AI engine instance
+
+Private dashboard and API environment
+
+Individual branding configuration and file structure
+
+This is not a shared multi-tenant pool.
+Each deployment must be able to run, back up, and restore completely independently.
+
+This platform must always be:
+
+✅ Architecturally clean and deterministic
+✅ Fully documented, readable, and reproducible
+✅ Transparent and debuggable at every layer
+✅ Audit-safe and compliant with secure coding standards
+✅ Extensible without breaking compatibility
+✅ Upgrade-safe across all future releases
+✅ Secure-by-design — no patch-security later
+
+Final polish requirement:
+The finished product must look and behave like an agency-grade enterprise SaaS platform — visually refined, stable, and responsive.
+No half-finished edges. No “dev-only” rough UI. It must feel premium.
+
+Every single line of code must pass the Mirror Test:
+
+“If another engineer opened this file six months from now, could they understand exactly what it does within two minutes — without external help?”
+
+If the answer is anything other than yes, rewrite the code immediately.
+
+🧩 HIGH-LEVEL GOALS
+
+You are delivering two major functional surfaces:
+
+1. Backend + Core Services
+
+Actions API
+
+AI Agent Runtime
+
+N8N Workflow Integration
+
+Memory Subsystems
+
+File Storage Layer
+
+Authentication + RBAC
+
+Observability & Metrics
+
+Concurrency Queues
+
+Schema Evolution & Vaulting
+
+2. Frontend Layer
+
+Staff Dashboard UI
+
+Public Chat Widget
+
+Theme / Branding System
+
+Notification + Assist Queue Panels
+
+Each tenant’s container includes all services, configs, and secrets required to operate autonomously, without dependency bleed between clients.
+
+🧱 CLEAN CODE PRINCIPLES (MANDATORY)
+
+Every commit, every PR, every file is bound by these standards.
+Failure to comply constitutes a code-review rejection.
+
+✅ Fundamentals
+
+Language: TypeScript, full strict mode enabled.
+
+Style: ESLint + Prettier auto-enforced; code must lint clean.
+
+No commented-out or “temporary” blocks.
+
+No unused imports, stubs, or console.debug lines in production.
+
+No misc/ or tmp/ directories.
+
+No hidden vendor analytics or SDK calls.
+
+No obfuscated logic, pseudo-AI helpers, or auto-generated noise.
+
+No duplication — create utilities once, import them cleanly.
+
+✅ Naming & Structure
+
+Use descriptive, intent-based names for files, variables, and components.
+
+One clear responsibility per file.
+
+Organize by domain, not layer.
+Example: /contacts/ContactsController.ts — not /controllers/contacts.ts.
+
+Maintain identical folder patterns across tenants and services.
+
+Follow a strict import order: system → vendor → internal → relative.
+
+✅ Readability
+
+All code must be self-documenting.
+
+Comments explain why, not what.
+
+Use docblocks only for public functions or complex logic.
+
+No magic numbers — use named constants.
+
+Avoid deep callback chains; prefer pure functions and composable hooks.
+
+No shorthand that reduces clarity.
+
+✅ Documentation
+
+Create and maintain the following, stored in /docs:
+
+architecture.md
+api_tools.md
+memory.md
+rbac.md
+workflow_boundaries.md
+upgrade_strategy.md
+file_storage.md
+widget_security.md
+frontend_architecture.md
+component_style_guide.md
+theme_strategy.md
+
+
+Each file must summarize intent, structure, and reasoning in under two pages.
+Write for mid-level engineers — no academic filler.
+
+✅ README Discipline
+
+Every module root (/backend, /frontend, /n8n, /core, etc.) includes a README.md describing:
+
+Purpose and scope
+
+Folder overview
+
+Setup & dependencies
+
+Local run instructions
+
+Example API calls or components
+
+Common pitfalls / migration notes
+
+🧰 TOOLING BASELINE
+
+TypeScript (strict mode)
+
+Zod (schema + validation)
+
+Prisma or Drizzle ORM
+
+Redis (short-term memory + queue state)
+
+Postgres + pgvector (long-term memory + embeddings)
+
+BullMQ or equivalent for background jobs
+
+N8N for automation flows (voice, SMS, email)
+
+Next.js (frontend)
+
+TailwindCSS / Material UI (theme layer)
+
+React Query or SWR (state caching)
+
+React Hook Form + Zod (validation)
+
+OpenTelemetry (observability + tracing)
+
+All of these tools are mandatory unless otherwise approved in writing.
+
+🧩 ARCHITECTURE RULES
+Single Container per Tenant
+
+Each instance includes:
+
+Unique DB connection
+
+Isolated Redis namespace
+
+Separate storage bucket
+
+Independent environment vault
+No shared tenants under any circumstance.
+
+Environment Vaulting
+
+Secrets live in a secret manager (e.g., Vault, Doppler, AWS Secrets Manager).
+
+Never commit .env with real keys.
+
+Tokens must auto-rotate and expire gracefully.
+
+Each tenant has unique encryption keys and storage credentials.
+
+Schema Evolution Safety
+
+Every migration must be additive-safe.
+
+Use versioned filenames (001_init_schema.sql, 002_add_tags.sql, etc.).
+
+Include rollback scripts for each.
+
+Never drop or rename columns in production.
+
+Include schema diffs in /docs/upgrade_strategy.md.
+
+Queue & Concurrency Safety
+
+Use BullMQ for outbound operations (email/SMS/voice/files/memory summarization).
+
+All queue workers must be idempotent.
+
+Retry caps and exponential backoff enforced.
+
+Never run external API calls synchronously.
+
+Rate Limiting / Abuse Mitigation
+
+Implement IP and user-level throttling for public endpoints.
+
+Widget must enforce per-tenant request quotas.
+
+Detect injection attempts (“ignore previous instructions,” “act as admin”) and auto-terminate sessions.
+
+Fail-Safe Defaults
+
+On error: deny, log, alert, ask human.
+
+Never fabricate or hallucinate state.
+
+Always fail closed, never open.
+
+🧠 AI AGENT MODES
+
+Draft — Suggests actions only; cannot execute.
+Assist — Queues actions for human approval; learns preferences.
+Auto — Executes approved actions; one reflection; capped retries.
+
+Destructive, financial, or cross-tenant actions always require explicit human confirmation.
+Each agent mode must be clearly displayed in the dashboard header and audit log.
+
+🔌 TOOL ENDPOINTS
+create_lead(name, contact, summary)
+update_job_status(job_id, status)
+schedule_appointment(contact_id, datetime)
+add_note(entity_id, text)
+trigger_voice_call(contact_id, purpose)
+send_email(contact_id, template)
+send_sms(contact_id, text)
+upload_file_metadata(file)
+search_memory(query)
+list_available_slots()
+
+
+Rules:
+
+Validate every input with Zod.
+
+Enforce RBAC per action.
+
+Log every execution to AuditLog.
+
+Return deterministic error objects only (INSUFFICIENT_PERMISSIONS, INVALID_STATE_TRANSITION, MISSING_REQUIRED_FIELD).
+
+No stack traces in responses.
+
+All outbound integrations (SMS, email, voice) route exclusively through N8N.
+
+🎨 FRONTEND ARCHITECTURE
+Framework & Stack
+
+React (TypeScript)
+
+Next.js (SSR, routing, static export)
+
+TailwindCSS (theme tokens)
+
+React Query / SWR
+
+React Hook Form + Zod
+
+Jest + Cypress / Playwright
+
+Routing
+/contacts
+/jobs
+/calendar
+/ai-assist-queue
+/files
+/notes
+/outbound-comms
+/metrics
+/templates
+/n8n-status
+/audit-log
+/user-management
+/settings
+
+
+RBAC-filtered; hidden routes are fully excluded from bundles.
+
+Theme System
+
+Tenant branding (logo, palette, typography, sidebar color, accent tokens) must load dynamically via /theme endpoint.
+No hardcoded color references or embedded assets.
+
+Widget
+
+Embeddable <script> snippet
+
+Runs in iframe or Shadow DOM
+
+5-file upload (10 MB max each)
+
+Sanitized DOM via DOMPurify
+
+Prompt-injection defense
+
+Session expiry auto-summarizes to backend
+
+🧩 SECURITY RULES
+
+HTTPS enforced end-to-end.
+
+JWT (HttpOnly cookie or secure header).
+
+CSRF protection.
+
+XSS sanitization.
+
+Strict MIME validation.
+
+Rate limiting + burst detection.
+
+Sanitized logs (no secrets, tokens, or PII).
+
+Tenant isolation at DB, Redis, and storage level.
+
+Escape and validate all dynamic text.
+
+Frontend security:
+
+Never store JWTs or API keys in localStorage.
+
+Only store UI preferences (theme, column width).
+
+Sanitize and encode all user-supplied content before render.
+
+📊 OBSERVABILITY
+
+Collect and expose:
+
+LLM latency
+
+Tool success/failure rates
+
+Queue depth & retry counts
+
+Workflow error rates
+
+Token usage
+
+Memory cache hits/misses
+
+Display in dashboard metrics:
+
+New leads per week
+
+Appointment load
+
+Pipeline counts
+
+Follow-up performance
+
+AI Assist Queue activity
+
+🔍 TESTING & ACCEPTANCE
+Unit Tests
+
+CRUD endpoints
+
+Validation schemas
+
+RBAC checks
+
+AI tool handler errors
+
+Integration Tests
+
+Lead → Job → Appointment → Voice → Close loop
+
+Widget lead capture
+
+File upload and audit trail
+
+RBAC role enforcement
+
+Load Test
+
+Minimum 50 concurrent widget sessions
+
+Burst of 100 outbound messages
+
+Zero crash tolerance
+
+Mirror Test
+
+If UI can fully render:
+
+Jobs, Contacts, Files, Outbound Logs
+
+AI Queue, Appointments, N8N Status
+
+Memory Recall Results
+
+→ Backend contracts confirmed.
+If not, fix backend once, never in frontend.
+
+🚀 DELIVERY REQUIREMENTS
+
+When development completes, repository must include:
+
+/api/openapi.json
+/docs/...
+/src/...
+/tests/...
+/docker-compose.yml
+/README.md
+
+Acceptance Output
+
+At delivery:
+
+✅ Build complete
+
+✅ Docs complete
+
+✅ Tests passed
+
+✅ /api/openapi.json validated
+
+✅ Mirror Test passed
+
+✅ Tenant onboarding run verified
+
+Include /docs/runbook.md — step-by-step deployment, duplication, and onboarding guide describing:
+
+Environment setup
+
+Secret configuration
+
+Version synchronization
+
+Tenant cloning process
+
+🧪 OPENAPI CONTRACT
+
+Backend automatically generates:
+
+/api/openapi.json
+
+Then types with:
+
+npx openapi-typescript ./api/openapi.json --output ./src/types/api.ts
+
+
+Guarantees:
+
+No undocumented endpoints
+
+Auto-generated SDKs
+
+ChatGPT / external action compatibility
+
+Elimination of frontend/backend drift
+
+🧾 FINAL SUCCESS CRITERIA
+
+System is considered production-ready when:
+
+Build passes with zero warnings
+
+Endpoints are 100 % type-safe
+
+Concurrency stable under load
+
+Dashboard + Widget run seamlessly
+
+Documentation matches implementation
+
+Any new engineer can onboard and comprehend structure within one hour
+
+When achieved, output:
+
+✅ Production-Ready Certified
+
+Final Reminder
+No meta abstractions. No clever shortcuts. No magic.
+Just clean, human-readable, deterministic engineering.
+If it isn’t simple, it isn’t finished.

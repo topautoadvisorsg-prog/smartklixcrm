@@ -1,0 +1,338 @@
+SMART KLIX CRM — EXECUTION ORDER (DO THIS NOW)
+
+This is NOT an audit.
+This is NOT review mode.
+This is NOT suggestions.
+
+You are now in EXECUTION MODE.
+You must START BUILDING.
+Everything listed below is REQUIRED.
+No skipping.
+No postponing.
+No “future phase.”
+
+1. FIX & COMPLETE ALL UI/UX ITEMS IMMEDIATELY
+
+You must start coding the missing UI elements across the CRM:
+
+A. Contact Detail Page — BUILD NOW
+
+Must include:
+
+Full contact info (editable)
+
+Jobs for this contact
+
+Estimates for this contact
+
+Invoices for this contact
+
+Appointments list
+
+Inline notes (must work)
+
+Inline file upload (drag and drop)
+
+Communication timeline (SMS, email, calls)
+
+AI suggestions panel
+
+Payment summary
+
+Activity timeline
+
+Quick action panel (SMS, email, payment link)
+
+This entire page must become the central hub for contact-level operations.
+
+B. Job Detail Page — BUILD NOW
+
+Must include:
+
+Job info (editable)
+
+Status timeline
+
+Task checklist
+
+Assigned team section
+
+Time tracking section
+
+Materials & parts section
+
+Photo upload (before/after)
+
+File upload
+
+Notes
+
+Related appointments
+
+Related estimate(s)
+
+Related invoice(s)
+
+Activity timeline
+
+AI suggestions panel
+
+Quick action buttons
+
+C. REMOVE REDUNDANT TABS (DO IT NOW)
+
+These tabs MUST be deleted from the sidebar immediately:
+
+Files
+
+Notes
+
+AI Assist Queue (merge into Master Architect UI)
+
+Metrics (until real data exists)
+
+These features must be moved:
+
+User Management → Settings
+
+Audit Log → Settings
+
+AI Memory → Settings (AI Configuration)
+
+D. Pipeline — FIX NOW
+
+Add drag-and-drop (react-beautiful-dnd or similar)
+
+Update job status automatically after drag
+
+Click on job card → opens Job Detail page
+
+E. Search Bars — FIX NOW
+
+All search bars MUST work (filter client-side or server-side):
+
+Contacts
+
+Estimates
+
+Invoices
+
+Payments
+
+User Management
+
+Files (removed)
+
+Notes (removed)
+
+2. BACKEND WORK — START CODING MISSING ENDPOINTS
+
+You must ENSURE the backend supports:
+
+A. Contact-level endpoints
+
+GET contact by ID
+
+GET contact notes
+
+POST contact note
+
+GET contact files
+
+POST contact file upload
+
+GET communication timeline
+
+B. Job-level endpoints
+
+GET job by ID
+
+POST job tasks
+
+POST job file upload
+
+POST job notes
+
+POST job materials/parts
+
+POST job time tracking log
+
+GET job timeline
+
+GET job AI suggestions
+
+C. Communication Timeline
+
+You must expose:
+
+SMS history
+
+Email history
+
+N8N call logs
+
+Payment link history
+
+D. AI Integration
+
+Master Architect must receive:
+
+Raw prompt
+
+Extracted context
+
+Proposed actions
+
+Risk rating
+
+System flags
+
+Execution approval
+
+Final result
+
+ALL AI subsystems must route into the Master Architect queue on the backend.
+
+3. MASTER ARCHITECT — EXPAND & ACTIVATE
+
+This is the brain of Smart Klix CRM.
+
+You must ensure the Master Architect:
+
+Receives all proposed AI actions
+
+Logs original prompt
+
+Logs structured task proposal
+
+Waits for approval (Assist mode)
+
+Executes when approved
+
+Stores final result
+
+Writes memory entries
+
+Sends automation triggers to N8N
+
+Records failures
+
+Shows everything in UI
+
+This must be rebuilt as a centralized brain, even if UI stays separate.
+
+4. WEBSITE CHAT WIDGET — BUILD THE PAGE + SNIPPET
+
+You MUST build a dedicated page in CRM settings:
+
+SETTINGS → INTEGRATIONS → CHAT WIDGET
+
+Page must include:
+
+Widget preview
+
+Colors
+
+Position
+
+Behavior options
+
+Branding
+
+Welcome message
+
+Disclaimer
+
+Public key
+
+Installation code snippet
+
+You MUST generate the embed code:
+
+<!-- Smart Klix Chat Widget -->
+<script src="https://cdn.smartklix.ai/widget.js"
+        data-tenant="TENANT_ID"
+        data-color="#1565C0"
+        data-position="bottom-right">
+</script>
+
+
+And you MUST tell the user exactly where to install this:
+
+Public website → index.html → before the closing </body> tag
+
+Backend API for Widget (BUILD NOW)
+
+You must implement:
+
+POST /api/widget/message
+POST /api/widget/identify
+POST /api/widget/lead
+POST /api/widget/upload
+
+
+Widget must:
+
+Create/update contact
+
+Create a lead
+
+Send transcript to AI
+
+Route decision tasks to Master Architect
+
+Trigger N8N if needed
+
+5. SYSTEM EXTENSIBILITY
+
+Smart Klix CRM MUST be API-first and compatible with:
+
+N8N
+
+Zapier
+
+Make
+
+External CRMs
+
+Webhooks
+
+REST JSON endpoints
+
+You must:
+
+Ensure all endpoints follow REST
+
+Ensure naming consistency
+
+Ensure full documentation
+
+Ensure external apps can integrate easily
+
+6. FINAL DELIVERY
+
+When finished, you must deliver:
+
+All updated UI code
+
+All updated backend code
+
+All new endpoints
+
+All merged/removed tabs
+
+All updated pages
+
+Fully working Contact Detail page
+
+Fully working Job Detail page
+
+Working drag-and-drop pipeline
+
+Working search in all modules
+
+Chat widget page + snippet
+
+Master Architect fully connected
+
+Documentation for everything

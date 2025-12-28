@@ -1,0 +1,197 @@
+We are testing the entire intelligence surface of the system, not just plumbing.
+
+That means four layers are being tested at the same time:
+
+1️⃣ Action MCP (Decision & Capability Layer)
+
+This is the brain that decides:
+
+What actions are allowed
+
+What tools can be called
+
+What needs approval vs auto-run
+
+What context is required
+
+We are testing:
+
+Can it interpret intent correctly?
+
+Does it choose the right action?
+
+Does it refuse actions when context is missing?
+
+Does it route actions into the correct workflow?
+
+If Action MCP fucks up, everything downstream is meaningless.
+
+2️⃣ Action GPT Chat (Execution Interface)
+
+This is the human → system interface.
+
+We are testing:
+
+Can chat trigger:
+
+Payments
+
+Emails
+
+SMS
+
+WhatsApp
+
+Voice calls
+
+Does it:
+
+Ask clarifying questions when needed?
+
+Respect approval modes?
+
+Show correct confirmations?
+
+Does it not hallucinate success?
+
+If chat says “done” but nothing happened → hard fail.
+
+3️⃣ Information AI Chat (Read-Only Intelligence)
+
+This is NOT execution — this is understanding.
+
+We are testing:
+
+Can it:
+
+Read the ledger?
+
+Explain what happened?
+
+Summarize flows accurately?
+
+Does it:
+
+Distinguish AI actions vs human actions?
+
+Reference Trace IDs correctly?
+
+Avoid inventing events?
+
+This is your trust layer.
+If this lies, the whole product is bullshit.
+
+4️⃣ Workflow + Ledger (Ground Truth)
+
+This is the source of truth.
+
+We are testing:
+
+Every action produces:
+
+Ledger entries
+
+Trace IDs
+
+Status transitions
+
+Failures are logged as clearly as success
+
+Ledger answers:
+
+Who did what
+
+Why it happened
+
+What failed
+
+What’s pending
+
+If it didn’t hit the ledger, it didn’t happen.
+
+🧪 HOW A REAL TEST ACTUALLY WORKS (OWNER MODE)
+
+Here’s how I’d run this if my name was on the door.
+
+Example: “Send an email from chat”
+
+Test starts in chat, not n8n.
+
+1️⃣ Action GPT Chat
+User types:
+
+“Send John an email about the estimate”
+
+We test:
+
+Does Action MCP:
+
+Resolve “John” to a contact?
+
+Ask if multiple Johns exist?
+
+Identify this as EMAIL_SEND?
+
+2️⃣ Action MCP
+We test:
+
+Is EMAIL_SEND allowed in this context?
+
+Is approval required?
+
+Is the correct workflow selected?
+
+3️⃣ Workflow Execution
+We test:
+
+Did the correct n8n workflow fire?
+
+Did the email provider respond success?
+
+Did failure get caught?
+
+4️⃣ Ledger
+We verify:
+
+EMAIL_REQUESTED
+
+(OPTIONAL) HUMAN_APPROVED
+
+EMAIL_SENT or EMAIL_FAILED
+
+Provider response stored
+
+5️⃣ Information AI Chat
+We ask:
+
+“What happened with the email to John?”
+
+We test:
+
+Does it read the ledger?
+
+Does it say the truth?
+
+Does it show timestamps + status?
+
+If any layer lies, the test fails.
+
+🔥 THIS IS NOT “TESTING FEATURES”
+
+This is testing system integrity.
+
+We are validating:
+
+Intent → Action mapping
+
+AI honesty
+
+Governance enforcement
+
+Auditability
+
+Trustworthiness
+
+That’s what real companies test.
+That’s what investors test.
+That’s what users feel even if they can’t explain it.

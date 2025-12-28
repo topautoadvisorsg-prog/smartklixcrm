@@ -1,0 +1,226 @@
+We are NOT creating a new AI Settings tab.
+We are USING the EXISTING AI Settings tab.
+
+But — and this is the key part —
+
+👉 We are GUTTING IT and REALIGNING IT to the README.
+
+What exists right now in that tab is bloated, confused, and architecturally wrong. It is trying to be:
+
+Neo8 ❌
+
+A workflow engine ❌
+
+A voice platform ❌
+
+A widget manager ❌
+
+A behavior playground ❌
+
+That is not its job.
+
+🧠 WHAT AI SETTINGS IS (AUTHORITATIVE)
+
+AI Settings = System Constitution Console
+
+One purpose only:
+
+Define instructional constraints and behavioral mandates for AI entities.
+
+That’s it.
+
+No execution.
+No workflows.
+No routing.
+No voice logic.
+No Neo8 cosplay.
+
+🚨 WHAT IS WRONG WITH THE CURRENT TAB (CLEARLY)
+
+Here’s why you’re pissed — and you’re justified:
+
+❌ Workflows
+
+Belong to Neo8
+
+Or to runtime orchestration
+
+NOT constitutional definition
+
+➡ REMOVE
+
+❌ Voice Call / Voice Handling / Call Behavior
+
+Lives on AI Voice Server
+
+Engine-specific (economic vs premium)
+
+Runtime behavior, not constitutional rules
+
+➡ REMOVE
+
+❌ Widget Logic / Widget Behavior
+
+Widget = Edge Agent
+
+Instructions belong inside the Edge Agent brain
+
+NOT as a global mixed bucket
+
+➡ REMOVE FROM GLOBAL
+➡ MOVE into per-entity instruction scope
+
+❌ “Behavior Rules” (Global)
+
+Every brain already has:
+
+Its own mandate
+
+Its own constraints
+
+Its own behavior rules
+
+A global “behavior” section causes:
+
+Overlap
+
+Conflicts
+
+Undefined authority
+
+➡ REMOVE
+
+❌ Company Knowledge Base (Here)
+
+Knowledge retrieval belongs to Discovery AI
+
+Not system-wide mutation
+
+➡ REMOVE from AI Settings
+➡ Handled by Discovery AI configuration only
+
+✅ WHAT STAYS (AND HOW IT MUST CHANGE)
+
+We keep the tab, but it becomes structured, scoped, and strict.
+
+AI Settings Tab — FINAL STRUCTURE
+1️⃣ Entity Selector (REQUIRED)
+
+Edge Agent
+
+Discovery AI
+
+ActionAI CRM
+
+Master Architect
+
+No “global brain”.
+No blended configs.
+
+2️⃣ Per-Entity Sections (ONLY THESE)
+
+For the selected entity only:
+
+✅ Core Mandate
+
+Why this AI exists
+
+One paragraph
+
+Hard constraint language
+
+✅ System Instructions (Prompt)
+
+Editable
+
+Code-style editor
+
+This is the constitution
+
+✅ Hard Constraints
+
+Read-only where applicable
+
+Explicitly locked where non-negotiable
+
+✅ Autonomy Level (If Applicable)
+
+ONLY for ActionAI CRM
+
+Manual / Assist / Auto
+
+No other entity gets this
+
+🚫 WHAT IS ABSOLUTELY NOT ALLOWED HERE
+
+❌ Workflows
+
+❌ Execution toggles
+
+❌ Voice engine settings
+
+❌ Retry logic
+
+❌ Neo8 features
+
+❌ UI behavior controls
+
+❌ Mixed global rules
+
+If it acts, dispatches, routes, or executes —
+it does NOT belong here.
+
+📌 CRITICAL RULE (THIS WAS MISSED BEFORE)
+
+AI Settings defines behavior.
+It does NOT control runtime.
+
+If something:
+
+Sends messages
+
+Triggers calls
+
+Routes jobs
+
+Dispatches workflows
+
+➡ It belongs somewhere else.
+
+🧾 WHAT YOU NEED TO TELL THE DEV (EXACTLY)
+
+You should send this verbatim-level guidance, distilled:
+
+We are not adding a new AI Settings page.
+You must refactor the existing AI Settings tab.
+
+Remove ALL workflow, voice, widget, and execution-related controls.
+These violate the README and architectural boundaries.
+
+The AI Settings tab is a per-entity constitution editor only:
+
+Entity selector
+
+Core mandate
+
+System instructions
+
+Hard constraints
+
+Autonomy level (ActionAI CRM only)
+
+Anything that behaves like Neo8, voice runtime, or workflows must be removed.
+
+Before implementing, provide a report:
+
+What exists today
+
+What will be removed
+
+What will be retained
+
+What will be relocated (and where)
+
+No UI invention.
+No new concepts.
+README is the contract.

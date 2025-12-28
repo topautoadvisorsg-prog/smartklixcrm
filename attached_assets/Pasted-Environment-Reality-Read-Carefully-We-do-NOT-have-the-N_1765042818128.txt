@@ -1,0 +1,208 @@
+Environment Reality (Read Carefully)
+
+We do NOT have the Neo8 webhook yet.
+Do NOT expect it, do NOT block on it, do NOT reference it.
+Just prepare the system so a Neo8 webhook URL can be added later as a variable, not hard-coded.
+
+Environment variables will NOT live in the repo.
+They will be managed through Neo8 when that connection is active.
+
+For now, use temporary placeholder variables only, nothing permanent.
+
+You will NOT use my OpenAI key.
+For development, you must generate a temporary key via Replit AI (R-E-P-L-I-T AI) and use that until we switch.
+
+2. Hard Rule — NOTHING Hard-Coded
+
+Every single one of these must be configurable:
+
+URLs
+
+API endpoints
+
+webhook paths
+
+service URLs
+
+tokens
+
+secrets
+
+keys
+
+environment paths
+
+This CRM must be fully white-label + multi-tenant.
+Any hard-coded values you find — remove them and convert them to config variables.
+
+There should be zero references to:
+
+old URLs
+
+old webhook paths
+
+developer-specific tokens
+
+environment-specific URLs
+
+If any exist, replace them with:
+
+process.env.[NAME_GOES_HERE]
+
+3. Do Not Request Webhook/Tokens From Me Yet
+
+You asked for:
+
+N8N webhook URL
+
+N8N webhook secret
+
+INTERNAL_TOKEN
+
+Stripe keys
+
+Neo8 tokens
+
+We don’t provide those at this stage.
+
+Your job right now is to:
+
+✔ Prepare the system
+✔ Clean the code
+✔ Remove hard-coded values
+✔ Make everything configurable
+✔ Fix schema and TypeScript issues
+✔ Update the old URLs
+✔ Clean the README
+
+But NOT wait for tokens.
+
+Once the environment infrastructure is ready, we will inject those values later.
+
+4. Immediate Developer Tasks
+A) Fix All Schema + TypeScript Errors (22 Total)
+
+Resolve every related mismatch:
+
+missing schemas
+
+missing storage methods
+
+invalid types
+
+incorrect interfaces
+
+anything blocking a clean compile
+
+This is top priority.
+
+B) Remove & Replace All Old URLs
+
+Erase every reference to the old Replit developer URL:
+
+5111a1a7-2f59-4ad2-9b99-...
+
+
+Do not replace it with the new one directly.
+Instead — replace it with environment variables only.
+
+For example:
+
+const BASE_URL = process.env.APP_BASE_URL;
+
+C) Fix Hardcoded n8n Webhook
+
+In:
+
+client/src/lib/n8nEvents.ts
+
+
+Remove this:
+
+https://smartklix.app.n8n.cloud/webhook
+
+
+Replace with:
+
+process.env.N8N_WEBHOOK_URL
+
+
+No assumptions, no defaults.
+
+D) Setup Temporary .env Values (PLACEHOLDERS ONLY)
+
+Use placeholders such as:
+
+OPENAI_API_KEY=YOUR_REPLIT_AI_KEY
+N8N_WEBHOOK_URL=TO_BE_PROVIDED
+N8N_WEBHOOK_SECRET=TO_BE_PROVIDED
+INTERNAL_TOKEN=TO_BE_PROVIDED
+STRIPE_SECRET_KEY=TO_BE_PROVIDED
+STRIPE_WEBHOOK_SECRET=TO_BE_PROVIDED
+DATABASE_URL=TO_BE_PROVIDED
+
+
+You do NOT need real values yet — just ensure the app can boot.
+
+E) Use Replit AI Key for Now
+
+Do not request my key.
+Generate one inside Replit and plug it into OPENAI_API_KEY.
+
+Later we replace it with Smart Klix official key.
+
+F) Clean the Codebase
+
+Remove:
+
+old test payloads
+
+outdated docs
+
+old scripts
+
+unused workflows
+
+duplicated files
+
+any trash files from previous devs
+
+Smart Klix must be clean, organized, and professional.
+
+G) Rewrite README
+
+Update everything:
+
+setup instructions
+
+environment variable list
+
+how to run backend/frontend
+
+how AI features work
+
+how webhook config works
+
+how to add new tenants
+
+how to configure white-label settings
+
+The README must match the actual system today.
+
+5. Final Deliverable
+
+Once done, send:
+
+List of all schema fixes
+
+List of all environment variables prepared
+
+List of all hardcoded values removed
+
+Confirmation the app boots with temporary Replit AI key
+
+List of all cleaned files
+
+Updated README
+
+Confirmation no old URLs or developer-specific logic remains

@@ -1,0 +1,485 @@
+You are building the real, production-quality, single-tenant SmartKlix AI CRM Platform (TopOut).
+Not a demo.
+Not a prototype.
+Not a toy.
+This system will be cloned and deployed for paying customers.
+
+It must be clean, typed, secure, auditable, and modular.
+
+This platform includes:
+
+AI Master Architect (main GPT agent)
+
+Neo8 automation worker (workflow executor)
+
+n8n automation layer
+
+Full CRM system
+
+FSM job pipeline
+
+Scheduling
+
+Notes, files, payments
+
+Dashboard + diagnostics
+
+Storage (Supabase + Redis)
+
+Audit logging
+
+Health checks
+
+White-label client integration layer
+
+Everything built now is REAL production logic.
+The ONLY things that stay as placeholders right now:
+
+OpenAI key
+
+External vendor keys
+
+n8n webhook URLs
+
+Client-specific credentials
+
+🧠 SYSTEM BRAIN ARCHITECTURE (REQUIRED)
+
+There are three major components you MUST understand and build exactly as defined.
+
+1️⃣ MASTER ARCHITECT — Core Agent (Main Brain, Lives in Hub)
+
+This is the primary intelligence.
+It controls the entire platform:
+
+Draft / Assist / Auto modes
+
+Reflection loop
+
+Planning
+
+Delegating tasks
+
+Calling tools
+
+Updating CRM
+
+Reviewing Neo8 output
+
+Writing to audit log
+
+Ensuring workflow correctness
+
+Validating job + estimate + invoice + payment state machines
+
+Reasoning, actions, and decision-making
+
+This is the ONLY decision-maker.
+
+2️⃣ NEO8 — Automation Worker (n8n + Backend Worker)
+
+This is NOT the master agent.
+This is the mechanical executor.
+
+Responsibilities:
+
+Execute tasks delegated by Master Architect
+
+Trigger n8n flows
+
+Process repetitive background tasks
+
+Handle external system integrations
+
+Report results back
+
+NEVER make decisions
+
+NEVER override master agent logic
+
+Think of Neo8 as the “worker bot” under the hood.
+
+3️⃣ HUB CENTER — CRM + Platform Core
+
+This is the home of everything.
+
+The Hub contains:
+
+CRM UI
+
+AI Assist Queue
+
+Contacts, jobs, estimates, invoices, payments
+
+Scheduling
+
+Files
+
+Notes
+
+Audit log
+
+Metrics dashboard
+
+Health diagnostics
+
+API routes
+
+Master Agent
+
+Neo8 triggers
+
+Storage integration
+
+FSM logic
+
+Authentication
+
+Versioning
+
+Error handling
+
+The Hub is the single source of truth for every piece of data.
+
+🧬 CHAIN OF COMMAND (NON-NEGOTIABLE)
+
+This order MUST NEVER be changed:
+
+Master Architect → Neo8 → Hub → UI
+
+Master Architect
+Thinks, decides, plans, delegates.
+
+Neo8 Worker
+Executes what it’s told.
+
+Hub
+Updates DB, logs everything, tracks state.
+
+UI
+Displays it cleanly.
+
+This hierarchy can NEVER be reversed.
+
+🏗 CORE TECHNOLOGY STACK
+
+Node.js 20+
+
+TypeScript (strict mode)
+
+Supabase (Postgres + RLS + Vault)
+
+Redis 7 (cache + short-term memory)
+
+n8n automation engine
+
+Zod validation
+
+OpenTelemetry logging
+
+Clean REST API
+
+No Docker inside Replit (but must be Docker-ready for real deployments)
+
+pnpm or npm (consistent lockfile)
+
+🗂 PROJECT STRUCTURE (REQUIRED)
+/core
+  /agent            → Master Architect logic
+  /neo8             → Automation worker + n8n connectors
+  /memory           → Redis + Postgres memory system
+  /tools            → Tool handlers + schema validation
+  /fsm              → Job/estimate/invoice/payment pipeline states
+
+/api
+  /chat
+  /contacts
+  /jobs
+  /estimates
+  /invoices
+  /payments
+  /files
+  /notes
+  /health
+  /internal   → n8n protected routes
+
+/dashboard
+  /ui
+  /metrics
+  /audit
+  /assist-queue
+
+/docs
+  architecture.md
+  modes.md
+  memory.md
+  api.md
+  audit-checklist.md
+  fsm.md
+  deployment.md
+
+🧱 SECURITY REQUIREMENTS (MANDATORY)
+1. No public-facing internal endpoints
+
+Protected routes use:
+
+Authorization: Bearer <N8N_INTERNAL_TOKEN>
+
+
+Required for:
+
+execute-tool
+
+create contact
+
+update job state
+
+send estimate
+
+send invoice
+
+mark invoice paid
+
+any automation-triggered action
+
+2. No commented-out code
+
+Zero. None. No leftovers.
+
+3. No external telemetry/vendor scripts
+
+No Google Analytics
+No Segment
+No Sentry
+Nothing hidden
+
+4. Clean & typed
+
+Every export has JSDoc
+Every file has types
+Zero any unless absolutely unavoidable (must be documented)
+
+📦 DATABASE SCHEMA (REQUIRED)
+
+Supabase Postgres Schema must include:
+
+Jobs
+
+id
+
+contact_id
+
+title
+
+description
+
+value (numeric)
+
+status (enum: draft, estimate_sent, estimate_accepted, in_progress, completed, invoiced, paid)
+
+created_at
+
+updated_at
+
+Estimates
+
+id
+
+job_id
+
+amount (numeric)
+
+status (sent, accepted, rejected)
+
+sent_at
+
+responded_at
+
+Invoices
+
+id
+
+job_id
+
+total (numeric)
+
+status (sent, paid)
+
+sent_at
+
+paid_at
+
+Payments
+
+id
+
+invoice_id
+
+amount (numeric)
+
+method
+
+created_at
+
+Audit Log
+
+id
+
+type
+
+actor
+
+payload JSON
+
+timestamp
+
+Everything written by Master Architect or Neo8 must be logged.
+
+🔄 FSM — STATE MACHINE (MUST MATCH EXACTLY)
+draft
+ → estimate_sent
+ → estimate_accepted  OR  estimate_rejected
+ → in_progress
+ → completed
+ → invoiced
+ → paid
+
+
+Invalid transitions MUST throw structured errors.
+
+🔧 TOOL LAYER (REQUIRED)
+Tools must include:
+
+createContact
+
+updateJobStatus
+
+sendEstimate
+
+sendInvoice
+
+markInvoicePaid
+
+recordPayment
+
+scheduleAppointment
+
+attachFile
+
+writeNote
+
+All validated with Zod.
+All logged to audit_log.
+
+🧠 MODES
+Draft
+
+Propose only. No execution.
+
+Assist
+
+Execution requires approval flag.
+
+Auto
+
+Executes automatically:
+
+Plan
+
+Reflection
+
+Execute
+
+Log
+
+Reflection prompt:
+
+“Review your plan for correctness, safety, and completeness. Revise once before execution.”
+
+📊 DASHBOARD REQUIREMENTS
+
+Pages MUST exist:
+
+Overview metrics
+
+CRM (Contacts, Jobs, Files, Notes)
+
+Estimates
+
+Invoices
+
+Payments
+
+Calendar
+
+AI Assist Queue
+
+Audit Log
+
+Settings
+
+Health & Diagnostics
+
+Dark mode required.
+Placeholder rendering required.
+
+🔒 ENVIRONMENT RULES
+
+We are using REAL infrastructure:
+✔ Real Supabase
+✔ Real Redis
+✔ Real pipelines
+✔ Real backend
+✔ Real UI
+
+The only placeholder values for now:
+❌ OpenAI key
+❌ External CRMs
+❌ SMS/Email vendors
+❌ n8n webhook URL
+❌ OAuth credentials
+
+Supabase is REAL.
+Everything you build now is PERMANENT.
+
+📑 DEVELOPER MUST CONFIRM THESE POINTS (MANDATORY)
+
+Answer YES/NO + explanation:
+
+Do you understand this is the real production system, not a demo?
+
+Do you fully understand the Master Architect is the main decision-maker?
+
+Do you understand Neo8 is the worker, not a brain?
+
+Do you understand the Hub is the single source of truth?
+
+Do you understand the chain of command must never change?
+
+Do you understand all code must be production-ready, clean, typed, modular?
+
+Do you understand this is a white-label base that will be cloned for clients?
+
+Do you understand no real external keys until audit is complete?
+
+🧾 FINAL OBJECTIVE
+
+Deliver a clean, stable, auditable, production-grade CRM + AI + Automation platform that:
+
+Boots cleanly
+
+Works with real database
+
+Uses placeholder keys safely
+
+Has full UI
+
+Has full FSM
+
+Has full API
+
+Has full audit logging
+
+Has Neo8 worker integration
+
+Is ready for AI integration next

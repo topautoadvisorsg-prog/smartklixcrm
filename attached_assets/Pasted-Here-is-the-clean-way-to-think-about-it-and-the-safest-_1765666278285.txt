@@ -1,0 +1,93 @@
+Here is the clean way to think about it, and the safest way to implement it so you do not end up with spaghetti or security holes.
+
+Who should receive the GPT Action, CRM or n8n
+
+In a clean architecture, the GPT system should talk to the CRM first, not to n8n.
+
+Reason, the CRM is the system of record and the policy engine. It knows the tenant, permissions, business rules, logging, and it already owns Approval Hub and retries. n8n is execution.
+
+So the flow is:
+
+GPT Action sends a request to the CRM, like “send follow up to contactId 123 via sms”
+
+CRM validates, logs, applies rules, and decides if approval is needed
+
+If it needs execution, CRM dispatches an outbox event to n8n, or calls the correct n8n webhook
+
+n8n executes, then logs back to CRM, and if it was approval based, waits for CRM callback
+
+That answers your core question, who sends what.
+
+Does ChatGPT execute the action, or does CRM execute it
+
+ChatGPT never executes real world actions directly.
+
+ChatGPT only submits an intent and payload. The CRM executes by either:
+A) doing it itself, if it has the integration built in, or
+B) delegating execution to n8n, if n8n is the execution layer for that action
+
+So, “who does it” is always CRM or n8n, never ChatGPT.
+
+When does it not need n8n at all
+
+If the action is purely internal CRM work, like:
+
+create contact
+
+update lead stage
+
+add tags
+
+create task
+
+write audit log
+then the CRM should just do it directly and log it. No n8n trigger needed.
+
+n8n should be used when:
+
+external connectors are involved, Twilio, SendGrid, Stripe, Google
+
+multi step orchestration is needed
+
+you want standardized retries and error handling around external calls
+
+The exact questions to ask your CRM developer to lock this
+
+Copy and paste these, this will force a clear answer and prevent assumptions.
+
+GPT Actions entrypoint
+When a GPT Action is triggered, does the GPT call the CRM API directly, or does it call an n8n webhook directly?
+
+Ownership
+For each action type, which system is authoritative, CRM or n8n?
+Examples: send sms, send email, create invoice, create payment link, create google doc
+
+Dispatch pattern
+If CRM is the entrypoint, does the CRM push to n8n using an outbox table, or does it call n8n webhooks directly? Which endpoint paths?
+
+Approval and retries
+When a GPT action requests something critical, does the CRM create an assist queue item first, then call n8n only after approval, or does n8n create the assist queue item?
+
+Logging contract
+What is the single logging endpoint n8n must call after execution, and what payload is required?
+
+Security
+What token scheme is used for GPT to CRM calls, and what token scheme is used for CRM to n8n calls? Confirm we will not expose n8n webhooks publicly to GPT.
+
+Your intake sources, aligned with this model
+
+Lead intake sources you listed are correct and they should all end up in the CRM as the first stop:
+
+website widget lead
+
+contact us form lead
+
+AI receptionist call intake
+
+GPT system “create lead” action
+
+manual lead entry in CRM
+
+Then CRM decides if anything else needs n8n.
+
+If you want, paste what actions your GPT system is supposed to support, like “send email, create invoice, schedule tentative meeting, create doc,” and I will convert it into a locked “action routing matrix” that tells you, for each action, GPT sends to CRM, CRM handles or delegates to n8n, and what gets logged where.

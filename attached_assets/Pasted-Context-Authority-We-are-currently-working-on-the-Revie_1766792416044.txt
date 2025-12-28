@@ -1,0 +1,211 @@
+Context & Authority
+
+We are currently working on the Review Queue tab.
+This is NOT a planning exercise.
+This is a review + alignment + implementation confirmation for this tab only.
+
+You are to review, confirm understanding, and then implement exactly as defined.
+You may improve clarity or code quality, but you may not change system logic, authority flow, or governance rules.
+
+1️⃣ Purpose of the Review Queue (Non-Negotiable)
+
+The Review Queue is the Automated Governance Processing Layer.
+
+It exists only to surface AI-generated actions that require automated governance validation by the Master Architect AI.
+
+Humans do NOT approve here.
+Humans do NOT click actions here.
+Humans observe only.
+
+If a human needs to approve something, that happens before this layer (human-created actions) or after this layer (Ready Execution), depending on origin.
+
+2️⃣ What Appears in the Review Queue
+✅ Appears Here
+
+Only AI-generated proposals
+
+From AI Action CRM
+
+From Automation / n8n
+
+From System-initiated AI workflows
+
+❌ Does NOT Appear Here
+
+Human-created actions
+
+Operator-initiated estimates
+
+Operator-initiated payments
+
+Operator-initiated edits
+
+Any action already reviewed by a human
+
+If a human created it, it does not need AI governance review.
+
+3️⃣ Authority & Flow (Corrected and Final)
+AI-Originated Flow ONLY
+AI Action CRM
+   ↓
+Automation Ledger (event recorded)
+   ↓
+Review Queue
+   ↓
+Master Architect AI Validation
+   ↓
+Automation Ledger (decision recorded)
+   ↓
+Ready Execution (if approved)
+   ↓
+n8n / External Execution
+
+Human-Originated Flow (For Clarity)
+Human Action
+   ↓
+Automation Ledger (event recorded)
+   ↓
+(SKIPS Review Queue)
+   ↓
+Ready Execution or Immediate Execution
+
+
+This distinction is critical.
+
+4️⃣ What Actually Happens Inside Review Queue
+Input
+
+AI-generated proposals only
+
+Each proposal already exists as a Ledger Event
+
+Validation (Automated)
+
+The Master Architect AI evaluates:
+
+Logical correctness
+
+Schema integrity
+
+Policy compliance
+
+Execution safety
+
+Decision
+
+Approved → routed automatically to Ready Execution
+
+Rejected → returned to source with rejection reason
+
+No human interaction.
+
+5️⃣ Ledger Rules (Critical Clarification)
+
+Everything is logged to the Automation Ledger, but ownership is strict.
+
+Ledger Anchor (ONLY ONE)
+
+If a Company exists → ledger is anchored to the Company
+
+If no Company exists → ledger is anchored to the Contact
+
+There are NO sub-entities
+
+There is NO hierarchy
+
+There is NO re-anchoring
+
+Ledger Entries Created Here
+
+AI proposal received
+
+AI governance decision
+
+Approval / rejection outcome
+
+The Review Queue reads from and writes to the ledger.
+It does not mutate business data.
+
+6️⃣ UI Rules for Review Queue
+UI Characteristics
+
+Read-only
+
+No buttons that mutate state
+
+No approvals
+
+No rejects
+
+No edits
+
+UI Displays
+
+Proposal summary
+
+Origin (AI Action CRM / Automation)
+
+Target entity (Estimate, Payment, Job, etc.)
+
+Ledger trace / decision status
+
+Governance decision (Approved / Rejected)
+
+Timestamped audit trail
+
+7️⃣ Files You Will Touch (Exact)
+
+You will implement the following:
+
+client/src/pages/ReviewQueue.tsx
+→ New page, mockup-aligned, read-only
+
+client/src/App.tsx
+→ Add correct route for Review Queue
+
+client/src/components/AppSidebar.tsx
+→ Update sidebar link to point to Review Queue (NOT approval-hub)
+
+docs/tabs/review-queue.md
+→ Create/update README reflecting actual behavior, not assumptions
+
+8️⃣ What You Are NOT Allowed To Do
+
+Do NOT add human approval buttons
+
+Do NOT reuse Approval Hub logic
+
+Do NOT route human actions here
+
+Do NOT invent new governance steps
+
+Do NOT change ledger anchoring rules
+
+Do NOT auto-execute anything from this tab
+
+9️⃣ Your Required Response (Before Coding)
+
+Reply with:
+
+A concise confirmation of your understanding of:
+
+What appears in Review Queue
+
+What does NOT appear
+
+Human vs AI flow separation
+
+Any implementation questions strictly related to:
+
+Data shape
+
+Existing endpoints
+
+Missing mocks
+
+If there are no questions, explicitly state:
+
+“No blocking questions. Ready to implement Review Queue as defined.”
+
+This is the final authority for the Review Queue tab.
+Implement cleanly, keep architecture intact, update the README to match reality, and do not re-interpret governance.

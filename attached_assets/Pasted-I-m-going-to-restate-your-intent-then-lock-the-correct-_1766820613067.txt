@@ -1,0 +1,250 @@
+I’m going to restate your intent, then lock the correct architecture in plain language. If anything here is wrong, that’s the ONLY place to correct it.
+
+✅ YOUR ACTUAL INTENT (CORRECTED, CLEAN)
+1️⃣ THERE IS ONE GOOGLE WORKSPACE TAB — NOT TWO
+
+We are NOT creating a new page
+
+We are MODIFYING the existing Google Workspace tab
+
+No extra routes
+
+No extra mental models
+
+No extra budget burn
+
+✅ Single tab. Period.
+
+2️⃣ WHAT GETS REMOVED (YOU WERE CLEAR)
+
+Inside Google Workspace:
+
+❌ REMOVE
+
+Gmail tab
+
+Calendar tab
+
+Why:
+
+Gmail already exists in the Email tab
+
+Calendar already exists in the Calendar tab
+
+Duplicates = confusion + cost
+
+This is not debatable.
+
+3️⃣ WHAT STAYS + WHAT GETS ADDED (THIS IS THE CORE)
+✅ KEEP
+
+Sheets
+
+Docs
+
+➕ ADD
+
+Drive
+
+So the Google Workspace tab becomes:
+
+Google Workspace
+ ├─ Docs
+ ├─ Sheets
+ └─ Drive
+
+
+No Gmail
+No Calendar
+
+4️⃣ WHAT THIS TAB ACTUALLY IS (IMPORTANT)
+
+This tab is BOTH:
+
+🪞 A MIRROR (VISIBILITY)
+
+AND
+
+🛠️ AN ACTION CONSOLE (DRAFT → REVIEW → NEO-8)
+
+NOT mutually exclusive.
+
+This is where I fucked up earlier — I treated “mirror” as “read-only”.
+That is NOT what you mean.
+
+5️⃣ HOW ACTIONS WORK (LOCK THIS IN)
+🔹 Viewing / Editing
+
+Files are mirrored here (Docs, Sheets, Drive)
+
+Operator clicks a file
+
+File opens directly in Google
+
+Editing happens in Google itself
+
+CRM does NOT edit file contents
+
+✅ Clean
+✅ Cheap
+✅ No custom editor
+✅ No bullshit
+
+🔹 Actions / Updates
+
+Actions DO NOT happen by editing the mirror UI itself.
+
+Instead:
+
+ActionAI or Operator:
+
+drafts an action (create doc, update sheet, link drive folder, etc.)
+
+That draft:
+
+goes through assist_queue
+
+appears in Review Queue
+
+On approval:
+
+CRM triggers Neo-8
+
+Neo-8:
+
+executes Google action
+
+Callback:
+
+updates Ledger
+
+updates Workspace mirror metadata
+
+✅ Exactly your architecture
+✅ No direct execution
+✅ No duplication
+
+6️⃣ CHAT INTEGRATION (YOU WERE VERY CLEAR HERE)
+
+“the mirror, the things, the updates gets into the chat”
+
+Correct. That means:
+
+When a Doc / Sheet / Drive artifact is created or updated:
+
+A system message appears in the chat
+
+“📄 Doc created: Proposal v2”
+
+“📊 Sheet updated: Estimate Q3”
+
+Clicking that message:
+
+opens the Google file
+
+⚠️ Chat does NOT execute
+Chat is context + visibility, not action.
+
+7️⃣ WHO CAN DO WHAT (AUTHORITY)
+🧠 ActionAI
+
+Can draft Google Docs / Sheets / Drive actions
+
+Cannot execute
+
+Cannot bypass Review Queue
+
+👤 Operator
+
+Can:
+
+approve drafts
+
+click mirrored files
+
+edit directly in Google
+
+Cannot:
+
+bypass Neo-8
+
+execute directly from CRM
+
+🤖 Neo-8
+
+Executes ALL Google actions
+
+Returns status
+
+No UI
+
+8️⃣ WHAT THE DEV NEEDS TO DO (NO EXTRA WORK)
+FRONTEND
+
+Modify existing GoogleWorkspace.tsx
+
+Remove Gmail + Calendar tabs
+
+Keep Docs + Sheets
+
+Add Drive tab
+
+Each tab shows:
+
+linked artifacts
+
+status
+
+open-in-Google link
+
+No file editors
+
+No Gmail
+
+No Calendar
+
+BACKEND (MINIMAL)
+
+Reuse existing Google action plumbing
+
+Store:
+
+google_file_id
+
+type (doc/sheet/drive)
+
+linked job/client
+
+Populate on Neo-8 callbacks
+
+Expose read endpoint to Workspace tab
+
+⚠️ No new page
+⚠️ No second system
+⚠️ No rewrite
+
+9️⃣ WHY THIS SAVES YOU MONEY (IMPORTANT)
+
+No second Workspace page
+
+No custom editors
+
+No duplicate Gmail / Calendar logic
+
+No mock systems
+
+No over-engineering
+
+You’re leveraging:
+
+Google’s UI for editing
+
+Neo-8 for execution
+
+CRM for orchestration + visibility
+
+That’s exactly what you want.
+
+🔒 FINAL LOCK (ONE SENTENCE)
+
+Google Workspace stays one tab, removes Gmail & Calendar, keeps Docs & Sheets, adds Drive, acts as a mirrored visibility + draft-action surface that routes all execution through Neo-8 and surfaces updates in chat — no extra pages, no duplicate systems.

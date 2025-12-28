@@ -1,0 +1,183 @@
+You are taking over mid-stream. Nothing is being redesigned from scratch.
+
+We are finishing the last 2–3 tabs, then moving into Neo-8 backend wiring + API setup.
+
+We are still in TESTING PHASE.
+
+🧠 HIGH-LEVEL SYSTEM MODEL (QUICK SUMMARY)
+
+CRM NEVER executes external actions directly
+
+ALL outbound actions go through Neo-8 (n8n)
+
+CRM responsibilities:
+
+Draft
+
+Propose
+
+Queue for review
+
+Trigger Neo-8 on approval
+
+Receive callbacks
+
+Write to ledger
+
+Neo-8 responsibilities:
+
+Execute provider APIs (Gmail, WhatsApp, SMS, Sheets, Docs, etc.)
+
+Handle retries, failures, webhooks
+
+🤖 AI MODEL — HOW IT WORKS (IMPORTANT)
+
+There are TWO AI MODES:
+
+1️⃣ Information AI Chat
+
+Read-only
+
+Natural conversation
+
+Can answer questions like:
+
+“How many contacts do we have?”
+
+“What’s Joe’s phone number?”
+
+NO ledger writes
+
+NO actions
+
+NO proposals
+
+Uses Riplet APIs (from Riplet infrastructure) to read CRM data
+
+This is already mostly working
+
+2️⃣ ActionAI (CRM)
+
+Drafts actions only
+
+Creates entries in assist_queue
+
+NOTHING executes automatically
+
+Requires human approval
+
+On approval → CRM triggers Neo-8
+
+Ledger records:
+
+AI_PROPOSAL_CREATED
+
+QUEUED
+
+APPROVED / REJECTED
+
+EXECUTED / FAILED (from Neo-8 callback)
+
+You can read the README for full details — this is just the working mental model.
+
+🧩 CURRENT STATUS — WHERE WE LEFT OFF
+✅ DONE / MOSTLY DONE
+
+Information AI Chat logic
+
+ActionAI proposal flow
+
+Review Queue (needs Neo-8 trigger fix, not direct execution)
+
+Ledger model defined
+
+Email tab architecture aligned
+
+WhatsApp/SMS model defined (UI + backend wiring only, no live sends)
+
+🧱 TABS LEFT TO FINISH (IMPORTANT)
+1️⃣ Marketplace Tab
+
+UI already good
+
+DO NOT redesign
+
+ONLY fix logos
+
+Remove grayscale / muted styles
+
+Show logos in original brand colors
+
+Review Marketplace README
+
+Confirm integrations align with README
+
+No direct execution, Neo-8 only
+
+2️⃣ Google Workspace Tab
+
+Keep the tab
+
+REMOVE:
+
+Gmail
+
+Calendar (already have dedicated tabs)
+
+KEEP / ADD:
+
+Sheets
+
+Docs
+
+Drive
+
+Purpose:
+
+Visibility + context
+
+Actions are still draft → review → Neo-8
+
+Operator can click links to open Google directly
+
+This is NOT read-only, but NO direct provider execution
+
+3️⃣ Any Remaining Minor UI Fixes
+
+Theme consistency
+
+No dark-on-light or light-on-dark mistakes
+
+Follow existing theme tokens
+
+🔌 NEXT PHASE (AFTER UI TABS)
+
+Once the remaining tabs are complete, we move to:
+
+Neo-8 backend trigger endpoints
+
+API contracts
+
+Callback handling
+
+End-to-end test mode (no live providers)
+
+Ledger verification
+
+🧪 TESTING MODE CLARITY
+
+We are using Riplet APIs from their infrastructure
+
+This is test data
+
+System should behave as if live, but nothing actually sends
+
+❗ IMPORTANT RULES
+
+Do NOT invent behavior
+
+Do NOT bypass Neo-8
+
+Do NOT execute actions directly
+
+Ask questions if unclear before changing architecture

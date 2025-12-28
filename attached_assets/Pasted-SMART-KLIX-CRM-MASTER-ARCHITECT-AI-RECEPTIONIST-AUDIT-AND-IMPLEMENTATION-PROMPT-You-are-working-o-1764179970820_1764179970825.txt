@@ -1,0 +1,400 @@
+SMART KLIX CRM
+MASTER ARCHITECT + AI RECEPTIONIST AUDIT AND IMPLEMENTATION PROMPT
+
+You are working on Smart Klix CRM.
+
+This phase is NOT about n8n flow building.
+This phase is ONLY about the CRM side: UI, backend, AI agent architecture, and clean integration points that will later connect to n8n.
+
+Your role in this phase
+You are a senior SaaS engineer and auditor. Your job right now is:
+
+Re audit the current system against the last SUPER AUDIT REPORT Christian gave you
+
+Fix remaining gaps that are still real problems today
+
+Design and implement the AI Receptionist layer, with its own page and logic
+
+Make sure everything routes correctly back through the Master Architect in a clean, logical way
+
+Prepare the right hooks for n8n later, but do not depend on n8n being online yet
+
+If something is already fixed and working, you do not need to re explain it. Just verify it. If it is still broken, you fix it or call it out clearly.
+
+1. Re audit what exists, based on the last SUPER AUDIT REPORT
+
+Use the last SUPER AUDIT REPORT that Christian provided to you as your checklist. Treat that as the baseline.
+
+For this pass, you must:
+
+Go through every Critical failure and Major missing component that is still relevant
+
+For each item, mark it mentally as
+
+Done and verified
+
+Partially implemented
+
+Not implemented
+
+For partially implemented and not implemented, either
+
+Implement it now, or
+
+Leave it clearly identified with a short plain language comment in code or docs
+
+Focus your re audit on these areas in particular, because they affect this phase:
+
+Master Architect configuration and control
+
+ActionGPT config and ChatGPT Actions readiness
+
+Conversation persistence and history handling
+
+Tool execution validation and safety
+
+Basic request validation and rate limiting on AI endpoints
+
+Any remaining fake or disabled UI related to AI
+
+Do not re write big parts of the app. Tighten what is missing so the AI side is stable and ready.
+
+2. Master Architect: verify and strengthen core behavior
+
+The Master Architect is the top brain. Everything must flow through him for AI decisions.
+
+In this phase:
+
+Confirm the three modes work exactly as intended
+
+Draft: suggest only, no tools
+
+Assist: queue actions for approval
+
+Auto: run allowed tools directly, still respecting safety rules
+
+Confirm that
+
+All tools the CRM Agent and ActionGPT might need are exposed to the Master Architect
+
+There is clear logging and audit for each tool execution
+
+Errors from tools are handled gracefully, no crashes or silent failures
+
+Check that the Master Architect can receive
+
+The user message
+
+Structured context for contact, job, and any other relevant entity
+
+The current mode
+
+A conversation id, so we can tie messages together
+
+Make sure you are not relying only on raw string concatenation for context.
+If you can improve this with a small structured context object, do it now in a minimal, practical way, without over engineering.
+
+Do not remove or hide the Master Architect. He is the central hub. Everything that matters eventually reports back to him.
+
+3. AI Receptionist: design and implement the CRM side
+
+We need a dedicated AI Receptionist feature inside the CRM. This is for phone and voicemail logic, not sales calls.
+
+High level behavior we want
+The AI Receptionist is basically:
+
+A smart front desk that
+
+Answers when no live agent picks up
+
+Handles basic FAQ style questions about the business
+
+Handles basic follow ups and appointment confirmations
+
+Never does long sales conversations
+
+Stays in a receptionist lane only
+
+A system that can be overruled or taken over by a human agent at any time
+
+A source of structured data back into the CRM
+
+Who called
+
+Why they called
+
+What was decided
+
+What follow up needs to happen next
+
+Important
+We are not wiring real telephony or real n8n flows in this phase.
+You are building the CRM side, the logic, the data, and the UI.
+
+3.1 AI Receptionist page in the CRM
+
+Create a dedicated AI Receptionist page in the CRM navigation.
+Name can be something like “AI Receptionist” or “Phone Receptionist”.
+
+This page should, at minimum, support:
+
+Overview section
+
+High level stats like
+
+Calls handled by AI today
+
+Calls routed to live agent
+
+Voicemails captured
+
+These can start simple, but the layout must expect real numbers in the future.
+
+Recent interactions list
+
+Table or list of recent receptionist events, for example
+
+Time
+
+Caller id or contact
+
+Type (missed call, after hours call, follow up call, etc)
+
+Outcome (message taken, appointment proposed, info provided, escalated to live agent)
+
+Status (pending review, completed, follow up required)
+
+Interaction detail view
+
+When you click into a row, you should see
+
+Caller/contact details
+
+Transcript or summary of the AI conversation
+
+Detected intent (for example schedule, reschedule, cancel, question, bad lead, spam)
+
+Any proposed actions
+
+Create contact
+
+Create job or opportunity
+
+Schedule or confirm an appointment
+
+Add note
+
+Whether the Master Architect approved or not
+
+Final result after approval
+
+Manual override controls
+
+From that detail view, a staff user should be able to
+
+Approve or reject the AI’s proposed actions if they are still pending
+
+Trigger a manual follow up like
+
+Create a job
+
+Schedule an appointment
+
+Mark as spam or ignore
+
+This page is mostly UI plus backend endpoints. Hook it up to real tables so that later, when n8n sends events, they land here cleanly.
+
+3.2 Data model and backend for AI Receptionist
+
+You must model AI receptionist events in the database.
+
+Create or extend tables so that we can store, at minimum:
+
+call_id or event_id
+
+contact_id if known or matched
+
+phone number
+
+call type (missed, after hours, follow up, voicemail)
+
+source (inbound, outbound follow up, auto reminder)
+
+raw transcript or summary text
+
+structured intent and slots for example
+
+intent_type
+
+requested_time_window
+
+service_category
+
+suggested_actions (JSON)
+
+approval_status (pending, approved, rejected, auto_approved)
+
+final_status (completed, needs_follow_up, escalated, ignored)
+
+links to any created entities
+
+created_contact_id
+
+created_job_id
+
+created_appointment_id
+
+Then build backend endpoints that let the UI:
+
+List receptionist events
+
+Filter by status and date
+
+Fetch detail for one event
+
+Approve or reject suggested actions
+
+Mark an event as handled
+
+Do not design this only for one use case.
+Design it so we can receive events later from n8n, and also from the AI chat inside the CRM if needed.
+
+4. Routing logic to the Master Architect
+
+The AI Receptionist does not bypass the Master Architect.
+The conversation and proposed actions still go through him.
+
+In this phase, you must:
+
+Define clearly how AI Receptionist talks to the Master Architect
+
+For example, a simple clean pattern could be:
+
+n8n or a future telephony bridge calls a CRM internal endpoint like
+
+POST /api/ai/receptionist/event
+
+The CRM builds a structured payload containing
+
+call metadata
+
+partial transcript or recognized phrases
+
+current contact or match candidates
+
+The CRM calls the Master Architect with
+
+mode set correctly (Draft or Assist at first, not Auto)
+
+a clear initial prompt like “You are the AI Receptionist for Smart Klix”
+
+the structured call context
+
+The Master Architect returns
+
+a summary of the call
+
+a concrete, structured list of proposed actions
+
+You do not have to wire n8n yet. Just define and implement the CRM side endpoints and Master Architect calls in a way that will be easy to plug into n8n later.
+
+Respect the approval levels
+
+Remember the current system:
+
+One check mark when an agent completes a task
+
+Two check marks when the Master Architect approves it
+
+In this phase you do not need to change that logic.
+You just need to make sure AI Receptionist proposals plug into it cleanly.
+
+Example behavior we want:
+
+AI Receptionist proposes
+
+“Create contact for this number and add note ‘Called to confirm appointment’”
+
+That becomes an assist queue item or similar record
+
+Master Architect approves or a human approves
+
+Then the actual contact and note are created
+
+Make sure CRM UI reflects the approvals
+
+On the AI Receptionist page and on the relevant contact/job pages, show:
+
+Which actions came from AI Receptionist
+
+Whether they were approved or rejected
+
+Who approved them (Master Architect logic or human)
+
+5. CRM chat and CRM Agent abilities
+
+Right now the CRM chat could not even create a lead. We want that fixed.
+
+In this phase make sure:
+
+The CRM chat in the app can, through the Master Architect, perform the same safe actions that the ChatGPT Action integration can do later, such as:
+
+Create contact
+
+Create lead or job
+
+Add note to contact or job
+
+Propose an appointment time
+
+Prepare a follow up task
+
+All still respecting the Draft, Assist, Auto modes and the approval system.
+
+When the CRM chat tries to do something it is not allowed to do yet, it should respond clearly to the user, not fake it or silently fail.
+
+6. n8n preparation, not implementation
+
+Do not implement real n8n flows in this phase.
+
+Just do this:
+
+Make sure there are clean CRM internal endpoints that n8n can call later for
+
+AI Receptionist call events
+
+Status updates on calls or follow ups
+
+Outbound call triggers that were approved
+
+Make sure those endpoints
+
+Validate input
+
+Authenticate using the internal token scheme we already have
+
+Log events properly
+
+We will hand a separate prompt to the n8n builder later with the exact list of endpoints and payloads.
+
+7. Deliverables for this phase
+
+When you are done with this phase, we should have:
+
+A working AI Receptionist page in the CRM that shows events, summaries, and approvals
+
+A real data model and backend endpoints for AI Receptionist events
+
+Clean routing from AI Receptionist into the Master Architect with proper modes and approvals
+
+CRM chat that can actually execute basic actions through the Master Architect
+
+Clear internal endpoints that n8n can call later for call events and updates
+
+Any still missing critical items from the last SUPER AUDIT REPORT either fixed or clearly listed
+
+Do not hide the Master Architect.
+Do not reduce his role.
+Everything important must still flow back to him.
+
+If you hit a point where two approaches are equally valid, choose the one that keeps the architecture cleaner and easier to extend later.

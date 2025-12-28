@@ -1,0 +1,58 @@
+We are now in INTERNAL SMOKE TEST phase for Smart Klix CRM.
+
+Scope right now is ONLY internal actions. Anything that depends on n8n or Twilio can stay stubbed. I need all internal AI flows to actually work end to end.
+
+1) Internal flows that MUST work WITHOUT n8n:
+- CRM Agent Chat → create_contact
+- CRM Agent Chat → update_contact
+- CRM Agent Chat → create_job
+- CRM Agent Chat → update_job_status
+- CRM Agent Chat → add_note
+- CRM Agent Chat → create_estimate (basic)
+- CRM Agent Chat → create_invoice (basic)
+
+If I ask the CRM chat to do any of the above and it says it did it, the database and UI must prove it:
+- Record exists in DB
+- It shows up in the right table list
+- It is visible in the related contact or job detail page
+- The action is logged in the audit log
+
+If any step fails, find root cause and fix it:
+- wiring from CRM Chat to Master Architect
+- Master Architect tool calling pipeline
+- actual tool implementation
+- UI not refreshing or not reading the right endpoint
+
+2) Separate internal tools from n8n tools:
+Internal tools must work with n8n completely OFF:
+- create_contact
+- update_contact
+- create_job
+- update_job_status
+- add_note
+- internal-only estimate and invoice creation
+
+Tools that can stay pending until n8n is connected:
+- send_sms
+- send_email (if routed through n8n)
+- trigger_voice_call
+- AI receptionist behaviors that need live telephony
+
+For n8n we only need basic readiness for now:
+- endpoints ready
+- webhook signature verification wired
+- no crashes if n8n is down
+
+3) Deliverables for this phase:
+- List of all internal actions you smoke tested
+- For each one: pass or fail and what you fixed
+- Confirm that CRM Agent Chat uses Master Architect for these tools and never bypasses it
+- Confirm that no internal tool depends on n8n to complete
+
+4) As always:
+- Clean TypeScript code
+- No dead or unused code
+- Clear naming and folder structure
+- Add or update docs so I know where the chat pipeline is wired, where tools live, and how to add new tools later
+
+Let me know when internal smoke tests are passing and what is still blocked, if anything, by n8n.

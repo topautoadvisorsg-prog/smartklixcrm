@@ -1,0 +1,184 @@
+ere is your revised, actionable document with all corrections applied, following your strict format and addressing every contradiction and risk your assistant highlighted.
+
+Global Credential Status
+Credential	Where Configured in Neo8 (n8n)	Workflows Dependent	How to Test Independently	Status
+Twilio	Credentials > Twilio API	CRM Outreach, WhatsApp Outbound, AI Receptionist, Call End, WhatsApp Inbound	Use a test SMS node to send to a test number	❌ Not set
+SendGrid	Credentials > SendGrid API	CRM Outreach	Use a test SendGrid node to send to a test email	❌ Not set
+Google (Gmail)	Credentials > Gmail OAuth2	Gmail Integration	Use "Send Email (Gmail)" node with test account	❌ Not set
+Google (Calendar)	Credentials > Google Calendar OAuth2	Calendar Integration	Use "Create Event (Calendar)" node with test calendar	❌ Not set
+Google (Docs)	Credentials > Google Docs OAuth2	Docs Integration	Use "Create Doc" node with test folder	❌ Not set
+Google (Sheets)	Credentials > Google Sheets OAuth2	Sheets Integration	Use "Append Row (Sheets)" node with test sheet	❌ Not set
+Stripe	Credentials > Stripe API	Payment Request, Payment Event	Use "Create Payable Object" node with test Stripe account	❌ Not set
+Redis	Credentials > Redis	AI Receptionist, Call End, Quality Review	Use "Store Conversation Turn" node to set/get a test key	❌ Not set
+OpenAI	Credentials > OpenAI API	CRM Outreach, AI Receptionist, Call End	Use "Generate Message Content (AI)" node with test prompt	❌ Not set
+CRM Auth Contract (MUST CONFIRM WITH CRM DEVELOPER BEFORE MARKING ANY HTTP NODE AS READY)
+Header Name: (To be confirmed, e.g., Authorization)
+Header Value Format: (To be confirmed, e.g., Bearer <token>)
+Applies To: (To be confirmed: all endpoints or specific endpoints)
+Token Scope: (To be confirmed: global/shared or tenant-specific)
+Action:
+Request explicit confirmation from CRM developer for:
+
+The exact header name and value format required for all CRM endpoints Neo8 calls.
+Whether the same token is used for all tenants or if tokens are tenant-scoped.
+Sub Workflow Full Breakdown
+1️⃣ CRM Outreach Workflow
+1. Workflow Name & Purpose
+Name: CRM Outreach Workflow
+Purpose: Sends outreach messages (SMS, Email, Invite) to contacts, triggered by CRM action (button click or stage change).
+Trigger: CRM intent-based action, includes defined payload contract.
+Success: Message sent via correct channel, activity logged to CRM.
+2. Node-by-Node Configuration Checklist
+Node Name	Node Type	Required Config (Credentials, Fields)	Inputs	Outputs	Status
+CRM Action Trigger	Webhook	Path, method	Webhook	Body	✅ Ready
+Outreach Config	Set	CRM API base URL, Auth Token, Twilio From	Webhook	Config	✅ Ready
+Fetch Contact from CRM	HTTP Request	URL, Auth header (confirm contract)	Config, Webhook	Contact	⚠️ Pending CRM auth contract
+Generate Message Content (AI)	OpenAI	OpenAI API Key, Model	Contact, Webhook	Message	❌ Missing OpenAI credentials
+Route by Action Type	Switch	Rules for actionType	Message	Route	✅ Ready
+Send SMS (Twilio)	Twilio	Twilio credentials, from/to/message	Message	Result	❌ Missing Twilio credentials
+Send Email (SendGrid)	SendGrid	SendGrid credentials, from/to/subject/content	Message	Result	❌ Missing SendGrid credentials
+Send Invite (Email)	SendGrid	SendGrid credentials, from/to/subject/content	Message	Result	❌ Missing SendGrid credentials
+Combine All Outreach Results	Merge	None	Results	Merged	✅ Ready
+Log Activity to CRM	HTTP Request	CRM API URL, Auth header (confirm contract), body	Merged	Log	⚠️ Pending CRM auth contract
+3. Required Payload Mapping
+From CRM: { contactId, actionType, actionId (or queueItemId/taskId/assistQueueId), triggeredBy }
+Transformations: Fetches contact details, generates message via AI, routes by actionType.
+Hardcoded Values: fromEmail, fromName in SendGrid nodes should be dynamic if possible.
+4. External Side Effects
+Actions: Sends SMS (Twilio), Email (SendGrid), or Invite (SendGrid).
+Success/Failure: Determined by Twilio/SendGrid node response.
+Returned Data: Message SID (Twilio), Email ID (SendGrid), error if failed.
+5. CRM Callback / Logging
+Endpoint: /api/activity-log/write (CRM base URL)
+Payload: { entityType: 'contact', entityId: contactId, action: 'outreach_sent', actionId, details: { channel, message, triggered_by, timestamp } }
+Idempotency: Use actionId (or queueItemId/taskId/assistQueueId) from CRM payload.
+2️⃣ AI Receptionist Call Flow
+1. Workflow Name & Purpose
+Name: AI Receptionist Call Flow
+Purpose: Handles live phone calls, extracts speech, generates AI response, stores conversation.
+Trigger: Webhook (Inbound Call (Per-Segment))
+Success: AI responds to caller, conversation stored in Redis.
+2. Node-by-Node Configuration Checklist
+Node Name	Node Type	Required Config (Credentials, Fields)	Inputs	Outputs	Status
+Inbound Call (Per-Segment)	Webhook	Path, method	Webhook	Query	✅ Ready
+AI Receptionist Config	Set	CallSid, From, To	Query	Config	✅ Ready
+Extract Caller Speech (Twilio STT)	Code	JS code to extract SpeechResult	Config	Speech	✅ Ready
+Retrieve Full Conversation	Redis	Redis credentials, key	Speech	History	❌ Missing Redis credentials
+Build Conversation Context	Code	JS code to build context	History	Context	✅ Ready
+Generate AI Response	OpenAI	OpenAI API Key, Model	Context	Message	❌ Missing OpenAI credentials
+Append AI Response to History	Code	JS code to append AI response	Message	Updated	✅ Ready
+Store Conversation Turn	Redis	Redis credentials, key	Updated	Stored	❌ Missing Redis credentials
+Build TwiML Response (Twilio TTS)	Code	JS code to build TwiML	Updated	TwiML	✅ Ready
+Return TwiML to Twilio	RespondToWebhook	None	TwiML	HTTP 200	✅ Ready
+3. Required Payload Mapping
+From Twilio: SpeechResult, CallSid, From, To
+Transformations: Build/append conversation, format for AI, generate TwiML.
+Hardcoded Values: None; all dynamic.
+4. External Side Effects
+Actions: Responds to Twilio with TwiML (AI-generated).
+Success/Failure: Twilio receives valid TwiML.
+Returned Data: TwiML XML.
+5. CRM Callback / Logging
+Endpoint: None in this phase (logging occurs at call end).
+Payload: N/A
+Idempotency: N/A
+3️⃣ Call End Processing
+1. Workflow Name & Purpose
+Name: Call End Processing
+Purpose: On call end, merges conversation, extracts lead data, logs to CRM, writes lead intake directly to CRM.
+Trigger: Webhook (Call Ended (StatusCallback))
+Success: Lead data extracted, logged, and written to CRM intake endpoint.
+2. Node-by-Node Configuration Checklist
+Node Name	Node Type	Required Config (Credentials, Fields)	Inputs	Outputs	Status
+Call Ended (StatusCallback)	Webhook	Path, method	Webhook	Query	✅ Ready
+Retrieve Full Conversation (Call End)	Redis	Redis credentials, key	Query	History	❌ Missing Redis credentials
+Merge Conversation with Call Metadata	Code	JS code to merge	History	Merged	✅ Ready
+Extract Lead Data from Transcript	OpenAI	OpenAI API Key, Model	Merged	Lead	❌ Missing OpenAI credentials
+Prepare Lead Data for Intake	Code	JS code to format lead	Lead	LeadObj	✅ Ready
+Log Call Summary to CRM	HTTP Request	CRM API URL, Auth header (confirm contract), body	LeadObj	Log	⚠️ Pending CRM auth contract
+Write Lead to CRM Intake Endpoint	HTTP Request	CRM API base URL + /api/leads/intake, Auth header (confirm contract), body	LeadObj	Result	⚠️ Pending CRM auth contract
+3. Required Payload Mapping
+From Twilio/Redis: CallSid, From, To, conversationHistory
+Transformations: AI extracts lead fields, code formats for intake.
+Hardcoded Values: source: 'ai-receptionist' (can be dynamic if needed).
+4. External Side Effects
+Actions: Logs call summary to CRM, writes lead to /api/leads/intake on CRM.
+Success/Failure: HTTP 200 from CRM endpoints.
+Returned Data: Log/lead intake response.
+5. CRM Callback / Logging
+Endpoint: /api/activity-log/write (CRM), /api/leads/intake (CRM base URL)
+Payload: Lead data, call summary, transcript.
+Idempotency: CallSid as unique identifier.
+4️⃣ Payment Request Flow
+1. Workflow Name & Purpose
+Name: Payment Request Flow
+Purpose: Creates Stripe payment link, stores IDs in CRM, notifies customer.
+Trigger: CRM action, includes defined payload contract.
+Success: Payment link sent, CRM updated.
+2. Node-by-Node Configuration Checklist
+Node Name	Node Type	Required Config (Credentials, Fields)	Inputs	Outputs	Status
+CRM Action: Send Payment	Webhook	Path, method	Webhook	Body	✅ Ready
+Payment Workflow Config	Set	CRM/Stripe base URLs, Auth Token	Webhook	Config	✅ Ready
+Fetch Contact from CRM1	HTTP Request	URL, Auth header (confirm contract)	Config, Webhook	Contact	⚠️ Pending CRM auth contract
+Resolve or Create Stripe Customer	Stripe	Stripe credentials, customerId	Contact	Customer	❌ Missing Stripe credentials
+Create Payable Object	Stripe	Stripe credentials, amount, customerId	Customer	Charge	❌ Missing Stripe credentials
+Attach Metadata	Code	JS code to attach metadata	Charge	Result	✅ Ready
+Store Stripe IDs in CRM	HTTP Request	CRM API URL, Auth header (confirm contract), body	Result	Log	⚠️ Pending CRM auth contract
+Send Payment Link to Customer	HTTP Request	CRM API URL, Auth header (confirm contract), body	Result	Notify	⚠️ Pending CRM auth contract
+3. Required Payload Mapping
+From CRM: { contactId, amount, description, channel, actionId (or queueItemId) }
+Transformations: Attach Stripe IDs, format notification.
+Hardcoded Values: currency: 'usd' (can be dynamic if needed).
+4. External Side Effects
+Actions: Creates Stripe charge, updates CRM, notifies customer.
+Success/Failure: Stripe/CRM API responses.
+Returned Data: Payment link, Stripe IDs.
+5. CRM Callback / Logging
+Endpoint: /api/contacts/{contactId}, /api/notifications/send
+Payload: Stripe IDs, payment link.
+Idempotency: actionId or queueItemId from CRM payload.
+5️⃣ Payment Event Processing
+1. Workflow Name & Purpose
+Name: Payment Event Processing
+Purpose: Handles payment event payloads from CRM (shaped like Stripe events), logs to CRM, queues failed/refunded for review.
+Trigger: Webhook (CRM Payment Event Webhook)
+Success: Events logged, issues queued for review.
+2. Node-by-Node Configuration Checklist
+Node Name	Node Type	Required Config (Credentials, Fields)	Inputs	Outputs	Status
+CRM Payment Event Webhook	Webhook	Path, method	Webhook	Body	✅ Ready
+Payment Event Config	Set	CRM API base URL, Auth Token	Webhook	Config	✅ Ready
+Route by Payment Event Type	Switch	Rules for event_type	Body	Route	✅ Ready
+Log Payment Completed	HTTP Request	CRM API URL, Auth header (confirm contract), body	Body	Log	⚠️ Pending CRM auth contract
+Log Payment Failed	HTTP Request	CRM API URL, Auth header (confirm contract), body	Body	Log	⚠️ Pending CRM auth contract
+Log Payment Refunded	HTTP Request	CRM API URL, Auth header (confirm contract), body	Body	Log	⚠️ Pending CRM auth contract
+Combine All Payment Logs	Merge	None	Logs	Merged	✅ Ready
+Check If Requires Human Review	If	event_type == failed/refunded	Merged	Route	✅ Ready
+Queue for Human Review	HTTP Request	CRM API URL, Auth header (confirm contract), body	Route	Log	⚠️ Pending CRM auth contract
+3. Required Payload Mapping
+From CRM: Payment event payload shaped like Stripe events: { event_type, id, payment_intent, charge }
+Transformations: Route by event_type, attach details.
+Hardcoded Values: reviewType: 'payment_issue' (can be dynamic).
+4. External Side Effects
+Actions: Logs to CRM, queues for review if needed.
+Success/Failure: CRM API response.
+Returned Data: Log/queue response.
+5. CRM Callback / Logging
+Endpoint: /api/activity-log/write, /api/human-review/queue
+Payload: Event details, review info.
+Idempotency: paymentId or event_id.
+Two CRM Developer Questions to Unblock Wiring
+For every CRM endpoint Neo8 calls, what exact auth header is required?
+
+Header name and full format (e.g., Authorization: Bearer <token>)
+Is it tenant scoped or global/shared?
+What stable unique id will be included on every dispatched action payload?
+
+(e.g., actionId, taskId, queueItemId, or assistQueueId)
+This is required for idempotency and de-duplication.
+Do not mark any HTTP Request node to CRM as “✅ Ready” until the above two questions are answered and implemented.
+Do not use any n8n webhook as a CRM intake endpoint. All lead intake must POST directly to /api/leads/intake on the CRM.
+Update all payloads and idempotency logic to use the CRM-provided unique action id.
+
+If you need further breakdowns or have new answers from the CRM developer, update this document accordingly before proceeding.
+
+Did this answer solve your question?

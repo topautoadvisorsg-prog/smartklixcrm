@@ -1,0 +1,68 @@
+Test Webhook Events (FINAL payloads)
+Provide the exact JSON payloads for:
+• send_sms
+• send_email
+• create_payment_link
+• new_lead
+• job_updated (if used)
+• missed_call
+• call_completed
+
+Even though you wrote the spec files, Neo8 needs the final payloads you personally confirm, so he knows 100% they match the live CRM code.
+
+Confirm All Required Fields
+For each event payload:
+• Which fields are required
+• Which fields are optional
+• Which fields are auto-generated in CRM
+• Which fields must always be included (even if empty)
+
+Confirm All Response Shapes (CRM → N8N)
+Neo8 needs confirmation of:
+• The exact JSON shape CRM responds with on success
+• The exact JSON shape CRM responds with on error
+• The exact JSON shape for /api/events/update callback expectations
+• Whether the "success" flag is always included
+
+Contact Upsert Rules (Final Confirmation)
+Neo8 needs you to explicitly reaffirm:
+• POST /api/contacts/create is the ONLY upsert endpoint
+• It matches by phone only
+• Name/email are optional
+• Missing fields remain null
+• Empty strings should NOT be passed in
+Just reconfirm it so Neo8 doesn't have to infer anything.
+
+Voice Call Mapping Confirmation
+Neo8 needs confirmation of:
+• Whether every voice call ALWAYS creates a lead
+• Whether job_type should ever be used
+• Whether transcript or summary should be prioritized
+• The exact rules for missed call SMS triggers
+
+Callback Rules (FINAL)
+He needs confirmation of:
+• required eventId and eventType
+• allowed status values (success|error)
+• fields inside "result"
+• whether CRM ignores unknown fields
+• whether CRM logs EVERY callback regardless of content
+
+Known Issue Confirmation
+Confirm the known caveat:
+• GET /api/contacts/lookup always returns 404
+• Neo8 should NOT use it
+• POST /api/contacts/create should be used for everything
+He just needs you to sign off on this officially.
+
+Verification That All Spec Docs Match LIVE CODE
+Neo8 needs you to confirm in writing:
+“All four documentation files match the live CRM implementation exactly and can be used as authoritative reference.”
+
+Optional (If Available): Example Successful Responses
+If you have real examples of:
+• successful lead creation
+• successful job creation
+• successful activity log creation
+• successful event callback
+Send them so Neo8 can match his workflow outputs.

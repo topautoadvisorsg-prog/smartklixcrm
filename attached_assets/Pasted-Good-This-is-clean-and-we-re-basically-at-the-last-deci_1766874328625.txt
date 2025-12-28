@@ -1,0 +1,143 @@
+Good. This is clean, and we’re basically at the last decision point before execution. I’ll be very explicit so there’s zero back-and-forth.
+
+✅ SHORT ANSWERS (LOCK THESE IN)
+1️⃣ Schema mapping
+
+YES — the current CRM schema is acceptable.
+NO — do NOT change the CRM to match Neo8.
+
+We will adapt Neo8 → CRM, not the other way around.
+
+The mapping is straightforward and correct:
+
+Neo8 / n8n concept	CRM expects
+fileId	googleFileId
+fileName	name
+fileLink	url
+entityType	inferred
+entityId	jobId or contactId
+mime / drive type	type
+
+Neo8 already knows:
+
+whether it’s a Doc / Sheet / Drive file
+
+which entity it belongs to
+
+So no schema change needed on CRM.
+This is the correct call.
+
+🔒 Decision locked: keep CRM schema as-is.
+
+2️⃣ Auth model
+
+YES — use x-internal-token + x-n8n-signature.
+Do NOT use Authorization: Bearer.
+
+This aligns perfectly with:
+
+your internal service auth pattern
+
+existing Neo8 ↔ CRM calls
+
+audit + verification requirements
+
+Neo8 HTTP node will send:
+
+x-internal-token: <INTERNAL_API_TOKEN>
+x-n8n-signature: <computed signature>
+Content-Type: application/json
+
+
+CRM already supports this. No changes needed.
+
+3️⃣ Token generation
+
+YES — generate the INTERNAL_API_TOKEN and set it up.
+
+This is required to proceed.
+
+It must:
+
+be the same value in CRM secrets
+
+and Neo8 / n8n credentials
+
+There is no downside to generating it now, and it unblocks everything.
+
+🔒 Decision locked: generate token and configure both sides.
+
+🧠 FINAL REQUEST BODY (FOR NEO8 → CRM)
+
+This is what the Link File to CRM Entity node should send:
+
+{
+  "googleFileId": "{{ $json.id }}",
+  "name": "{{ $json.name }}",
+  "type": "drive",
+  "url": "{{ $json.webViewLink }}",
+  "contactId": "{{ $('Google Drive Upload Config').item.json.contactId }}",
+  "jobId": "{{ $('Google Drive Upload Config').item.json.jobId }}",
+  "lastModifiedBy": "{{ $json.lastModifyingUser.displayName }}",
+  "lastModifiedTime": "{{ $json.modifiedTime }}"
+}
+
+
+Notes:
+
+type can be:
+
+doc (Google Doc)
+
+sheet (Google Sheet)
+
+drive (generic file)
+
+Only one of contactId or jobId should be present.
+
+CRM infers entity type correctly. No ambiguity.
+
+🟢 WHAT HAPPENS AFTER THIS (NO DECISIONS LEFT)
+
+Once the token is generated and set:
+
+Neo8 configures:
+
+Google Drive OAuth
+
+Webhook paths
+
+Header auth
+
+CRM calls:
+
+/google-drive/create-folder
+
+/google-drive/upload-file
+
+Neo8 uploads file
+
+Neo8 calls:
+
+POST /api/workspace/files/link
+
+CRM:
+
+upserts record
+
+writes audit log
+
+Ledger remains source of execution truth
+(no need to attach file directly to ledger — correct)
+
+🧱 FINAL STATUS CHECK
+Item	Status
+Architecture	✅ LOCKED
+CRM endpoint	✅ BUILT
+Schema	✅ ACCEPTED
+Auth model	✅ CONFIRMED
+Neo8 workflows	✅ STRUCTURALLY READY
+Blocking item	🔴 TOKEN NOT SET
+✅ NEXT ACTION (ONE LINE)
+
+👉 Generate the INTERNAL_API_TOKEN and set it in CRM + Neo8 secrets.

@@ -1,0 +1,259 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { InsertJob, Contact } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Form schema using correct database field names
+const jobFormSchema = z.object({
+  clientId: z.string().min(1, "Contact is required"),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional().or(z.literal("")),
+  status: z.string().default("lead_intake"),
+  value: z.string().optional().or(z.literal("")),
+  jobType: z.string().default("lead"),
+});
+
+type JobFormData = z.infer<typeof jobFormSchema>;
+
+interface CreateJobDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  preselectedContactId?: string;
+}
+
+export default function CreateJobDialog({
+  open,
+  onOpenChange,
+  preselectedContactId,
+}: CreateJobDialogProps) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: contacts } = useQuery<Contact[]>({
+    queryKey: ["/api/contacts"],
+    enabled: open,
+  });
+
+  const form = useForm<JobFormData>({
+    resolver: zodResolver(jobFormSchema),
+    defaultValues: {
+      clientId: preselectedContactId || "",
+      title: "",
+      description: "",
+      status: "lead_intake",
+      value: "",
+      jobType: "lead",
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: JobFormData) => {
+      // Convert form data to match InsertJob type
+      const payload: InsertJob = {
+        clientId: data.clientId || null,
+        title: data.title,
+        description: data.description || null,
+        status: data.status,
+        value: data.value || null,
+        jobType: data.jobType,
+      };
+      const res = await apiRequest("POST", "/api/jobs", payload);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      toast({
+        title: "Success",
+        description: "Job created successfully",
+      });
+      onOpenChange(false);
+      form.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create job",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = async (data: JobFormData) => {
+    setIsSubmitting(true);
+    try {
+      await createMutation.mutateAsync(data);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid="dialog-create-job">
+        <DialogHeader>
+          <DialogTitle>Create New Job</DialogTitle>
+          <DialogDescription>
+            Create a new job opportunity. Select a contact and provide job details.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="clientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact *</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-job-contact">
+                        <SelectValue placeholder="Select a contact" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {contacts?.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.name || contact.phone || contact.email || "Unknown"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Job Title *</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Website Redesign"
+                      {...field}
+                      data-testid="input-job-title"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Describe the job details..."
+                      className="resize-none"
+                      rows={3}
+                      {...field}
+                      data-testid="textarea-job-description"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="value"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estimated Value ($)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="5000"
+                      {...field}
+                      data-testid="input-job-value"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Initial Status</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-job-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="lead_intake">Lead Intake</SelectItem>
+                      <SelectItem value="estimate_sent">Estimate Sent</SelectItem>
+                      <SelectItem value="scheduled">Scheduled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+                data-testid="button-cancel-job"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                data-testid="button-submit-job"
+              >
+                {isSubmitting ? "Creating..." : "Create Job"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -1,0 +1,138 @@
+STEP 1 → Build Backend Endpoints FIRST
+
+(Because front-end type safety cannot be correct without real API shape)
+
+Endpoints required:
+
+/api/estimates
+
+/api/invoices
+
+/api/payments
+
+/api/ai/reflections
+
+/api/memory/entries
+
+/api/users
+
+Once those exist, schemas become real, not theoretical.
+
+👉 This enables proper Zod typing
+👉 Proper TypeScript contracts
+👉 Real CRUD functionality
+
+💡 This is the correct move before anything else.
+
+STEP 2 → Replace Mock Data With Real Data
+
+After backend exists:
+
+Remove fake lists
+
+Remove mock loaders
+
+Replace with real TanStack Query calls
+
+Hook up pagination, sorting, filtering
+
+STEP 3 → Fix Type Safety
+
+This part becomes EASY once real endpoints exist.
+
+Import correct types from shared schema
+
+Fix mapping functions
+
+Fix Zod validators
+
+Fix API typing on all new pages
+
+📌 IF YOU LET HIM CONTINUE FRONTEND FIRST → YOU LOSE TIME
+
+If you choose:
+
+❌ “Fix types now”
+
+He will DEFINITELY redo all that work once backend is built.
+
+If you choose:
+
+❌ “Replace mock data now”
+
+Impossible — no backend exists.
+
+If you choose:
+
+❌ “Continue polishing UI”
+
+He’ll waste time polishing screens that cannot function.
+
+❤️ SIMPLE ANSWER (WHAT YOU SHOULD TELL HIM)
+
+This is the response you send to your agent (copy-paste):
+
+✅ SEND THIS TO YOUR AGENT
+
+Next Step Direction — STOP Frontend Temporarily
+
+You’ve completed the front-end structural pass. Good job.
+
+Now pause UI work and switch to backend.
+
+Before continuing any frontend refinement, implement the missing backend endpoints listed below. Frontend type safety and API integration depend on these existing first:
+
+/api/estimates
+
+/api/invoices
+
+/api/payments
+
+/api/ai/reflections
+
+/api/memory/entries
+
+/api/users
+
+Once these endpoints exist with proper Zod schemas and CRUD handlers, return to frontend and we will:
+
+Replace mock data with real fetches
+
+Fix type safety using shared schemas
+
+Connect lists, dialogs, and routes to real API
+
+This sequence prevents rework and ensures everything stays strictly typed and stable.
+
+Let me know when backend endpoints are complete so we can proceed to front-end integration.
+
+🧠 WHY THIS IS THE CORRECT MOVE
+
+Because:
+
+Endpoints define types
+
+Types define UI forms
+
+UI forms define validation
+
+Validation defines fetchers
+
+Fetchers define caching
+
+Caching defines pagination/sorting
+
+Everything depends on the backend shape.
+
+📌 LIGHTNING SUMMARY
+
+Your correct choice is:
+👉 Option B: Implement Missing Backend Endpoints FIRST
+
+Then:
+
+C → Replace Mock Data
+
+A → Fix Type Safety Everywhere
+
+This is the correct engineering sequence — no wasted work.

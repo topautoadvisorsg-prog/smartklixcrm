@@ -1,0 +1,202 @@
+You’re right: this is the “see it to believe it” test, owner-level verification.
+We are treating you as the real customer, intake coming from chat → CRM → automation, end to end.
+
+Below is the FINAL EXECUTION PROMPT you send to him. This locks everything.
+
+🚨 FINAL OWNER-LEVEL LIVE TEST PROMPT (READ CAREFULLY)
+Context
+
+This is a paid, authorized, live verification test requested by the product owner.
+
+The purpose is NOT to explore features or refactor.
+The purpose is to prove the system works end-to-end with a real customer.
+
+This is expected and approved work.
+
+1️⃣ REAL CUSTOMER (OWNER) — USE THIS CONTACT ONLY
+
+You will use this real contact for the full flow:
+
+Name: Jovan (Owner Test)
+
+Phone: +52 646 197 8515
+
+Email: jovan.connect@gmail.com
+
+This is intentional.
+This is authorized.
+This is a test subject, not production traffic.
+
+Mark internally as is_test_account = true.
+
+2️⃣ WHERE THE INTAKE COMES FROM (IMPORTANT)
+Intake Source
+
+Intake originates from CRM Agent Chat
+
+Treat it as if:
+
+A voice-to-voice conversation just happened
+
+The agent collected info verbally
+
+The CRM now needs to send an intake form
+
+You may simulate contact creation manually in CRM if needed, but the trigger context is chat → intake.
+
+3️⃣ COMPANY CONTEXT (USE THIS TO CONFIGURE INTAKE)
+
+This company provides:
+
+Website design & development
+
+Automation services (this CRM + AI system)
+
+SEO services
+
+Configure the intake form to reflect this, for example:
+
+Type of service needed
+
+Website status
+
+Automation interest
+
+Business info
+
+Timeline / urgency
+
+No SOPs yet — this is exploratory testing.
+
+4️⃣ REQUIRED LIVE FLOW (DO NOT SKIP STEPS)
+
+You must execute this exact sequence:
+
+Step A — Contact
+
+Ensure contact exists with real phone + email
+
+Verify CRM record is correct
+
+Step B — Send Intake
+
+Send intake form via SMS
+
+Send intake form via Email
+
+Both channels must be tested
+
+Owner will open, fill out, and submit the intake.
+
+Step C — Intake Processing
+
+Verify submission is received
+
+Verify data maps correctly into CRM
+
+Verify no silent failures
+
+Step D — Follow-Up Automation
+
+After intake submission:
+
+Trigger follow-up message (SMS or Email)
+
+Optional: AI-generated response
+
+Verify approval flow if enabled
+
+Step E — Scheduling
+
+Send calendar invite or scheduling link
+
+Owner accepts or interacts with it
+
+Verify calendar entry is created correctly
+
+Step F — Invoice
+
+Create one invoice
+
+Send invoice to real email
+
+Verify:
+
+Amounts correct
+
+Invoice logged in CRM
+
+Status tracked (sent)
+
+5️⃣ HOW TO TREAT THIS TEST (IMPORTANT)
+
+This is live verification, not theory
+
+Do NOT loop endlessly
+
+Do NOT introduce new test contacts
+
+Do NOT expand scope beyond this flow
+
+If something breaks:
+
+Log it
+
+Stop
+
+Report clearly
+
+6️⃣ WHAT TO REPORT BACK
+
+Send a short, clear report:
+
+✅ What worked exactly as expected
+
+❌ What failed (if anything)
+
+⚠️ What felt clunky or confusing (UX)
+
+🧱 Any true blockers
+
+🚀 Can we deploy based on this? (Yes / No)
+
+Screenshots or logs only if something fails.
+
+7️⃣ Definition of Success (NON-NEGOTIABLE)
+
+A real person can be onboarded via chat, sent an intake, submit it, be followed up with, scheduled, invoiced, and logged correctly.
+
+If that happens → we move forward.
+
+Final note
+
+This test exists because the owner needs to see it work personally.
+This is normal, expected, and paid work.
+
+Proceed.
+
+Bottom line (for you)
+
+You’re right to insist on this
+
+You didn’t miss anything
+
+This is the correct final gate before deploy
+
+After this, it’s either:
+
+Ship
+
+or fix one or two concrete things
+
+No more ambiguity.
+
+If you want next after this passes:
+
+Deployment checklist
+
+Day-1 monitoring
+
+Post-launch UX improvements queue
+
+But first — let’s see it work.

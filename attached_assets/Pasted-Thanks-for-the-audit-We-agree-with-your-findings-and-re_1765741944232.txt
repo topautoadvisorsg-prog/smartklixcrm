@@ -1,0 +1,116 @@
+Thanks for the audit. We agree with your findings and recommendations. Proceed assuming the suggested fixes are approved in principle.
+
+Before implementation begins, I want alignment on how autonomy, review, and execution are structured, because this agent is meant to operate the CRM — not just assist.
+
+1. Autonomous CRM Capability (Baseline Requirement)
+
+The agent must be able to perform any CRM action that exists or will exist via tools, including:
+
+Create / read / update records
+
+Link records across modules
+
+Execute multi-step workflows
+
+Prepare customer-facing actions (pricing, estimates, invoices, messages)
+
+If backend functionality exists but is not exposed to the agent, that is a gap and should be fixed.
+
+2. Critical Distinction: Execution vs Finalization
+
+Not all actions are equal.
+
+Allowed to Execute Autonomously
+
+Low-risk internal actions, for example:
+
+Creating or updating contacts
+
+Notes, internal jobs, internal status changes
+
+Draft creation (draft invoice, draft estimate)
+
+These can be executed immediately.
+
+Requires Architect Review (Mandatory)
+
+Any action that:
+
+Sends anything externally to a customer
+
+Communicates pricing, estimates, invoices, or financial info
+
+Could impact trust, reputation, or money
+
+Must follow this flow:
+
+User requests the action in chat
+
+Agent prepares and executes the action in a controlled / pending / draft state
+
+The action is NOT finalized or sent
+
+The action is surfaced to the Master Architect / approver
+
+Only after approval does it finalize and send
+
+This is not optional and must be implemented in the execution logic.
+
+3. Absolute Requirements (Non-Negotiable)
+
+No false confirmations
+If something did not persist in the CRM, the agent must not say it did.
+
+No silent failures
+If execution fails, it must be surfaced.
+
+Chat state must persist
+No disappearing history. No loss of execution context.
+
+Clean code only
+
+No spaghetti logic
+
+No hidden behaviors
+
+No meta-prompt hacks
+
+No side effects that aren’t logged
+
+Everything should be explicit, readable, and auditable.
+
+4. Architecture Expectation
+
+Think in terms of modern agent architecture, similar in principle to systems like Riplet AI:
+
+Clear separation between:
+
+Planning
+
+Tool execution
+
+Approval / finalization
+
+Deterministic outcomes
+
+Verifiable system state after every action
+
+Not asking you to copy anything — just use a clean, production-grade mental model.
+
+5. Before You Implement Anything
+
+Before writing production code, send back:
+
+Your recommended execution architecture
+
+How you’ll handle:
+
+Autonomy vs review
+
+Sensitive action gating
+
+State verification
+
+Any concerns or tradeoffs you see
+
+Once aligned, you can proceed.

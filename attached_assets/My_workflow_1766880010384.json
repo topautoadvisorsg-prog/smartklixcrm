@@ -1,0 +1,3814 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "outreach/trigger",
+        "options": {}
+      },
+      "id": "29459abf-a84d-4976-ac6a-a89676ae4fe3",
+      "name": "CRM Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        4768
+      ],
+      "webhookId": "6a63a4fc-5a08-42ab-9c83-e2e8191eb7c0"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-3",
+              "name": "twilioFromNumber",
+              "value": "={{ $('Global Config').first().json.twilioFromNumber }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "crmBaseUrl",
+              "value": "={{ $('Global Config').first().json.crmBaseUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "internalToken",
+              "value": "={{ $('Global Config').first().json.internalToken }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f5e42b7d-07a4-4321-a943-2f2996961add",
+      "name": "Outreach Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        4768
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.actionType }}",
+                    "rightValue": "sms",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SMS"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.actionType }}",
+                    "rightValue": "email",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Email"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.actionType }}",
+                    "rightValue": "invite",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Invite"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "034fd095-643f-445e-80bd-68cd9953d465",
+      "name": "Route by Action Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -448,
+        4752
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $('Outreach Config').first().json.twilioFromNumber }}",
+        "to": "={{ $('CRM Manual Trigger').first().json.body.phone }}",
+        "message": "={{ $('CRM Manual Trigger').first().json.body.message }}",
+        "options": {}
+      },
+      "id": "94fd8ac2-4a76-41c2-9431-30fee20bde76",
+      "name": "Send SMS (Twilio)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        4576
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "lFJMyFBGEVP8yETp",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "smartklix@gmail.com",
+        "fromName": "Smart Klix CRM",
+        "toEmail": "={{ $('CRM Manual Trigger').first().json.body.email }}",
+        "subject": "={{ $('CRM Manual Trigger').first().json.body.subject }}",
+        "contentValue": "={{ $('CRM Manual Trigger').first().json.body.message }}",
+        "additionalFields": {}
+      },
+      "id": "33144db6-59fe-4b79-bd1e-610f3b56f170",
+      "name": "Send Email (SendGrid)",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        4768
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "ppW8fzr2AR80v9TS",
+          "name": "SendGrid account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "smartklix@gmail.com",
+        "fromName": "Smart Klix CRM",
+        "toEmail": "={{ $('CRM Manual Trigger').first().json.body.email }}",
+        "subject": "={{ $('CRM Manual Trigger').first().json.body.subject }}",
+        "contentValue": "={{ $('CRM Manual Trigger').first().json.body.message }}",
+        "additionalFields": {}
+      },
+      "id": "9837e138-00df-4f3e-811f-644c244a14af",
+      "name": "Send Invite (Email)",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        4960
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "ppW8fzr2AR80v9TS",
+          "name": "SendGrid account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "id": "33920326-0ced-4735-96e2-d3623b4e0d3a",
+      "name": "Combine All Outreach Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        0,
+        4752
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Outreach Config').first().json.crmBaseUrl }}/api/activity-log/write",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Outreach Config').first().json.internalToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "entityType",
+              "value": "contact"
+            },
+            {
+              "name": "entityId",
+              "value": "={{ $('CRM Manual Trigger').first().json.body.contactId }}"
+            },
+            {
+              "name": "action",
+              "value": "outreach_sent"
+            },
+            {
+              "name": "details",
+              "value": "={{ { \"channel\": $('CRM Manual Trigger').first().json.body.actionType, \"message\": $('CRM Manual Trigger').first().json.body.message, \"triggered_by\": $('CRM Manual Trigger').first().json.body.triggeredBy || \"unknown\", \"timestamp\": $now.toISO() } }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('CRM Manual Trigger').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4228df30-3e43-465c-8031-1d0e46b65cc9",
+      "name": "Log Activity to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        4768
+      ]
+    },
+    {
+      "parameters": {
+        "path": "814471d1-cd1d-4ce4-a3b4-786f745707cb",
+        "options": {}
+      },
+      "id": "71056ee2-a3a9-4df6-b489-84c8cb5497b0",
+      "name": "Inbound Call (Per-Segment)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        4128
+      ],
+      "webhookId": "814471d1-cd1d-4ce4-a3b4-786f745707cb"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "callSid",
+              "value": "={{ $json.query.CallSid }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "from",
+              "value": "={{ $json.query.From }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "to",
+              "value": "={{ $json.query.To }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "crmBaseUrl",
+              "value": "={{ $('Global Config').first().json.crmBaseUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "internalToken",
+              "value": "={{ $('Global Config').first().json.internalToken }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2c3ca410-c010-411f-b3a2-de354dc1ae3f",
+      "name": "AI Receptionist Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        4128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract caller speech and call information from Twilio webhook\nconst item = $input.first().json;\n\n// Extract SpeechResult from Twilio webhook query parameters\nconst callerSpeech = item.query?.SpeechResult || '';\n\n// Extract CallSid\nconst callSid = item.query?.CallSid || '';\n\n// Return object with callSid, callerSpeech, and timestamp\nreturn {\n  json: {\n    callSid: callSid,\n    callerSpeech: callerSpeech,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "4fc1b96e-1273-4b2b-b0e4-0604f04e5196",
+      "name": "Extract Caller Speech (Twilio STT)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        4128
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.conversationContext }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "instructions": "You are a friendly AI receptionist. Collect caller name, phone, email, and reason for calling. Keep responses brief and natural. Do not make decisions or book appointments - just gather information."
+        }
+      },
+      "id": "893b1920-2604-4d14-9d1e-b5f6b0818b2a",
+      "name": "Generate AI Response",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        4128
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Q4syBgT5HjXAYpFI",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build TwiML XML response with <Gather> for speech input\nconst aiResponse = $('Generate AI Response').first().json.message || 'Hello, how can I help you today?';\nconst webhookUrl = $('Inbound Call (Per-Segment)').first().json.webhookUrl;\n\n// Build TwiML XML\nconst twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Gather input=\"speech\" language=\"en-US\" timeout=\"3\" action=\"${webhookUrl}\">\n    <Say>${aiResponse}</Say>\n  </Gather>\n  <Say>I didn't hear anything. Goodbye!</Say>\n</Response>`;\n\nreturn {\n  json: {\n    twiml: twiml,\n    contentType: 'text/xml'\n  }\n};"
+      },
+      "id": "407e456b-fc23-4579-a517-0897cfb1e32e",
+      "name": "Build TwiML Response (Twilio TTS)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        4128
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ed4951ae-a229-47c6-9100-548559219e1b",
+      "name": "Return TwiML to Twilio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1248,
+        4128
+      ]
+    },
+    {
+      "parameters": {
+        "path": "aa71b645-e6e8-4352-940c-fb970c179bfb",
+        "options": {}
+      },
+      "id": "30889bea-a80c-4212-a5ad-c1a225b540ae",
+      "name": "Call Ended (StatusCallback)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        4352
+      ],
+      "webhookId": "aa71b645-e6e8-4352-940c-fb970c179bfb"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.conversationHistory }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "instructions": "Extract lead information from this call transcript. Return JSON with: name, email, phone, reason, notes. If any field is not mentioned, use empty string."
+        }
+      },
+      "id": "0434330c-5429-438a-a6a6-29820a1db6d2",
+      "name": "Extract Lead Data from Transcript",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -224,
+        4352
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Q4syBgT5HjXAYpFI",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Global Config').first().json.crmBaseUrl }}/api/activity-log/write",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Global Config').first().json.internalToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "entityType",
+              "value": "call"
+            },
+            {
+              "name": "entityId",
+              "value": "={{ $('Call Ended (StatusCallback)').item.json.CallSid || $('Call Ended (StatusCallback)').item.json.query.CallSid }}"
+            },
+            {
+              "name": "action",
+              "value": "call_completed"
+            },
+            {
+              "name": "callSummary",
+              "value": "={{ $('Extract Lead Data from Transcript').item.json.summary || 'Call completed' }}"
+            },
+            {
+              "name": "transcript",
+              "value": "={{ $('Call Ended (StatusCallback)').item.json.RecordingUrl || $('Call Ended (StatusCallback)').item.json.query.RecordingUrl || '' }}"
+            },
+            {
+              "name": "leadData",
+              "value": "={{ $('Extract Lead Data from Transcript').item.json }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0e85fb63-04bd-49ba-811c-471109f53a6c",
+      "name": "Log Call Summary to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        352,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Global Config').first().json.crmBaseUrl }}/api/leads/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Global Config').first().json.internalToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "callSid",
+              "value": "={{ $('Prepare Lead Data for Intake').first().json.callSid }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $('Prepare Lead Data for Intake').first().json.name }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $('Prepare Lead Data for Intake').first().json.email }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $('Prepare Lead Data for Intake').first().json.phone }}"
+            },
+            {
+              "name": "reason",
+              "value": "={{ $('Prepare Lead Data for Intake').first().json.reason }}"
+            },
+            {
+              "name": "source",
+              "value": "={{ $('Prepare Lead Data for Intake').first().json.source }}"
+            },
+            {
+              "name": "transcript",
+              "value": "={{ $('Prepare Lead Data for Intake').first().json.transcript }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ $('Prepare Lead Data for Intake').first().json.metadata }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "99c2beef-b0e4-4518-98fb-3c4e6e610214",
+      "name": "Send to Lead Intake Flow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        576,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ 'conversation:' + $('Extract Caller Speech (Twilio STT)').first().json.callSid }}",
+        "value": "={{ JSON.stringify($json.conversationArray) }}",
+        "expire": true,
+        "ttl": 3600
+      },
+      "id": "674f9c80-dc51-4a43-8944-a985170b9bac",
+      "name": "Store Conversation Turn",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        800,
+        4128
+      ],
+      "credentials": {
+        "redis": {
+          "id": "UvpCXqkWaCSbl71L",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ 'conversation:' + $json.callSid }}",
+        "options": {}
+      },
+      "id": "5e6d60b9-6732-4bf2-8858-2349acb100e3",
+      "name": "Retrieve Full Conversation",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        4128
+      ],
+      "credentials": {
+        "redis": {
+          "id": "UvpCXqkWaCSbl71L",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse conversation history from Redis and build context for AI\nconst item = $input.item.json;\n\n// Get the conversation history from Redis (if exists)\nlet conversationHistory = [];\ntry {\n  if (item.conversationHistory && typeof item.conversationHistory === 'string') {\n    conversationHistory = JSON.parse(item.conversationHistory);\n  } else if (Array.isArray(item.conversationHistory)) {\n    conversationHistory = item.conversationHistory;\n  }\n} catch (error) {\n  console.log('No existing conversation history or parse error:', error.message);\n  conversationHistory = [];\n}\n\n// Get the latest caller speech from the previous node\nconst latestSpeech = item.callerSpeech || item.speech || '';\n\n// Append the latest caller speech to the conversation\nif (latestSpeech && latestSpeech.trim() !== '') {\n  conversationHistory.push({\n    role: 'user',\n    content: latestSpeech,\n    timestamp: new Date().toISOString()\n  });\n}\n\n// Build a formatted conversation context string for the AI\nlet conversationContext = '';\nif (conversationHistory.length > 0) {\n  conversationContext = conversationHistory.map(turn => {\n    const role = turn.role === 'user' ? 'Caller' : 'AI';\n    return `${role}: ${turn.content}`;\n  }).join('\\n\\n');\n}\n\n// Return both the conversation array and formatted context\nreturn {\n  conversationHistory: conversationHistory,\n  conversationArray: conversationHistory,\n  conversationContext: conversationContext,\n  turnCount: conversationHistory.length,\n  latestUserMessage: latestSpeech,\n  callId: item.callId || item.CallSid || 'unknown',\n  ...item\n};"
+      },
+      "id": "b2016ea6-4688-4422-8a91-0538a1c2caa7",
+      "name": "Build Conversation Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        4128
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse AI-extracted lead data and format for intake flow\nconst item = $input.item.json;\n\n// Get the extracted lead data from the previous AI node\nconst extractedData = $('Extract Lead Data from Transcript').first().json;\n\n// Get call metadata from the webhook\nconst callData = $('Call Ended (StatusCallback)').first().json;\n\n// Format the lead object for intake flow\nconst leadData = {\n  name: extractedData.name || extractedData.fullName || '',\n  email: extractedData.email || '',\n  phone: extractedData.phone || extractedData.phoneNumber || callData.From || '',\n  reason: extractedData.reason || extractedData.inquiry || extractedData.purpose || 'Phone inquiry',\n  source: 'ai-receptionist',\n  callSid: callData.CallSid || callData.callSid || '',\n  transcript: callData.transcript || callData.TranscriptionText || extractedData.transcript || '',\n  metadata: {\n    callDuration: callData.CallDuration || '',\n    callStatus: callData.CallStatus || '',\n    extractedAt: new Date().toISOString(),\n    rawExtraction: extractedData\n  }\n};\n\nreturn leadData;"
+      },
+      "id": "67ceb1e7-c85a-49b9-a2d2-7160bb746e53",
+      "name": "Prepare Lead Data for Intake",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Append AI response to conversation history array\nconst item = $input.first().json;\n\n// Get the conversation history from Build Conversation Context node\nlet conversationArray = [];\ntry {\n  const contextData = $('Build Conversation Context').first().json;\n  if (contextData.conversationArray && Array.isArray(contextData.conversationArray)) {\n    conversationArray = contextData.conversationArray;\n  } else if (contextData.conversationHistory && Array.isArray(contextData.conversationHistory)) {\n    conversationArray = contextData.conversationHistory;\n  }\n} catch (error) {\n  console.log('Error retrieving conversation history:', error.message);\n  conversationArray = [];\n}\n\n// Get the AI response from the current item\nconst aiResponse = item.message || item.response || item.text || '';\n\n// Append the AI response to the conversation array\nif (aiResponse && aiResponse.trim() !== '') {\n  conversationArray.push({\n    role: 'assistant',\n    content: aiResponse,\n    timestamp: new Date().toISOString()\n  });\n}\n\n// Return the updated conversation array\nreturn {\n  conversationArray: conversationArray,\n  conversationHistory: conversationArray,\n  turnCount: conversationArray.length,\n  latestAiMessage: aiResponse,\n  ...item\n};"
+      },
+      "id": "117a5a9c-416b-4a53-9d9a-d5bf3edf6f2c",
+      "name": "Append AI Response to History",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        4128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge conversation history from Redis with call metadata from webhook\nconst callMetadata = $('Call Ended (StatusCallback)').first().json;\nconst conversationData = $('Retrieve Full Conversation (Call End)').first().json;\n\n// Parse conversation history from Redis (stored as JSON string)\nlet conversationHistory = [];\ntry {\n  if (conversationData.conversationHistory && typeof conversationData.conversationHistory === 'string') {\n    conversationHistory = JSON.parse(conversationData.conversationHistory);\n  } else if (Array.isArray(conversationData.conversationHistory)) {\n    conversationHistory = conversationData.conversationHistory;\n  }\n} catch (error) {\n  console.log('Error parsing conversation history:', error.message);\n  conversationHistory = [];\n}\n\n// Format conversation history as readable transcript\nlet transcript = '';\nif (conversationHistory.length > 0) {\n  transcript = conversationHistory.map(turn => {\n    const role = turn.role === 'user' ? 'Caller' : 'AI Receptionist';\n    const timestamp = turn.timestamp ? new Date(turn.timestamp).toLocaleTimeString() : '';\n    return `[${timestamp}] ${role}: ${turn.content}`;\n  }).join('\\n\\n');\n} else {\n  transcript = 'No conversation history available';\n}\n\n// Merge everything together\nreturn {\n  callSid: callMetadata.CallSid || callMetadata.query?.CallSid || '',\n  from: callMetadata.From || callMetadata.query?.From || '',\n  to: callMetadata.To || callMetadata.query?.To || '',\n  callStatus: callMetadata.CallStatus || callMetadata.query?.CallStatus || '',\n  callDuration: callMetadata.CallDuration || callMetadata.query?.CallDuration || '',\n  recordingUrl: callMetadata.RecordingUrl || callMetadata.query?.RecordingUrl || '',\n  conversationHistory: conversationHistory,\n  transcript: transcript,\n  turnCount: conversationHistory.length,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "8f5c1f78-f73f-4210-a4ab-9ba6127c758d",
+      "name": "Merge Conversation with Call Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "conversationHistory",
+        "key": "={{ 'conversation:' + $json.query.CallSid }}",
+        "options": {}
+      },
+      "id": "fe91ce59-7ab0-4350-ab33-64f3ddca29f0",
+      "name": "Retrieve Full Conversation (Call End)",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        4352
+      ],
+      "credentials": {
+        "redis": {
+          "id": "UvpCXqkWaCSbl71L",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "payment/create",
+        "options": {}
+      },
+      "id": "326890fc-0caf-41f5-8e1d-d742270dda01",
+      "name": "CRM Action: Send Payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        5264
+      ],
+      "webhookId": "d794032c-d351-4e4e-88d4-75bfddee536b"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-3",
+              "name": "stripeApiBaseUrl",
+              "value": "https://api.stripe.com/v1",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "crmBaseUrl",
+              "value": "={{ $('Global Config').first().json.crmBaseUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "internalToken",
+              "value": "={{ $('Global Config').first().json.internalToken }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0ea86494-8982-467f-812e-192b3ef08a17",
+      "name": "Payment Workflow Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        5264
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Payment Workflow Config').first().json.crmBaseUrl }}/api/contacts/{{ $json.body.contactId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Payment Workflow Config').first().json.internalToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2396d9bb-598f-4310-b71c-1a3b7a571c4b",
+      "name": "Fetch Contact from CRM1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -448,
+        5264
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "charge",
+        "operation": "create",
+        "customerId": "={{ $('Normalize Customer ID Output').first().json.stripeCustomerId }}",
+        "amount": "={{ $('CRM Action: Send Payment').first().json.body.amount }}",
+        "currency": "usd",
+        "source": "={{ $('Resolve or Create Stripe Customer').first().json.default_source }}",
+        "additionalFields": {
+          "description": "={{ $('CRM Action: Send Payment').first().json.body.description || 'Payment request' }}"
+        }
+      },
+      "id": "ed932436-bc85-4b33-bbb8-5fc74adcfc70",
+      "name": "Create Payable Object",
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 1,
+      "position": [
+        672,
+        5264
+      ],
+      "credentials": {
+        "stripeApi": {
+          "id": "zx0VMTlwiIXGtkkd",
+          "name": "Stripe account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Attach metadata to Stripe payable object\nconst stripeResponse = $input.first().json;\nconst webhookData = $('CRM Action: Send Payment').first().json;\n\n// Extract metadata from webhook body\nconst metadata = {\n  contactId: webhookData.body?.contactId || webhookData.contactId || '',\n  invoiceId: webhookData.body?.invoiceId || webhookData.invoiceId || '',\n  tenantId: webhookData.body?.tenantId || webhookData.tenantId || '',\n  createdAt: new Date().toISOString(),\n  source: 'crm_payment_request'\n};\n\n// Merge Stripe response with metadata\nconst result = {\n  ...stripeResponse,\n  metadata: metadata,\n  stripeCustomerId: stripeResponse.customer || stripeResponse.id || '',\n  stripePaymentId: stripeResponse.id || stripeResponse.payment_intent || '',\n  paymentUrl: stripeResponse.url || stripeResponse.hosted_invoice_url || ''\n};\n\nreturn result;"
+      },
+      "id": "47390474-f90a-404a-a2dd-e18af33a1b9f",
+      "name": "Attach Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        5264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Payment Workflow Config').first().json.crmBaseUrl }}/api/contacts/{{ $('CRM Action: Send Payment').first().json.body.contactId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Payment Workflow Config').first().json.internalToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "stripeCustomerId",
+              "value": "={{ $('Normalize Customer ID Output').first().json.stripeCustomerId }}"
+            },
+            {
+              "name": "stripePaymentLinkId",
+              "value": "={{ $('Create Payable Object').first().json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7eeabe3e-3a69-4421-bb44-b8d6b3dc42cb",
+      "name": "Store Stripe IDs in CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        5264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Payment Workflow Config').first().json.crmBaseUrl }}/api/notifications/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Payment Workflow Config').first().json.internalToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contactId",
+              "value": "={{ $('Fetch Contact from CRM1').first().json.id }}"
+            },
+            {
+              "name": "channel",
+              "value": "={{ $('CRM Action: Send Payment').first().json.body.channel || 'email' }}"
+            },
+            {
+              "name": "paymentLink",
+              "value": "={{ $('Create Payable Object').first().json.url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e7727fcd-28f4-40cb-9b54-cfe384b8138c",
+      "name": "Send Payment Link to Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        5264
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "events/payment",
+        "options": {}
+      },
+      "id": "b7bf48ae-31a4-4084-b656-13c5133463ff",
+      "name": "CRM Payment Event Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        3488
+      ],
+      "webhookId": "a652eedb-5774-4aed-8c19-3cbc49907df5"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-2",
+              "name": "crmBaseUrl",
+              "value": "={{ $('Global Config').first().json.crmBaseUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "internalToken",
+              "value": "={{ $('Global Config').first().json.internalToken }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9a296a5a-5a7a-454f-9f05-724f6d568a5e",
+      "name": "Payment Event Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        3488
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "payment.completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Payment Completed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "payment.failed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Payment Failed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "payment.refunded",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Payment Refunded"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f2960f70-73ca-4b17-a790-399fc9209138",
+      "name": "Route by Payment Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -448,
+        3472
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Payment Event Config').first().json.crmBaseUrl }}/api/activity-log/write",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Payment Event Config').first().json.internalToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "entityType",
+              "value": "payment"
+            },
+            {
+              "name": "entityId",
+              "value": "={{ $json.id || $json.payment_intent || $json.charge }}"
+            },
+            {
+              "name": "action",
+              "value": "payment_completed"
+            },
+            {
+              "name": "details",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('CRM Payment Event Webhook').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7fd73e2b-3941-428d-9f4e-96057ff9ff94",
+      "name": "Log Payment Completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -224,
+        3296
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Payment Event Config').first().json.crmBaseUrl }}/api/activity-log/write",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Payment Event Config').first().json.internalToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "entityType",
+              "value": "payment"
+            },
+            {
+              "name": "entityId",
+              "value": "={{ $('CRM Payment Event Webhook').first().json.body.paymentId || $('CRM Payment Event Webhook').first().json.body.id || $('CRM Payment Event Webhook').first().json.id }}"
+            },
+            {
+              "name": "action",
+              "value": "payment_failed"
+            },
+            {
+              "name": "details",
+              "value": "={{ $('CRM Payment Event Webhook').first().json }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('CRM Payment Event Webhook').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a7399395-4827-42e8-a106-b4f82238ccee",
+      "name": "Log Payment Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -224,
+        3488
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Payment Event Config').first().json.crmBaseUrl }}/api/activity-log/write",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Payment Event Config').first().json.internalToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "entityType",
+              "value": "payment"
+            },
+            {
+              "name": "entityId",
+              "value": "={{ $json.id || $json.payment_intent || $json.charge }}"
+            },
+            {
+              "name": "action",
+              "value": "payment_refunded"
+            },
+            {
+              "name": "details",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('CRM Payment Event Webhook').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a67db8c8-d617-4763-83c1-8adbe75cc0ea",
+      "name": "Log Payment Refunded",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -224,
+        3680
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "id": "732d9143-5d31-48c2-81a9-dc107f037390",
+      "name": "Combine All Payment Logs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        0,
+        3472
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.event_type }}",
+              "rightValue": "payment.failed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.event_type }}",
+              "rightValue": "payment.refunded",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "0ec567f8-53ef-4517-a9f0-52e52a7c0ce3",
+      "name": "Check If Requires Human Review",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        3488
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Payment Event Config').first().json.crmBaseUrl }}/api/human-review/queue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Payment Event Config').first().json.internalToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "reviewType",
+              "value": "payment_issue"
+            },
+            {
+              "name": "priority",
+              "value": "high"
+            },
+            {
+              "name": "eventType",
+              "value": "={{ $('CRM Payment Event Webhook').first().json.type }}"
+            },
+            {
+              "name": "eventData",
+              "value": "={{ $('CRM Payment Event Webhook').first().json }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('CRM Payment Event Webhook').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "977a60f3-ff01-48be-afd4-bb86db213c3f",
+      "name": "Queue for Human Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        3488
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google/gmail",
+        "options": {}
+      },
+      "id": "377320d0-c144-48d3-995c-fa8b24f947ae",
+      "name": "Gmail Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        2368
+      ],
+      "webhookId": "d07de9e8-8189-4a14-bf60-a5428de6ac3f"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "send_email",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Send Email"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "reply_email",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reply Email"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "57dc26b6-d831-44fa-b542-9b876d1a24fc",
+      "name": "Route Gmail Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -672,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.body.to }}",
+        "subject": "={{ $('CRM Manual Trigger').first().json.body.subject }}",
+        "message": "={{ $json.body.body }}",
+        "options": {}
+      },
+      "id": "78a5dda6-c7db-4e00-9ab2-e472732df0bb",
+      "name": "Send Email (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -448,
+        2272
+      ],
+      "webhookId": "e360a6bc-3620-47a7-be2a-8bbd4801167a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "LBDDW7ybaTp1e2j6",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $json.body.threadId }}",
+        "message": "={{ $json.body.body }}",
+        "options": {}
+      },
+      "id": "d6526d31-7941-43ba-bd97-8213914dad67",
+      "name": "Reply to Email (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -448,
+        2464
+      ],
+      "webhookId": "3cf18078-bbaf-4b6d-8ac4-ccdbd1a84159",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "LBDDW7ybaTp1e2j6",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "0fa9706d-bfc6-4e5a-8ac3-13135343ba29",
+      "name": "Combine Gmail Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -224,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Global Config').first().json.crmBaseUrl }}/api/activity-log/write",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Global Config').first().json.internalToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "entityType",
+              "value": "gmail"
+            },
+            {
+              "name": "entityId",
+              "value": "={{ $('Gmail Webhook').first().json.body.contactId }}"
+            },
+            {
+              "name": "action",
+              "value": "={{ $('Gmail Webhook').first().json.body.action }}"
+            },
+            {
+              "name": "details",
+              "value": "={{ $('Combine Gmail Results').first().json }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('Gmail Webhook').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fad4016e-ab62-43ea-b842-dad91f8833d2",
+      "name": "Log Gmail Activity to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        0,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google/calendar",
+        "options": {}
+      },
+      "id": "d0db1c01-58da-4767-9484-d86306ea7339",
+      "name": "Calendar Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        2880
+      ],
+      "webhookId": "4b55a291-c897-4046-bca3-845dbcb838c6"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "create_event",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Create Event"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "update_event",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Update Event"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "cancel_event",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cancel Event"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "86ac98d9-849e-4818-b829-6dcef41fea18",
+      "name": "Route Calendar Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -672,
+        2864
+      ]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Global Config').first().json.calendarId }}"
+        },
+        "start": "={{ $json.body.start }}",
+        "end": "={{ $json.body.end }}",
+        "additionalFields": {
+          "attendees": "={{ $json.body.attendees }}",
+          "summary": "={{ $json.body.title }}"
+        }
+      },
+      "id": "3508ce0e-292e-40c7-bf55-4b17304137f4",
+      "name": "Create Event (Calendar)",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -448,
+        2688
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "gOzTQ9uPlEnOyVuj",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Global Config').first().json.calendarId }}"
+        },
+        "eventId": "={{ $json.body.eventId }}",
+        "updateFields": {
+          "end": "={{ $json.body.end }}",
+          "start": "={{ $json.body.start }}",
+          "summary": "={{ $json.body.title }}"
+        }
+      },
+      "id": "29c07454-2fac-431c-88de-7e88bd6fc634",
+      "name": "Update Event (Calendar)",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -448,
+        2880
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "gOzTQ9uPlEnOyVuj",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Global Config').first().json.calendarId }}"
+        },
+        "eventId": "={{ $json.body.eventId }}",
+        "options": {}
+      },
+      "id": "6bb40a37-b070-46f9-89f2-a615edce8a61",
+      "name": "Cancel Event (Calendar)",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -448,
+        3072
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "gOzTQ9uPlEnOyVuj",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "id": "0a127b15-fe63-4812-825a-0b2920d8c37b",
+      "name": "Combine Calendar Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -224,
+        2864
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Global Config').first().json.crmBaseUrl }}/api/activity-log/write",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Global Config').first().json.internalToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "entityType",
+              "value": "calendar"
+            },
+            {
+              "name": "entityId",
+              "value": "={{ $('Calendar Webhook').first().json.body.contactId }}"
+            },
+            {
+              "name": "action",
+              "value": "={{ $('Calendar Webhook').first().json.body.action }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('Calendar Webhook').first().json.body.actionId }}"
+            },
+            {
+              "name": "details",
+              "value": "={{ $('Combine Calendar Results').first().json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "be077941-572a-447c-88fb-299a09f4491c",
+      "name": "Log Calendar Activity to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        0,
+        2880
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google/sheets",
+        "options": {}
+      },
+      "id": "61218e9b-3b62-4930-bdb1-dc526ab30ee8",
+      "name": "Sheets Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        3904
+      ],
+      "webhookId": "f1758aaf-5c3e-497d-b811-c8ea107e628e"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.body.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.body.sheetName }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": "={{ $json.body.data }}"
+        },
+        "options": {}
+      },
+      "id": "523737d4-b521-4c7b-961a-2c4c63f6a301",
+      "name": "Append Row (Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -672,
+        3904
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UxH3ch8J5A6Ywyy1",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google/docs",
+        "options": {}
+      },
+      "id": "167c4d19-3cf8-4923-976d-3ecc75bd9ae6",
+      "name": "Docs Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        1120
+      ],
+      "webhookId": "549db4d6-5b55-42b4-a94c-fa67735f79ed"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "create_doc",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Create Doc"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "update_doc",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Update Doc"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "append_content",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Append Content"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "export_doc",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Export Doc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a5d53f75-dfbd-48b2-87e2-b7357092776a",
+      "name": "Route Docs Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -672,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "folderId": "={{ $json.body.folderId }}",
+        "title": "={{ $json.body.title }}"
+      },
+      "id": "9ce8827f-35ca-4811-8fe0-b781aef2e34b",
+      "name": "Create Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        832
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "UxH3ch8J5A6Ywyy1",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.body.docId }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $json.body.content }}"
+            }
+          ]
+        }
+      },
+      "id": "4fa5f187-7cee-4d80-812d-b730d883ad14",
+      "name": "Update Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        1024
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "UxH3ch8J5A6Ywyy1",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.body.docId }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $json.body.content }}"
+            }
+          ]
+        }
+      },
+      "id": "b848c478-3e2b-4cc0-ab6f-ebbf7e15a001",
+      "name": "Append Content",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        1216
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "UxH3ch8J5A6Ywyy1",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $json.body.docId }}"
+      },
+      "id": "32001c49-c601-432c-b098-08690750fb93",
+      "name": "Export Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        1408
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "UxH3ch8J5A6Ywyy1",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "id": "10ec2942-f892-4522-8dea-df680d97dc5b",
+      "name": "Combine Docs Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -224,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Global Config').first().json.crmBaseUrl }}/api/activity-log/write",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Global Config').first().json.internalToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "entityType",
+              "value": "docs"
+            },
+            {
+              "name": "entityId",
+              "value": "={{ $('Docs Webhook').first().json.body.contactId }}"
+            },
+            {
+              "name": "action",
+              "value": "={{ $('Docs Webhook').first().json.body.action }}"
+            },
+            {
+              "name": "details",
+              "value": "={{ $('Combine Docs Results').first().json }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('Docs Webhook').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a6311a0b-4e47-48bf-adac-b1ad131c5789",
+      "name": "Log Docs Activity to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        0,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/whatsapp/send",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "fd7b59a5-cb67-4a5e-b7c1-d241caa5c128",
+      "name": "CRM-Triggered WhatsApp Send",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        96
+      ],
+      "webhookId": "0660125b-6ef6-4025-9454-cab3559ff416",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tuJKrargWo9jHHGk",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "crmBaseUrl",
+              "value": "={{ $('Global Config').first().json.crmBaseUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "internalToken",
+              "value": "={{ $('Global Config').first().json.internalToken }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7d11a5cd-827d-4e81-8206-381c4848e8b6",
+      "name": "WhatsApp Outbound Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Add WhatsApp prefix to phone numbers from webhook payload\nconst item = $input.item.json;\n\n// Extract phone numbers from webhook body\nconst fromNumber = item.body?.from || item.from || '';\nconst toNumber = item.body?.to || item.to || '';\n\n// Add whatsapp: prefix to numbers\nconst whatsappFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;\nconst whatsappTo = toNumber.startsWith('whatsapp:') ? toNumber : `whatsapp:${toNumber}`;\n\nreturn {\n  ...item,\n  from: whatsappFrom,\n  to: whatsappTo,\n  originalFrom: fromNumber,\n  originalTo: toNumber\n};"
+      },
+      "id": "c0909d9b-ec92-415f-8c9b-adda65c5fcdc",
+      "name": "Add WhatsApp Prefix to Numbers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $json.from }}",
+        "to": "={{ $json.to }}",
+        "toWhatsapp": true,
+        "message": "={{ $('CRM-Triggered WhatsApp Send').first().json.body.body }}",
+        "options": {}
+      },
+      "id": "73589385-d7bb-4af6-aae6-0a056a17174b",
+      "name": "Send WhatsApp Message (Twilio)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        96
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "lFJMyFBGEVP8yETp",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('WhatsApp Outbound Config').first().json.crmBaseUrl }}/api/whatsapp/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('WhatsApp Outbound Config').first().json.internalToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "sent"
+            },
+            {
+              "name": "messageSid",
+              "value": "={{ $('Send WhatsApp Message (Twilio)').first().json.sid }}"
+            },
+            {
+              "name": "messageId",
+              "value": "={{ $('CRM-Triggered WhatsApp Send').first().json.body.messageId }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('CRM-Triggered WhatsApp Send').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "eb05f40e-25f4-4d11-8366-ce8e012b11ab",
+      "name": "Report Success to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('WhatsApp Outbound Config').first().json.crmBaseUrl }}/api/whatsapp/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('WhatsApp Outbound Config').first().json.internalToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "failed"
+            },
+            {
+              "name": "error",
+              "value": "={{ $('Send WhatsApp Message (Twilio)').first().json.error || 'Unknown error' }}"
+            },
+            {
+              "name": "messageId",
+              "value": "={{ $('CRM-Triggered WhatsApp Send').first().json.body.messageId }}"
+            },
+            {
+              "name": "actionId",
+              "value": "={{ $('CRM-Triggered WhatsApp Send').first().json.body.actionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4e43b75f-f713-467b-95ab-cb23a85163b0",
+      "name": "Report Failure to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        0,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/whatsapp/receive",
+        "options": {}
+      },
+      "id": "b0f4c6de-03f0-471c-8feb-6c184f0efbd2",
+      "name": "Twilio Inbound WhatsApp → CRM",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        512
+      ],
+      "webhookId": "0597a8fa-694c-45f4-b359-1de099e6fcfa"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "af3dac9e-e9a1-4761-bdde-85ca0cfb0f6c",
+      "name": "Immediate HTTP 200 to Twilio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -672,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Twilio WhatsApp webhook payload\nconst item = $input.first().json;\n\n// Extract fields from Twilio webhook (can be in body or query)\nconst payload = item.body || item.query || item;\n\n// Extract phone numbers and strip 'whatsapp:' prefix\nconst fromRaw = payload.From || '';\nconst toRaw = payload.To || '';\n\n// Remove 'whatsapp:' prefix if present\nconst from = fromRaw.replace(/^whatsapp:/, '');\nconst to = toRaw.replace(/^whatsapp:/, '');\n\n// Extract message body\nconst body = payload.Body || '';\n\n// Extract message SID\nconst messageSid = payload.MessageSid || payload.SmsMessageSid || '';\n\n// Extract media fields (Twilio can send multiple media attachments)\nconst numMedia = parseInt(payload.NumMedia) || 0;\nconst media = [];\n\nfor (let i = 0; i < numMedia; i++) {\n  const mediaUrl = payload[`MediaUrl${i}`] || '';\n  const mediaContentType = payload[`MediaContentType${i}`] || '';\n  \n  if (mediaUrl) {\n    media.push({\n      url: mediaUrl,\n      contentType: mediaContentType\n    });\n  }\n}\n\n// Return parsed data\nreturn {\n  from: from,\n  to: to,\n  body: body,\n  messageSid: messageSid,\n  media: media,\n  numMedia: numMedia,\n  timestamp: new Date().toISOString(),\n  rawPayload: payload\n};"
+      },
+      "id": "5f0b57db-d423-4b78-856f-e0c39c892baa",
+      "name": "Parse Inbound Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Global Config').first().json.crmBaseUrl }}/api/whatsapp/inbound",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Global Config').first().json.internalToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "5501e0a4-0ce6-46f7-a34f-12bf7f289d50",
+      "name": "Forward to CRM Inbound Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -448,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "content": "WhatsApp Outbound Flow\n\nHandles CRM-triggered WhatsApp messages sent via Twilio. Adds whatsapp: prefix to phone numbers, sends message, and reports success/failure back to CRM.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "68e686fa-dcdf-4e16-abb5-01e585a8ed65",
+      "name": "WhatsApp Outbound Flow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        5248
+      ]
+    },
+    {
+      "parameters": {
+        "content": "WhatsApp Inbound Flow\n\nReceives inbound WhatsApp messages from Twilio webhook. Immediately responds with HTTP 200, parses payload (strips whatsapp: prefix), and forwards to CRM inbound endpoint.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "324a3bed-812f-45c2-9573-d1f33eb95de0",
+      "name": "WhatsApp Inbound Flow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        2144
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Google Docs Integration\n\nWebhook-triggered Google Docs operations: create, update, append content, and export documents. Routes by action type and logs all activity to CRM.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "eec681b5-b6c2-48df-9070-622ac33a651f",
+      "name": "Google Docs Integration",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        5040
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Quality Review System\n\nAutomated quality review for completed actions. Validates output, tracks retry count in Redis, routes to APPROVE/REJECT/ESCALATE. Max 3 retries before forced escalation to human review.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "16f1dbd1-b202-4ad1-991c-48e97221633a",
+      "name": "Quality Review System",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        4608
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Gmail Integration\n\nWebhook-triggered Gmail operations: send new email or reply to existing thread. Combines results and logs all activity to CRM.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "9031bf44-92f5-447c-9b98-4dafb92a5434",
+      "name": "Gmail Integration",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        4000
+      ]
+    },
+    {
+      "parameters": {
+        "content": "=Google Calendar Integration\n\nWebhook-triggered calendar operations: create, update, or cancel events. All operations use the org-level shared calendar defined in Global Config (calendarId field). Calendar ID is centrally managed and referenced by all calendar nodes.\n\nArchitecture:\n- Global Config supplies calendarId (org-level shared calendar)\n- All calendar nodes reference {{ $('Global Config').first().json.calendarId }}\n- Validation ensures credential has access to shared calendar\n- No user-level calendars or hardcoded IDs",
+        "height": 200,
+        "width": 300
+      },
+      "id": "b1e463c2-79ec-4eee-b001-d2a6ac448edd",
+      "name": "Google Calendar Integration",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1216,
+        3280
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Payment Event Processing\n\nProcesses Stripe payment events (completed, failed, refunded). Logs all events to CRM. Failed/refunded payments are queued for human review.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "9884c35f-de96-4618-963f-78db9e4397d6",
+      "name": "Payment Event Processing",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        944,
+        2688
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Google Sheets Integration\n\nWebhook-triggered operation to append rows to Google Sheets. Receives spreadsheet ID, sheet name, and data from CRM.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "d723a9ed-c001-48b6-a081-5bac787011c8",
+      "name": "Google Sheets Integration",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        2336
+      ]
+    },
+    {
+      "parameters": {
+        "content": "AI Receptionist Call Flow\n\nHandles live phone calls with AI receptionist. Extracts caller speech via Twilio STT, retrieves conversation history from Redis, generates AI response, stores updated conversation, and returns TwiML for Twilio TTS.",
+        "height": 216,
+        "width": 236
+      },
+      "id": "3d35aaf4-4cf6-4b99-807a-9447e75964d2",
+      "name": "AI Receptionist Call Flow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        1696
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Call End Processing\n\nTriggered when call ends (StatusCallback). Retrieves full conversation from Redis, merges with call metadata, extracts lead data via AI, logs to CRM, and sends to lead intake flow.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "e1bd19b3-4edf-4d80-9d05-b7eeaa4183bd",
+      "name": "Call End Processing",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "content": "CRM Outreach Workflow\n\nManual trigger from CRM to send outreach messages. Fetches contact, generates AI message content, routes by action type (SMS/Email/Invite), and logs activity to CRM.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "bc824b2b-1e29-4b0f-8b67-01f6ae7bdd5d",
+      "name": "CRM Outreach Workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        688,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Payment Request Flow\n\nCRM-triggered payment link creation. Fetches contact, resolves/creates Stripe customer, creates charge, attaches metadata, stores IDs in CRM, and sends payment link to customer.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "1ef0ef1b-03db-4362-80d2-496c46fbecaf",
+      "name": "Payment Request Flow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        880,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "LEGACY ONLY — CRM owns retry counts and escalation. Neo8 executes on callback only.\n\nThe Redis retry tracking nodes (Get Retry Count, Increment Retry Count, Check Retry Limit) in this review flow are legacy infrastructure. The CRM system is the authoritative source for retry logic and escalation decisions. Neo8 executes quality review logic only when triggered by CRM callbacks.",
+        "height": 250,
+        "width": 350,
+        "color": 3
+      },
+      "id": "35f9f581-990f-4497-bdb8-ad46f956c974",
+      "name": "LEGACY Redis Retry Tracking",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4704,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "crmBaseUrl",
+              "value": "https://8d291547-ec2e-4e46-ac57-3233ee5f62d5-00-3jiw3qejkitpt.riker.replit.dev",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "internalToken",
+              "value": "bb91e72ba775b286acca3f68349955d0cbd23d71a32a2d7b778b92e5921de240",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "twilioFromNumber",
+              "value": "16193831345",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "calendarId",
+              "value": "shared-calendar-id@group.calendar.google.com",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9e6a85be-1f77-4281-b74a-c7d114e2b1d2",
+      "name": "Global Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        1632
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "customer",
+        "operation": "getAll",
+        "limit": 1,
+        "filters": {
+          "email": "={{ $('Fetch Contact from CRM1').first().json.email }}"
+        }
+      },
+      "id": "cb2b1c33-f963-477c-a5fd-80cb977bbb46",
+      "name": "Search Stripe Customer by Email",
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        5264
+      ],
+      "credentials": {
+        "stripeApi": {
+          "id": "zx0VMTlwiIXGtkkd",
+          "name": "Stripe account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.data && $json.data.length > 0 }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a4e80d94-ef42-4b39-bfb1-8629dfe67e52",
+      "name": "Check If Customer Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        5264
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "customer",
+        "operation": "create",
+        "name": "={{ $('Fetch Contact from CRM1').first().json.name || $('Fetch Contact from CRM1').first().json.email }}",
+        "additionalFields": {
+          "email": "={{ $('Fetch Contact from CRM1').first().json.email }}"
+        }
+      },
+      "id": "b33bdff1-153f-4ad8-bd32-d2a9330488e9",
+      "name": "Create New Stripe Customer",
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 1,
+      "position": [
+        224,
+        5184
+      ],
+      "credentials": {
+        "stripeApi": {
+          "id": "zx0VMTlwiIXGtkkd",
+          "name": "Stripe account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "stripeCustomerId",
+              "value": "={{ $json.data ? $json.data[0].id : $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "90e372b5-7c76-41d6-8d0f-f958b83ef2b3",
+      "name": "Normalize Customer ID Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        5264
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google/drive/create-folder",
+        "options": {}
+      },
+      "id": "bb8a1438-a165-46fd-9fbd-ff70cfdcde0a",
+      "name": "Google Drive: Create Folder Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        1728
+      ],
+      "webhookId": "5677f32a-61a6-4f10-af80-1ee1513ae107"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "folderName",
+              "value": "={{ $json.body.folderName || 'New Folder' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "parentFolderId",
+              "value": "={{ $json.body.parentFolderId || 'root' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "e9cf99da-9dc7-40a7-ad2b-fe96e66eb3ab",
+      "name": "Google Drive Folder Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        1824
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "name": "={{ $('Google Drive Folder Config').item.json.folderName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "={{ $('Google Drive Folder Config').item.json.parentFolderId }}",
+          "cachedResultName": "/ (Root folder)"
+        },
+        "options": {}
+      },
+      "id": "1ee6c83c-657b-46b7-beae-e2ea0397370e",
+      "name": "Create Folder in Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -448,
+        1824
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KsSBEvrbOkAfezYg",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "options": {}
+      },
+      "id": "23ab605f-1e2c-4871-b564-8e6689d1b3aa",
+      "name": "Return Folder ID to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -224,
+        1824
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google/drive/upload-file",
+        "options": {}
+      },
+      "id": "d73ba87d-50cb-446b-b1c1-921d3e3fb236",
+      "name": "Google Drive: Upload File Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        2048
+      ],
+      "webhookId": "57fc67af-7642-4b4c-aea1-525fc31b2fc7"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "contactId",
+              "value": "={{ $json.query.contactId || $json.body.contactId }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "jobId",
+              "value": "={{ $json.query.jobId || $json.body.jobId }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "fileName",
+              "value": "={{ $json.body.fileName || $json.query.fileName || 'uploaded-file' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "folderId",
+              "value": "={{ $json.body.folderId || $json.query.folderId || 'root' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "binaryPropertyName",
+              "value": "={{ $json.body.binaryProperty || 'data' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a005f201-5615-4ef5-abbb-c05ae4efef0e",
+      "name": "Google Drive Upload Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "={{ $('Google Drive Upload Config').item.json.binaryPropertyName }}",
+        "name": "={{ $('Google Drive Upload Config').item.json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Google Drive Upload Config').item.json.folderId }}"
+        },
+        "options": {}
+      },
+      "id": "440d0d54-68fc-449f-bd9b-9ff0a2bdea4a",
+      "name": "Upload File to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -448,
+        2048
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "KsSBEvrbOkAfezYg",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://8d291547-ec2e-4e46-ac57-3233ee5f62d5-00-3jiw3qejkitpt.riker.replit.dev/api/workspace/files/link",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-internal-token",
+              "value": "bb91e72ba775b286acca3f68349955d0cbd23d71a32a2d7b778b92e5921de240"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"googleFileId\": $('Upload File to Google Drive').item.json.id,\n  \"name\": $('Upload File to Google Drive').item.json.name,\n  \"type\": \"drive\",\n  \"url\": $('Upload File to Google Drive').item.json.webViewLink,\n  \"contactId\": $('Google Drive Upload Config').item.json.contactId,\n  \"jobId\": $('Google Drive Upload Config').item.json.jobId,\n  \"lastModifiedBy\": $('Upload File to Google Drive').item.json.lastModifyingUser.displayName,\n  \"lastModifiedTime\": $('Upload File to Google Drive').item.json.modifiedTime\n} }}",
+        "options": {}
+      },
+      "id": "171fe331-f303-45c2-bbdb-24d7d68d6721",
+      "name": "Link File to CRM Entity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -224,
+        2048
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "69f5b257-6fc5-400f-b79f-987bbd66e98c",
+      "name": "Google Drive: Create Folder for Contact",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        2080
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "cfdf9b4c-a697-4eb7-b5bf-f207030634e8",
+      "name": "Google Drive: Upload File and Link to CRM",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        2080
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "CRM Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Outreach Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outreach Config": {
+      "main": [
+        [
+          {
+            "node": "Route by Action Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Action Type": {
+      "main": [
+        [
+          {
+            "node": "Send SMS (Twilio)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email (SendGrid)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Invite (Email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS (Twilio)": {
+      "main": [
+        [
+          {
+            "node": "Combine All Outreach Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email (SendGrid)": {
+      "main": [
+        [
+          {
+            "node": "Combine All Outreach Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Send Invite (Email)": {
+      "main": [
+        [
+          {
+            "node": "Combine All Outreach Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Combine All Outreach Results": {
+      "main": [
+        [
+          {
+            "node": "Log Activity to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inbound Call (Per-Segment)": {
+      "main": [
+        [
+          {
+            "node": "AI Receptionist Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Receptionist Config": {
+      "main": [
+        [
+          {
+            "node": "Extract Caller Speech (Twilio STT)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build TwiML Response (Twilio TTS)": {
+      "main": [
+        [
+          {
+            "node": "Return TwiML to Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Caller Speech (Twilio STT)": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Full Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Full Conversation": {
+      "main": [
+        [
+          {
+            "node": "Build Conversation Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Conversation Context": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Conversation Turn": {
+      "main": [
+        [
+          {
+            "node": "Build TwiML Response (Twilio TTS)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Lead Data from Transcript": {
+      "main": [
+        [
+          {
+            "node": "Prepare Lead Data for Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Lead Data for Intake": {
+      "main": [
+        [
+          {
+            "node": "Log Call Summary to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Call Summary to CRM": {
+      "main": [
+        [
+          {
+            "node": "Send to Lead Intake Flow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Response": {
+      "main": [
+        [
+          {
+            "node": "Append AI Response to History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append AI Response to History": {
+      "main": [
+        [
+          {
+            "node": "Store Conversation Turn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Ended (StatusCallback)": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Full Conversation (Call End)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Full Conversation (Call End)": {
+      "main": [
+        [
+          {
+            "node": "Merge Conversation with Call Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Conversation with Call Metadata": {
+      "main": [
+        [
+          {
+            "node": "Extract Lead Data from Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Action: Send Payment": {
+      "main": [
+        [
+          {
+            "node": "Payment Workflow Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payment Workflow Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch Contact from CRM1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Contact from CRM1": {
+      "main": [
+        [
+          {
+            "node": "Search Stripe Customer by Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Payable Object": {
+      "main": [
+        [
+          {
+            "node": "Attach Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Metadata": {
+      "main": [
+        [
+          {
+            "node": "Store Stripe IDs in CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Stripe IDs in CRM": {
+      "main": [
+        [
+          {
+            "node": "Send Payment Link to Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Payment Event Webhook": {
+      "main": [
+        [
+          {
+            "node": "Payment Event Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payment Event Config": {
+      "main": [
+        [
+          {
+            "node": "Route by Payment Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Payment Event Type": {
+      "main": [
+        [
+          {
+            "node": "Log Payment Completed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Payment Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Payment Refunded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Payment Completed": {
+      "main": [
+        [
+          {
+            "node": "Combine All Payment Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Payment Failed": {
+      "main": [
+        [
+          {
+            "node": "Combine All Payment Logs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Log Payment Refunded": {
+      "main": [
+        [
+          {
+            "node": "Combine All Payment Logs",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Combine All Payment Logs": {
+      "main": [
+        [
+          {
+            "node": "Check If Requires Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Requires Human Review": {
+      "main": [
+        [
+          {
+            "node": "Queue for Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route Gmail Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Gmail Action": {
+      "main": [
+        [
+          {
+            "node": "Send Email (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to Email (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Combine Gmail Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to Email (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Combine Gmail Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Gmail Results": {
+      "main": [
+        [
+          {
+            "node": "Log Gmail Activity to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route Calendar Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Calendar Action": {
+      "main": [
+        [
+          {
+            "node": "Create Event (Calendar)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Event (Calendar)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cancel Event (Calendar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Event (Calendar)": {
+      "main": [
+        [
+          {
+            "node": "Combine Calendar Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Event (Calendar)": {
+      "main": [
+        [
+          {
+            "node": "Combine Calendar Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Cancel Event (Calendar)": {
+      "main": [
+        [
+          {
+            "node": "Combine Calendar Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Combine Calendar Results": {
+      "main": [
+        [
+          {
+            "node": "Log Calendar Activity to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets Webhook": {
+      "main": [
+        [
+          {
+            "node": "Append Row (Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Docs Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route Docs Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Docs Action": {
+      "main": [
+        [
+          {
+            "node": "Create Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Export Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Doc": {
+      "main": [
+        [
+          {
+            "node": "Combine Docs Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Doc": {
+      "main": [
+        [
+          {
+            "node": "Combine Docs Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Append Content": {
+      "main": [
+        [
+          {
+            "node": "Combine Docs Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Export Doc": {
+      "main": [
+        [
+          {
+            "node": "Combine Docs Results",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Combine Docs Results": {
+      "main": [
+        [
+          {
+            "node": "Log Docs Activity to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM-Triggered WhatsApp Send": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp Outbound Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Outbound Config": {
+      "main": [
+        [
+          {
+            "node": "Add WhatsApp Prefix to Numbers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add WhatsApp Prefix to Numbers": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Message (Twilio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Message (Twilio)": {
+      "main": [
+        [
+          {
+            "node": "Report Success to CRM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Report Failure to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio Inbound WhatsApp → CRM": {
+      "main": [
+        [
+          {
+            "node": "Immediate HTTP 200 to Twilio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Parse Inbound Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Inbound Payload": {
+      "main": [
+        [
+          {
+            "node": "Forward to CRM Inbound Endpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Stripe Customer by Email": {
+      "main": [
+        [
+          {
+            "node": "Check If Customer Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Customer Exists": {
+      "main": [
+        [
+          {
+            "node": "Normalize Customer ID Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create New Stripe Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create New Stripe Customer": {
+      "main": [
+        [
+          {
+            "node": "Normalize Customer ID Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Customer ID Output": {
+      "main": [
+        [
+          {
+            "node": "Create Payable Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Create Folder Webhook": {
+      "main": [
+        [
+          {
+            "node": "Google Drive Folder Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Global Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Folder Config": {
+      "main": [
+        [
+          {
+            "node": "Create Folder in Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Folder in Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Return Folder ID to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Upload File Webhook": {
+      "main": [
+        [
+          {
+            "node": "Google Drive Upload Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Upload Config": {
+      "main": [
+        [
+          {
+            "node": "Upload File to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload File to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Link File to CRM Entity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "49841ef5-6cc7-479d-9a7e-0cd56a45e107",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b5e1d177e7096826c52e07eacff3ddc6655d92286c7a2b40fbba1cd9c48d3b10"
+  },
+  "id": "8xiV2hphOq7OzFDj",
+  "tags": []
+}

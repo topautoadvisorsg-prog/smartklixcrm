@@ -1,0 +1,396 @@
+PROMPT FOR FRONTEND DEVELOPER
+(UI AUDIT + COMPLETION ACROSS ALL TABS)
+
+You are the SmartKlix CRM frontend developer working in the current environment.
+
+Your job now is to do a full pass on the entire UI and make sure every tab, page, button, and modal is:
+
+Wired to real data
+
+Has proper loading, empty, and error states
+
+Has no dead buttons, no fake placeholders, no “coming soon” bullshit
+
+Matches the actual backend and N8N behavior that already exists
+
+Use logic and common sense. If something is obviously needed for a usable CRM, build it.
+
+Below is what each area MUST do.
+
+1. Global Layout & UX
+
+Across the whole app:
+
+Top bar
+
+Show current user
+
+Quick access to search (contacts / jobs)
+
+Global notifications / toasts for success and errors
+
+Sidebar
+
+Clean nav with all core tabs:
+
+Dashboard
+
+Contacts
+
+Jobs / Leads
+
+Appointments / Calendar
+
+Activity / Audit Log
+
+AI Assist / Queue
+
+Templates
+
+Files
+
+Settings
+
+N8N / Integration Status
+
+General rules
+
+Every main action must give visible feedback
+
+No blank screens, always show either data, “no results” empty state, or loading skeletons
+
+All destructive actions require confirmation modals
+
+2. Dashboard / Home
+
+Purpose: Give a quick overview of the business at a glance.
+
+It must include:
+
+Key metrics cards
+
+New leads this week
+
+Upcoming appointments
+
+Open jobs by status
+
+Missed calls (if available)
+
+Recent activity feed
+
+Show latest actions from audit log (who did what, when, on which contact/job)
+
+Clickable links into contact / job detail pages
+
+Quick actions
+
+“Add contact”
+
+“Create lead / job”
+
+“Log call / note”
+
+Everything here must display real data, no mock values.
+
+3. Contacts Tab
+
+Purpose: Single source of truth for people in the system.
+
+It must support:
+
+Contacts list
+
+Paginated table
+
+Search by name, email, phone
+
+Filters (tag, lead stage if available)
+
+Click row to open contact detail
+
+Contact detail view
+
+Core info: name, phone, email, tags
+
+Related jobs / leads list
+
+Recent activity (notes, calls, SMS, email if tracked)
+
+Files linked to this contact
+
+Action buttons:
+
+Send SMS
+
+Send Email
+
+Create Job / Lead
+
+Log Note
+
+Log Call
+
+Create / Edit contact
+
+Form must map to real backend schema
+
+Proper validation and error display
+
+No silent failures
+
+If any of this is missing or half done, finish it.
+
+4. Jobs / Leads Tab
+
+Purpose: Track work and sales pipeline.
+
+It must support:
+
+Jobs / leads list
+
+Table or Kanban
+
+Show status, contact, title/summary, created date
+
+Filters by status (lead, in progress, completed, etc.)
+
+Job detail
+
+Linked contact
+
+Description / scope
+
+Status and ability to change it
+
+Appointment(s) linked
+
+Notes
+
+Files
+
+Internal activity
+
+Actions
+
+Create job / lead from this tab
+
+Change status with confirmation
+
+Link to contact profile
+
+No dummy buttons. Everything must hit the real API.
+
+5. Appointments / Calendar Tab
+
+Purpose: Manage scheduling.
+
+It must support:
+
+Calendar view
+
+At least one view: day or week
+
+List view is fine if calendar component is not ready, but it must be usable
+
+Appointment list
+
+Show contact, job, date/time, status (confirmed / pending / completed)
+
+Create / edit appointment
+
+Select contact and/or job
+
+Choose date and time
+
+Save to backend
+
+Display validation errors correctly
+
+Actions
+
+Reschedule
+
+Mark as completed
+
+Cancel
+
+No “fake calendar”. Whatever is shown must reflect real appointment data.
+
+6. Activity / Audit Log Tab
+
+Purpose: Show a history of what happened in the system.
+
+It must support:
+
+List of actions
+
+Timestamp
+
+Actor (user or system/AI)
+
+Action summary
+
+Target entity (contact, job, appointment)
+
+Filters
+
+Date range
+
+Type (note, job update, lead created, SMS, etc. if available)
+
+Each row should link to the related contact or job.
+
+7. AI Assist / Queue Tab
+
+Purpose: Review and approve AI suggested actions.
+
+It must support:
+
+Queue list
+
+Each item shows:
+
+Summary of suggestion
+
+Target (contact / job)
+
+Type of action (send SMS, follow up, update status, etc.)
+
+Mode (Draft / Assist / Auto if that’s surfaced)
+
+Detail panel
+
+Full suggested text or action details
+
+Any context the AI used
+
+Actions
+
+Approve → triggers the real action through backend
+
+Reject → marks as rejected
+
+Mark as done / resolved
+
+No item should be “clickable” without doing anything. Wire it to the real endpoints already defined.
+
+8. Templates Tab
+
+Purpose: Manage SMS and email templates.
+
+It must support:
+
+Template list
+
+Name
+
+Type (SMS / Email)
+
+Last updated
+
+Edit template
+
+Subject (email only)
+
+Body (text or HTML)
+
+Save and show success/error
+
+Create new template
+
+Fully functional
+
+Make sure this is not just a visual list. All CRUD must work.
+
+9. Files Tab
+
+Purpose: Manage uploaded files tied to contacts or jobs.
+
+It must support:
+
+File list
+
+Filename
+
+Linked entity (contact / job)
+
+Uploaded at
+
+Upload
+
+File picker
+
+Show progress / errors
+
+Map correctly to the backend file metadata
+
+Download
+
+Clicking a file should open or download via a proper signed URL
+
+No fake files. This must reflect actual data from the backend.
+
+10. Settings Tab
+
+Purpose: Configure tenant-level behavior.
+
+It must support:
+
+Basic business info
+
+Notification preferences (if implemented)
+
+N8N / integration status section:
+
+Show current N8N webhook URL in read-only form
+
+Show last integration health message if available
+
+Any existing flags or config fields must load from backend and save correctly.
+
+No dead forms. Anything editable must persist.
+
+11. N8N / Integration Status Tab (If Present)
+
+If there is already an Integration / N8N tab or section:
+
+Show latest integration events / health
+
+Show whether last callbacks to /api/events/update succeeded
+
+Show count of recent failures (if logged)
+
+Link to audit log entries for those failures
+
+If this tab exists but is empty, fill it with at least basic integration health info using existing backend data.
+
+12. Error Handling, Loading, Empty States
+
+Across all tabs:
+
+Always show a visible loading state while fetching
+
+If an API fails, show a clear error message (not silent)
+
+If there is no data, show a friendly “no records yet” empty state with a quick action button where it makes sense (e.g. “Create Contact”)
+
+13. Final Pass
+
+When you are done:
+
+There should be no dead UI elements
+
+No “coming soon” sections
+
+No obvious UX gaps where a normal user would get stuck
+
+Every tab described above should be functional enough to be used in a real small business
+
+Deliver a short summary of:
+
+Tabs that were fixed
+
+Tabs that were completed or improved
+
+Any UI limitations that still depend on backend work

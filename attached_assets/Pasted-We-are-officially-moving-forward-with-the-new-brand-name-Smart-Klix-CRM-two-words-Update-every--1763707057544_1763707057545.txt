@@ -1,0 +1,158 @@
+We are officially moving forward with the new brand name:
+
+Smart Klix CRM
+(two words)
+
+Update every part of the UI to reflect this exact name.
+
+1. Global Brand Rename
+
+Replace every old or placeholder name in the UI with:
+
+Smart Klix CRM
+
+Update it everywhere:
+
+Sidebar title
+
+Dashboard header
+
+Page titles
+
+Login screen
+
+Browser tab title
+
+Notifications
+
+Any leftover template names
+
+2. Logo Integration
+
+I will provide the official Smart Klix logo file.
+
+Once I send it:
+
+Place the logo at the top of the sidebar
+
+Add the logo to the login page
+
+Update favicon
+
+Add to Settings branding section
+
+Make sure it scales clean in dark and light modes
+
+3. Apply the Smart Klix Brand Colors
+
+Use ONLY the Smart Klix brand colors across the entire CRM.
+
+Apply to:
+
+Buttons
+
+Active tabs
+
+Sidebar
+
+Status badges
+
+Calendar events
+
+Pipeline columns
+
+Hover states
+
+Selected items
+
+Quick action buttons
+
+Remove ALL placeholder UI colors.
+
+4. Remove Template Branding
+
+Delete and replace:
+
+Demo icons
+
+Example company names
+
+Placeholder colors
+
+Temporary avatars
+
+Fake labels
+
+Everything must match Smart Klix branding.
+
+5. Enforce Branding Consistency Across All Tabs
+
+Every tab must visually align with Smart Klix:
+
+Dashboard
+
+Contacts
+
+Jobs
+
+Estimates
+
+Invoices
+
+Payments
+
+Calendar
+
+Pipeline
+
+Intelligence Bot
+
+AI Assist Queue
+
+AI Memory
+
+Metrics
+
+Audit Log
+
+User Management
+
+Settings
+
+No mismatched fonts, spacing, or colors.
+
+6. Settings → Branding Section
+
+Inside the Settings tab:
+
+Brand name must show “Smart Klix CRM”
+
+Logo must appear
+
+Primary and secondary colors must be Smart Klix theme
+
+Remove default placeholders
+
+7. Prep for Next Stage
+
+After branding is done, we move to:
+
+Finalizing n8n integration
+
+Running full E2E workflow tests
+
+Connecting automated events and triggers
+
+Testing the Smart Klix website widget
+
+Branding must be completed FIRST.
+
+Deliverables Required
+
+Once branding update is finished:
+
+Full UI screenshot set (all tabs)
+
+Summary of all changes made
+
+List of remaining unbranded or system-limited areas

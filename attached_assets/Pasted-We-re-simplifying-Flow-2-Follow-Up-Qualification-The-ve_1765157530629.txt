@@ -1,0 +1,149 @@
+We’re simplifying Flow #2 (Follow-Up & Qualification).
+The version you generated includes unnecessary logic such as scoring tiers (hot/warm/cold), lead complexity, drip campaigns, nurture groups, classification buckets, etc.
+That’s not the system we’re building.
+
+Here’s what we actually need:
+1. Purpose
+
+This flow is not trying to “intelligently qualify” leads on its own.
+
+Its job is simple:
+
+Identify which leads need follow-up.
+
+Notify or assist the human rep.
+
+Only send automated messages if a human explicitly triggers it.
+
+Keep things clean and lightweight.
+
+No AI qualification.
+No lead scoring tiers.
+No automated decision-making.
+
+2. What counts as a lead needing follow-up
+
+A follow-up candidate is:
+
+Contact with tag "new-lead"
+
+OR a lead that hasn’t been touched in X hours/days
+
+OR a lead manually marked for follow-up
+
+That’s it.
+
+3. Flow Logic (Simple Version)
+Trigger
+
+Scheduled every 2 hours (or business hours only, we’ll finalize later).
+
+Steps
+
+Fetch contacts from CRM
+
+Only leads (not customers, not won deals)
+
+Identify who needs follow-up based on:
+
+Lead is new
+
+Lead hasn’t been updated in X time
+
+Lead is tagged for follow-up
+
+Lead is waiting on rep action
+
+For each qualifying lead:
+
+Add tag: "follow-up-needed"
+
+Write activity log (follow_up_detected)
+
+Notify rep via assist queue (simple, not AI qualification)
+
+No scoring, no tiers, no classification.
+4. Human chooses next action
+
+The system will not decide if a lead is hot, warm, cold, stale, etc.
+
+The human will decide:
+
+Send first email
+
+Send SMS
+
+Call
+
+Mark as contacted
+
+Mark as qualified
+
+Mark as not interested
+
+Advance stage
+
+5. Integration with Flow #1
+
+Flow #1 tags "new-lead"
+Flow #2 picks that up and updates "follow-up-needed"
+
+Nothing else.
+
+6. What to remove
+
+Please remove these from your version:
+
+Lead scoring (0–100)
+
+Tier labels (Hot, Warm, Cooling, Stale)
+
+“Drip campaign” logic
+
+“Nurture bucket” logic
+
+AI-generated classification suggestions
+
+Any complex/automated pipeline flow
+
+None of these belong in our system.
+
+7. What to keep
+
+CRM API endpoints
+
+Simple tag updates
+
+Simple activity logs
+
+Optional queue entry for a rep to review
+
+Everything layered, modular, and lightweight — so we avoid bloat.
+
+✅ Summary For You (Joe)
+
+Here’s what we’re actually building:
+
+Flow #1 — Lead Intake
+
+✔ Already solid.
+✔ Minimal logic.
+✔ Does exactly what it should.
+
+Flow #2 — Follow-Up & Qualification (NOW)
+
+🔥 Simple monitoring flow
+🔥 Helps humans follow up
+🔥 Only tags + logs + optional notify
+❌ No AI qualification
+❌ No scoring
+❌ No buckets
+❌ No extra logic
+
+After this:
+
+3 → AI Receptionist
+4 → Stripe Payment
+5 → Google Workspace
+6 → Master Architect
+7 → Knowledge Base (CRM internal, not a flow)

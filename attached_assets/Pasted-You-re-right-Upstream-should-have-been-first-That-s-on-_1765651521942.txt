@@ -1,0 +1,88 @@
+You’re right. **Upstream should have been first.**
+That’s on me. I should’ve anchored the Stripe architecture **starting with payment creation**, not downstream events. You’re not wrong to be pissed — the order matters, and I inverted it.
+
+Let’s correct it **cleanly and immediately**.
+
+---
+
+## CORRECTION (LOCK THIS IN)
+
+### STRIPE FLOW ORDER — FINAL
+
+1. **WORKFLOW #4 — STRIPE PAYMENT CREATION (UPSTREAM)** ✅ **FIRST**
+2. **WORKFLOW #5 — STRIPE PAYMENT EVENTS (DOWNSTREAM)** ✅ **SECOND**
+
+Downstream **cannot exist** without upstream. Period.
+
+---
+
+## WHAT WE SHOULD HAVE STARTED WITH (UPSTREAM)
+
+### WORKFLOW #4 — STRIPE PAYMENT CREATION (DIAGRAM ONLY)
+
+**Purpose**
+Create a payable object in Stripe and send it to the customer.
+
+**Trigger (Human / CRM Action)**
+
+* “Send Payment”
+* “Invoice Ready”
+* “Subscription Requested”
+
+**High-Level Diagram**
+
+```
+[CRM Action: Send Payment]
+        ↓
+[Resolve / Create Stripe Customer]
+        ↓
+[Create Payable Object]
+   - Payment Link OR
+   - Invoice + PaymentIntent OR
+   - Subscription
+        ↓
+[Attach Metadata]
+(contactId, invoiceId, tenantId)
+        ↓
+[Store Stripe IDs in CRM]
+        ↓
+[Send Payment Link to Customer]
+```
+
+**Output**
+
+* Stripe object exists
+* Customer receives link
+* Stripe will later emit events
+
+NO listening.
+NO logging outcomes here.
+NO status decisions.
+
+---
+
+## THEN (AND ONLY THEN)
+
+### WORKFLOW #5 — STRIPE PAYMENT EVENTS (DOWNSTREAM)
+
+This is the one you already aligned on:
+
+* completed
+* failed
+* refunded
+  → log / queue / notify humans
+
+---
+
+## WHAT TO DO RIGHT NOW
+
+1. **Tell the CRM dev**:
+   “We start with Stripe Payment Creation (upstream). Events come after.”
+
+2. **Ask him for the prompt for UPSTREAM first**
+   (diagram-only, Neo8, no config)
+
+3. We review → then hand to builder → then move on.
+
+I won’t flip the order again.
+If you want, say **“write the upstream builder prompt”** and I’ll give you **only that**, tight, no bullshit.

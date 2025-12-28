@@ -1,0 +1,131 @@
+Context
+You are being given ONE active tab to review.
+This is NOT execution yet.
+ This is a review + planning checkpoint.
+The CRM is the source of truth.
+ All intake flows through Intake Hub → Action AI → downstream tabs.
+ Automation is handled via Neo8 (n8n) and must be documented accurately.
+A Neo8 developer is now part of this workflow and will validate automation assumptions.
+
+Your Task (Read Carefully)
+For the active tab only, you must do the following:
+1️⃣ Describe What This Tab Looks Like (As You Understand It)
+Based on:
+The provided README
+
+
+The provided UI mockup
+
+
+Explain back to us:
+The purpose of the tab
+
+
+The user’s mental model
+
+
+The main UI sections
+
+
+What is read-only vs actionable
+
+
+How it fits into the overall CRM flow
+
+
+This is a comprehension check.
+ If you misunderstand it here, we fix it now.
+
+2️⃣ Provide an Implementation Plan (Tab-Scoped Only)
+Give a clear, ordered plan for this tab only:
+What files/components you would touch
+
+
+What you would modify vs keep
+
+
+What UI changes are required
+
+
+What backend connections already exist
+
+
+What backend connections are missing but expected
+
+
+⚠️ Do NOT implement yet
+ ⚠️ Do NOT reference other tabs unless they directly integrate
+
+3️⃣ Neo8 / Automation Review (Critical)
+For this tab, explicitly state:
+Does this tab:
+
+
+Trigger automations?
+
+
+Read automation results?
+
+
+Write to the Automation Ledger?
+
+
+What Neo8 workflows are involved (if any)
+
+
+What events, webhooks, or contracts are expected
+
+
+What needs confirmation from the Neo8 developer
+
+
+If anything is unclear or undocumented — this is where you ask.
+
+4️⃣ Risk, Gaps, or Improvements
+Call out:
+Anything that feels ambiguous
+
+
+Anything that might break
+
+
+Any mismatch between README and mockup
+
+
+Any UX simplification opportunities (without adding features)
+
+
+Do not “fix silently.”
+ Surface it here.
+
+5️⃣ Confirmation Gate
+End your response with:
+✅ “I understand this tab and am ready to implement once approved.”
+
+
+❓ Or a clear list of blocking questions
+
+
+Do not proceed without approval.
+
+Hard Rules (Non-Negotiable)
+❌ No backend re-architecture
+
+
+❌ No feature expansion
+
+
+❌ No touching other tabs
+
+
+❌ No global refactors
+
+
+✅ Modify, align, document only
+
+
+✅ Neo8 behavior must be documented, not assumed
+
+
+
+

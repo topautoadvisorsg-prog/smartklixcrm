@@ -1,0 +1,99 @@
+Greenlight to Proceed — UI/UX Refinement Phase
+
+We’re aligned. You can proceed with development.
+
+This phase is not a rebuild. It is a refinement and alignment pass on existing structure.
+
+Scope of Work
+
+Proceed with UI/UX updates for the approved tabs (list already provided).
+
+Focus on layout, hierarchy, spacing, and flow.
+
+Improve clarity and polish, but do not increase complexity.
+
+What DOES NOT Change (Global Locks)
+
+These are already defined and should not be altered:
+
+❌ Color palette
+
+❌ Theme / design tokens
+
+❌ Typography / font family
+
+❌ Core backend logic and architecture
+
+❌ Automation authority (Neo8 remains the automation layer)
+
+You may adapt layouts to fit these globals, but you do not redefine them.
+
+What You SHOULD Focus On
+
+Layout structure and visual hierarchy
+
+Component composition and spacing
+
+Readability and scanability
+
+Progressive disclosure for advanced settings
+
+Modern, clean SaaS polish (glassmorphic / Google-style restraint)
+
+Rule of thumb:
+
+You may make things better or clearer, but never worse, heavier, or more complicated.
+
+Mock-Up Code Usage
+
+Mock-up code is visual reference only
+
+Use it to guide layout and structure, not business logic
+
+Treat it as a design contract for the frontend experience
+
+Documentation Rules
+
+Each tab has its own README
+
+Create or update a README only when working on that tab
+
+Keep documentation accurate and scoped to:
+
+Purpose
+
+UI/UX behavior
+
+Relevant backend connections (including Neo8 where applicable)
+
+Maintain a clean docs structure:
+
+Tab-level READMEs live in a dedicated folder
+
+Main product README remains and may be updated, not deleted
+
+Code Quality Expectations
+
+Clean, readable, well-structured code
+
+No duplication
+
+No unnecessary abstraction
+
+Comment intent where helpful
+
+Keep changes scoped and incremental
+
+Execution Principle
+
+Modify and align — do not reinvent
+
+Save time and cost
+
+Avoid redoing work that already exists
+
+Move top-down, one tab at a time, with documentation as you go
+
+You’re cleared to proceed.
+
+Stop and flag if anything conflicts with these constraints before pushing forward.

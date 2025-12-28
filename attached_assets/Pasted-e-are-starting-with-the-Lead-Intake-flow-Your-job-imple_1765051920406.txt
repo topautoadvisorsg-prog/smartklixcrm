@@ -1,0 +1,137 @@
+e are starting with the Lead Intake flow. Your job: implement the CRM side of the Lead Intake flow so that intake events are validated, persisted, audited, and queued for downstream automation. We do not make implementation decisions for you. Implement the requirements below. If you need to change anything, answer the required questions and state the change in your response.
+
+Goals (what this must do)
+
+Receive intake events from all intake sources (chat widget, contact form, extended form, inbound email parser, AI receptionist via Twilio).
+
+Validate the incoming canonical envelope. Reject invalid input with clear errors.
+
+Enforce idempotency per tenant. If the same idempotency_key is received again, return duplicate status.
+
+Persist contact/lead data transactionally with a new outbox event row.
+
+Create an audit_log entry for every intake action describing actor, timestamp, source, and a short payload summary.
+
+Provide unit tests for validation and integration tests that exercise end-to-end intake (endpoint → DB rows → audit log → outbox).
+
+Deliver a migration for any new tables required.
+
+Provide a short README in the PR describing how to run tests and how to exercise the endpoint with curl.
+
+Canonical envelope (must accept exactly as named)
+{
+  "schema_version": "neo8flow.v1",
+  "event_type": "lead.intake",
+  "idempotency_key": "<string>",
+  "tenant_id": "<string>",
+  "timestamp": "<ISO8601>",
+  "source": {
+    "channel": "<chat_widget|contact_form|extended_form|email|twilio_voice|api>",
+    "source_id": "<string>",
+    "ip": "<string|null>"
+  },
+  "metadata": {
+    "lead_score": "<number|null>",
+    "tags": ["<string>"]
+  },
+  "data": {
+    "contact": {
+      "id": "<string|null>",
+      "firstName": "<string|null>",
+      "lastName": "<string|null>",
+      "email": "<string|null>",
+      "phone": "<string|null>",
+      "company": "<string|null>",
+      "address": {"line1":"<string|null>","city":"<string|null>","postal":"<string|null>"}
+    },
+    "conversation": {
+      "summary": "<string|null>",
+      "recording_url": "<string|null>"
+    },
+    "tentative_meeting": {
+      "start": "<ISO8601|null>",
+      "end": "<ISO8601|null>",
+      "calendar_hint": "<string|null>"
+    }
+  }
+}
+
+Required validation rules (implement exactly)
+
+Required top-level: schema_version, event_type, idempotency_key, tenant_id, timestamp, source.channel.
+
+Require at least one of: data.contact.email, data.contact.phone, data.contact.id, data.conversation.recording_url.
+
+timestamp must be valid ISO8601.
+
+source.channel must match the allowed enum values in the envelope.
+
+idempotency_key must be unique per tenant.
+
+Required endpoint behavior
+
+Endpoint path: /api/intake/lead (HTTP POST).
+
+On validation error: respond 400 with JSON error explaining field(s).
+
+On duplicate idempotency_key: respond 200 with { "status": "duplicate" }.
+
+On success: respond 201 with { "status":"accepted", "contactId":"...", "outboxId":"..." }.
+
+All successful persistence (contact create/link + outbox row) must be in a single DB transaction.
+
+Persistence & audit
+
+Persist contact to existing contacts table (create or link).
+
+Persist outbox event to events_outbox table (new migration required).
+
+Insert an audit_log row for this intake event with actor = system:intake and a short summary.
+
+Provide migration SQL/Drizzle for each new table you add.
+
+Tests (must include)
+
+Unit tests for validation logic.
+
+Integration test that posts a canonical envelope and asserts: contact created or linked, outbox row exists, audit_log row exists, response 201.
+
+Test that re-posting same idempotency_key returns duplicate response.
+
+Security / access
+
+For API partner submissions: require authentication. Implement the auth mechanism you choose and state the exact header and validation rule in answers below.
+
+For public sources (widget), enforce source.source_id presence and any rate limiting you deem necessary; state the mechanism in answers below.
+
+Required answers (you must answer all these BEFORE building). Prefix each answer with the question number.
+
+Provide exact DB schema for events_outbox and audit_log. Paste SQL migration or Drizzle schema. Include column names and types.
+
+State the exact authentication method for API partner submissions. Provide header name, expected token format, and where tokens are validated.
+
+State how idempotency will be enforced (unique constraint on events_outbox (tenant_id,idempotency_key) OR separate idempotency table). Paste SQL if applicable.
+
+State deduplication behavior for contacts: Will the endpoint attempt automatic merge? If yes, give exact matching keys and merge rules. If no, state that duplicates are created and marked for manual review.
+
+State whether you have a per-tenant secrets store for Neo8Flow shared secrets. If yes, state retrieval mechanism. If no, reply: none.
+
+For tentative meetings: provide schema for tentative_meetings table (columns and types) and state which role/user confirms tentative meetings. If undecided, answer defer.
+
+State audit log retention period (exact number of days) and where archived logs are stored (same DB, separate DB, or external).
+
+List exact environment variable names you will add for this feature (one-per-line).
+
+State who will run and approve the integration tests and in which environment (local, staging, CI). Provide role or contact (e.g., qa-team, devops, alice@example.com).
+
+Answer format requirement: number your answers exactly like 1) ..., 2) .... Build only after you provide answers 1–9.
+
+How we proceed after you answer 1–9
+
+We will send the confirmed developer answers, plus the canonical envelope, to Neo8 ask-agent to confirm webhook semantics and signing requirements.
+
+Neo8 ask-agent will return exact headers, response codes, and any required field changes.
+
+We will forward Neo8’s exact requirements back to you to implement.
+
+You implement, run tests, and open a PR with migration, tests, and a README explaining how to test locally.

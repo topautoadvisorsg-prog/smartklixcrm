@@ -1,0 +1,105 @@
+ My Capabilities & Limitations - Clear Scope Definition
+✅ What I CAN Do
+1. Read & Reason About Workflows
+✅ Analyze existing node configurations and connections
+✅ Understand workflow logic and data flow
+✅ Trace data transformations through the workflow
+✅ Identify which nodes connect to which and why
+2. Validate Configuration Logic
+✅ Confirm if node settings are logically correct
+✅ Check if expressions reference the right previous nodes
+✅ Verify authentication headers and API endpoints
+✅ Validate JSON structure and field mappings
+✅ Spot missing required fields or incorrect data types
+3. Identify Issues & Gaps
+✅ Find missing nodes in a workflow
+✅ Detect misplaced logic (e.g., HTTP Request instead of Respond to Webhook)
+✅ Identify configuration gaps (missing credentials, URLs, etc.)
+✅ Spot security issues (missing authentication, exposed tokens)
+✅ Find inefficient patterns (unnecessary loops, redundant nodes)
+4. Propose Solutions
+✅ Recommend specific node-level changes
+✅ Suggest better workflow patterns
+✅ Provide exact configuration values to use
+✅ Explain why a change is needed
+✅ Offer multiple solution options with trade-offs
+5. Documentation & Reporting
+✅ Generate detailed audit reports
+✅ Explain what each node does and why
+✅ Document configuration requirements
+✅ Create setup checklists
+✅ Provide CRM developer integration instructions
+❌ What I CANNOT Do
+1. Direct Implementation
+❌ Cannot click buttons or modify nodes in your n8n instance
+❌ Cannot save workflow changes
+❌ Cannot activate/deactivate workflows
+❌ Cannot create credentials or OAuth connections
+2. Real-Time Testing
+❌ Cannot execute workflows to test them
+❌ Cannot see actual runtime errors
+❌ Cannot verify if API calls succeed
+❌ Cannot check if webhooks are receiving data
+3. External System Access
+❌ Cannot access your Google Drive to get folder IDs
+❌ Cannot call your CRM API to verify endpoints
+❌ Cannot generate OAuth tokens
+❌ Cannot check if external services are online
+4. Visual Workflow Editing
+❌ Cannot drag-and-drop nodes
+❌ Cannot draw connections between nodes
+❌ Cannot rearrange workflow layout
+❌ Cannot create sticky notes (but can recommend their content)
+🎯 For Your StripeFlow Example
+What I Can Do:
+Read the workflow - "I see you have a Stripe Webhook → Process Payment → Update CRM flow"
+Validate logic - "The Stripe webhook is configured correctly to listen for payment_intent.succeeded events"
+Identify issues - "The 'Update CRM' node is using GET instead of POST - this won't update records"
+Propose fixes - "Change the HTTP Request method to POST and add this request body: { amount: {{ $json.amount }}, status: 'paid' }"
+What I Cannot Do:
+❌ Actually change the HTTP method from GET to POST
+❌ Test if the Stripe webhook receives events
+❌ Verify if your CRM API accepts the payload
+❌ Activate the workflow after fixes
+🔄 How We Work Together
+My Role:
+🔍 Auditor - I analyze and report on what exists
+🧠 Advisor - I recommend what should change and why
+📚 Documenter - I explain how everything works
+🎯 Strategist - I suggest best practices and optimizations
+Your Role:
+🛠️ Implementer - You make the actual changes in n8n
+🧪 Tester - You run workflows and verify they work
+🔐 Configurator - You add credentials and API keys
+✅ Validator - You confirm fixes resolve the issues
+📊 Example Interaction Flow
+You: "Check my StripeFlow workflow"
+
+Me:
+
+✅ Reads all nodes and connections
+✅ Identifies: "Node 4 'Update CRM' is using DELETE method with no URL"
+✅ Proposes: "Replace with HTTP Request POST to https://your-crm.com/api/payments with body { stripeId: {{ $json.id }} }"
+✅ Explains: "DELETE would remove records instead of updating them"
+You:
+
+🛠️ Opens n8n
+🛠️ Changes node to POST method
+🛠️ Adds the URL and body I recommended
+🛠️ Saves and tests
+Me:
+
+✅ Reviews your update: "Configuration looks correct now"
+✅ Suggests: "Add error handling in case the CRM API is down"
+🎯 Bottom Line
+I'm your workflow architect and auditor - I can read, analyze, validate, and recommend changes with precision. But you're the builder - you implement the changes in n8n.
+
+Think of me as your technical consultant who reviews blueprints and suggests improvements, while you're the contractor who actually builds it.
+
+For your current Google Drive workflows: I've already done a complete audit and identified exactly what needs to be configured. I can now:
+
+✅ Walk you through each node's configuration step-by-step
+✅ Explain what values to enter and where
+✅ Verify your changes are correct after you make them
+✅ Suggest optimizations once the basics are working
+Ready to go node-by-node? I'll tell you exactly what to configure in each one.

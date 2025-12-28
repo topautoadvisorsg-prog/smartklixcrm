@@ -1,0 +1,177 @@
+opOut (SmartKlix White-Label CRM Platform) — Audit & Pre-Integration Directive
+
+Message to Developer
+
+Great work getting the CRM dashboard built with the full navigation, dark mode, metrics, and all functional pages.
+Now we’re entering the Audit and Pre-Integration Stage.
+
+No live API keys are to be connected yet.
+This is still a white-label base product — not tied to any real client, account, or production key.
+
+🎯 Project Goal
+
+We are finalizing a white-label, single-tenant AI CRM platform that must be:
+
+Fully auditable
+
+Cleanly coded
+
+Modular and extensible
+
+Easy to customize (through code, not just GUI)
+
+Ready to clone and brand per client with minimal edits
+
+Each future customer will get:
+
+Their own repo
+
+Their own Supabase instance (Postgres + Vault)
+
+Their own Redis URL
+
+Their own OpenAI key (added later)
+
+Their own N8N workflows
+
+🔒 Environment Rules (Right Now)
+
+Connect only to Supabase for test data storage.
+
+Use a dummy Supabase project or a development instance.
+
+Tables: contacts, jobs, appointments, notes, files, audit_log.
+
+No real API keys or external services — use placeholders:
+
+OPENAI_API_KEY=__SET_AT_DEPLOY__
+N8N_WEBHOOK_URL=__SET_AT_DEPLOY__
+REDIS_URL=redis://placeholder:6379
+JWT_SECRET=__SET_AT_DEPLOY__
+
+
+The system must boot and operate entirely with fake data without breaking or throwing fatal errors.
+
+Every missing environment variable must show:
+
+A clear warning in logs
+
+A dashboard flag (🔴 “Missing key”)
+
+Never a crash or blank screen
+
+🧾 Audit Checklist (To Complete Before Integration)
+1️⃣ Code Cleanliness
+
+ No commented-out or unused code.
+
+ No stray console.logs or debugging noise.
+
+ Clear, human-readable variable names.
+
+ Consistent TypeScript strict mode enabled.
+
+ Folder structure matches spec (no “misc” folders).
+
+ ESLint + Prettier run clean with zero warnings.
+
+ Each module root contains a short README explaining purpose + dependencies.
+
+2️⃣ Functional Verification (Placeholder Mode)
+
+ Dashboard loads and displays metrics using placeholder data.
+
+ Sidebar and routing fully functional across all pages:
+
+Contacts
+
+Jobs
+
+Calendar
+
+AI Assist Queue
+
+Files
+
+Notes
+
+Metrics
+
+Audit Log
+
+Settings
+
+ Dark mode toggles correctly.
+
+ Placeholder charts render with sample values.
+
+ Widget embeds cleanly with dummy API responses.
+
+ No broken links or missing routes.
+
+3️⃣ Data & Supabase Setup
+
+ Dummy Supabase instance connected and tables created:
+
+contacts
+
+jobs
+
+appointments
+
+notes
+
+files
+
+audit_log
+
+ CRUD operations tested with mock data.
+
+ Supabase RLS disabled for now (development mode only).
+
+ All connections configured through .env.example placeholders.
+
+4️⃣ Security & Isolation
+
+ No real credentials stored anywhere.
+
+ No outbound analytics, telemetry, or hidden vendor scripts.
+
+ No unverified external calls (especially fetch/websocket).
+
+ All errors gracefully handled — no blank screens.
+
+ Dashboard clearly shows when connections (Redis, N8N, OpenAI) are inactive.
+
+5️⃣ Documentation
+
+ /docs/architecture.md describes major modules and flow.
+
+ /docs/frontend_architecture.md outlines routes + components.
+
+ /docs/audit_checklist.md (this file) completed with notes.
+
+ README.md updated to reflect the current audit phase.
+
+✅ Goal Before Next Phase
+
+When this audit passes:
+
+The app boots cleanly with Supabase and placeholder data.
+
+The dashboard renders every page without crash or error.
+
+All required docs exist.
+
+The developer can confirm:
+“✅ Base system ready — waiting for real API key integration.”
+
+🧩 Next Step (After Approval)
+
+Only after the audit is signed off:
+
+Integrate real Supabase, Redis, OpenAI, and N8N keys (per-tenant vaulting).
+
+Begin full backend connectivity and AI automation testing.
+
+Freeze this build as the TopOut White-Label Base Image for all future customers.

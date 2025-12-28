@@ -1,0 +1,185 @@
+MART KLIX CRM — BUILD THESE TWO PAGES NOW (NO OTHER WORK)
+
+We are moving to implementation.
+You only need to build two things, nothing else.
+
+1. MASTER ARCHITECT PAGE (FULL PAGE IN SIDEBAR)
+
+Create a new main tab in the sidebar:
+
+Master Architect
+
+This page is the headquarters where ALL AI agents send information.
+
+Build this EXACT structure:
+
+A. Action Intake Feed
+
+A running feed of everything sent by any agent:
+
+task type
+
+originating agent
+
+raw prompt
+
+context
+
+suggested action
+
+timestamp
+
+Format: list with collapsible rows.
+
+B. Pending Approvals
+
+Table of items waiting on Master Architect decision:
+
+description
+
+originating module
+
+AI confidence score
+
+approve button
+
+reject button
+
+Do NOT wire the logic yet.
+Just implement the UI components and placeholder handlers.
+
+C. Completed Actions Log
+
+History of all processed tasks.
+Show:
+
+result
+
+duration
+
+any callback
+
+execution path
+
+D. Raw Prompt Viewer
+
+Right-hand drawer that opens when clicking any item.
+Shows:
+
+raw prompt
+
+extracted intent
+
+parsed entities
+
+chosen tool
+
+E. Backend Endpoints (create stubs only)
+
+Create stubs only for now, no logic:
+
+POST /api/architect/ingest
+POST /api/architect/queue
+POST /api/architect/approve
+POST /api/architect/reject
+GET  /api/architect/feed
+
+
+Return dummy JSON.
+We will wire this later.
+
+2. CHAT WIDGET PAGE (FULL PAGE IN SIDEBAR)
+
+Create a new main tab in the sidebar:
+
+Chat Widget
+
+This page contains everything needed to embed Smart Klix chat into any external website.
+
+A. Widget Configuration
+
+Fields:
+
+primary color
+
+accent color
+
+welcome message
+
+support email
+
+position selector (bottom right, bottom left)
+
+Save locally (stub API for now).
+
+B. Widget Code Snippet Generator
+
+Show a dynamic code block:
+
+<!-- Smart Klix Widget -->
+<script src="https://cdn.smartklix.ai/widget.js"
+        data-tenant="TENANT_ID"
+        data-color="{{primaryColor}}"
+        data-accent="{{accentColor}}"
+        data-position="{{position}}"
+        data-welcome="{{welcomeMessage}}">
+</script>
+
+
+Copy-to-clipboard button required.
+
+C. Preview Window
+
+Right side shows a live preview of the widget.
+
+D. Backend Endpoints (stubs only)
+
+Create ONLY the stubs:
+
+POST /api/widget/settings
+GET  /api/widget/settings
+POST /api/widget/identify
+POST /api/widget/message
+POST /api/widget/lead
+POST /api/widget/upload
+
+
+Return placeholder success responses.
+
+E. DO NOT BUILD THE ACTUAL WIDGET
+
+We only need:
+
+settings page
+
+snippet generator
+
+preview
+
+stub endpoints
+
+Actual widget JS will be provided later.
+
+IMPORTANT RULES
+
+Do NOT modify any other tabs.
+
+Do NOT delete anything.
+
+Do NOT refactor UI pages.
+
+Do NOT touch detail pages.
+
+Do NOT touch pipelines.
+
+Do NOT connect N8N yet.
+
+Do NOT change branding.
+
+Only build:
+
+Master Architect full page
+
+Chat Widget full page
+
+Backend stubs for both

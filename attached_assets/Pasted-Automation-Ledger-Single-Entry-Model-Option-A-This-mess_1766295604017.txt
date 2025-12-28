@@ -1,0 +1,163 @@
+Automation Ledger — Single-Entry Model (Option A)
+
+This message confirms the execution model and authorizes implementation.
+
+🔑 Core Decision (Locked)
+
+We are using ONE ledger entry per action, updated over time.
+
+No parent/child ledger entries
+
+No duplication
+
+No historical split
+
+The ledger row is the source of truth for that action’s lifecycle
+
+📊 Automation Ledger Lifecycle
+1️⃣ Creation (Always First)
+
+Every mutation attempt MUST create a ledger entry before anything executes.
+
+Initial fields:
+
+mode = "dry_run"
+
+status = "pending"
+
+agentName
+
+actionType
+
+entityType
+
+diffJson (intended before/after if available)
+
+This applies to:
+
+Draft mode
+
+Assist mode
+
+Auto mode (still log first, then execute)
+
+2️⃣ Mode Behavior
+Draft Mode
+
+Create ledger entry (dry_run)
+
+DO NOT execute
+
+DO NOT create assistQueue entry
+
+Return summary only
+
+Assist Mode
+
+Create ledger entry (dry_run)
+
+Create assistQueue entry linked to ledger
+
+Wait for approval
+
+Auto Mode
+
+Create ledger entry (dry_run)
+
+Execute immediately
+
+Update same ledger entry post-execution
+
+3️⃣ Approval / Rejection Handling
+On Approval
+
+Execute the tool
+
+Update the SAME ledger row:
+
+mode = "executed"
+
+status = "success" or "failed"
+
+entityId populated if applicable
+
+On Rejection
+
+DO NOT execute
+
+Update the SAME ledger row:
+
+mode = "rejected"
+
+status = "rejected"
+
+No new ledger rows are created at this stage.
+
+🧾 Logging Rules (Strict)
+✅ What gets logged
+
+ONLY mutations:
+
+create / update / delete
+
+send_email / send_sms
+
+pipeline transitions
+
+payments, invoices, estimates
+
+❌ What does NOT get logged
+
+Reads
+
+Searches
+
+Counts
+
+Chat replies
+
+Informational responses
+
+If nothing changed, it does not belong in the ledger.
+
+🧠 Enforcement Point (Critical)
+
+ALL mutations already pass through executeAITool().
+
+That function is the only place where:
+
+Ledger entries are created
+
+Execution is allowed
+
+Status is finalized
+
+No mutation is allowed to bypass this.
+
+🏁 Authorization
+
+This model is approved and final.
+
+Proceed with:
+
+Schema creation
+
+Storage helper
+
+Tool-level integration
+
+Draft mode ledger support
+
+No additional architectural approval required.
+
+🧠 Final Answer to Your Question
+
+✅ Yes, Option A is correct
+
+✅ Yes, this is what we’re going with
+
+❌ No, you do NOT need a new conceptual prompt
+
+✅ You just needed this final locking directive
+
+You’re officially out of design mode and into build mode.

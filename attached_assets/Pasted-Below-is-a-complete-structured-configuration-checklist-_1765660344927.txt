@@ -1,0 +1,136 @@
+Below is a complete, structured configuration checklist for every flow and sub-flow, as requested. Each node requiring configuration is listed with the exact information needed, who must provide it, credential type, and whether it is blocking for testing.
+
+FLOW 1 — Lead Intake
+Node Name	Required Config	Source of Config	Notes/Assumptions
+📥 Website Chat / Widget	Webhook URL (path: /intake/website-chat)	Owner/Admin	Blocking; must be registered with chat/widget
+📋 Contact Us / Web Forms	Webhook URL (path: /intake/web-form)	Owner/Admin	Blocking; must be registered with web forms
+🤖 GPT / AI System Output	Webhook URL (path: /intake/gpt-output)	Owner/Admin	Blocking; must be registered with AI system
+📞 AI Receptionist Handoff	Webhook URL (path: /intake/ai-receptionist)	Owner/Admin	Blocking; must be registered with AI Receptionist
+Workflow Configuration	CRM API base URL, Central Log Endpoint, CRM Auth Token, CRM Sync Endpoint	CRM Developer	Blocking; values must be confirmed
+Log to Central Database	Endpoint URL, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Sync to CRM	CRM API endpoint, Auth headers, field mapping	CRM Developer	Blocking; field mapping must match CRM schema
+FLOW 2 — AI Receptionist
+Node Name	Required Config	Source of Config	Notes/Assumptions
+Inbound Call (Per-Segment)	Webhook URL (path)	Owner/Admin	Blocking; must be registered with Twilio/voice
+AI Receptionist Config	CallSid, From, To (from webhook)	Twilio/Voice Provider	Auto-populated from webhook
+Extract Caller Speech (Twilio STT)	Twilio Speech-to-Text integration	Twilio	Twilio credentials required (API key/SID/Token)
+Retrieve Full Conversation	Redis credentials (host, port, password)	Neo8 Admin	Blocking; required for conversation state
+Build Conversation Context	N/A (uses previous node data)	-	-
+Generate AI Response	OpenAI API Key, Model ID	Neo8 credentials	Blocking; must be set before testing
+Append AI Response to History	N/A	-	-
+Store Conversation Turn	Redis credentials	Neo8 Admin	Blocking; required for conversation state
+Build TwiML Response (Twilio TTS)	N/A (generates XML)	-	-
+Return TwiML to Twilio	N/A	-	-
+Call Ended (StatusCallback)	Webhook URL (path)	Owner/Admin	Blocking; must be registered with Twilio
+Retrieve Full Conversation (Call End)	Redis credentials	Neo8 Admin	Blocking; required for transcript
+Merge Conversation with Call Metadata	N/A	-	-
+Extract Lead Data from Transcript	OpenAI API Key, Model ID	Neo8 credentials	Blocking; must be set before testing
+Prepare Lead Data for Intake	N/A	-	-
+Log Call Summary to CRM	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Send to Lead Intake Flow	Lead Intake webhook URL	Owner/Admin	Blocking; must match Lead Intake Flow webhook
+FLOW 3 — Follow-Up & Qualification
+Node Name	Required Config	Source of Config	Notes/Assumptions
+CRM Manual Trigger	Webhook URL (path: /outreach/trigger)	Owner/Admin	Blocking; must be registered with CRM
+Outreach Config	CRM API base URL, CRM Auth Token, Twilio From Number	CRM Developer	Blocking; values must be confirmed
+Fetch Contact from CRM	CRM API endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Generate Message Content (AI)	OpenAI API Key, Model ID	Neo8 credentials	Blocking; must be set before testing
+Send SMS (Twilio)	Twilio credentials (SID, Auth Token), From Number	Neo8 credentials	Blocking; must be set before testing
+Send Email (SendGrid)	SendGrid API Key, From Email	Neo8 credentials	Blocking; must be set before testing
+Send Invite (Email)	SendGrid API Key, From Email	Neo8 credentials	Blocking; must be set before testing
+Log Activity to CRM	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+FLOW 4 — Stripe Payment Creation (Upstream)
+Node Name	Required Config	Source of Config	Notes/Assumptions
+CRM Action: Send Payment	Webhook URL (path: /payment/create)	Owner/Admin	Blocking; must be registered with CRM
+Payment Workflow Config	CRM API base URL, CRM Auth Token, Stripe API base URL	CRM Developer	Blocking; values must be confirmed
+Fetch Contact from CRM1	CRM API endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Resolve or Create Stripe Customer	Stripe API Key, Mode (test/live)	Neo8 credentials	Blocking; must be set before testing
+Create Payable Object	Stripe API Key, Mode (test/live)	Neo8 credentials	Blocking; must be set before testing
+Attach Metadata	N/A (uses previous node data)	-	-
+Store Stripe IDs in CRM	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Send Payment Link to Customer	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Assumptions:
+
+Stripe mode (test/live) must be confirmed.
+Webhook metadata (contactId, invoiceId, tenantId) must match CRM schema.
+FLOW 5 — Stripe Payment Events (Downstream)
+Node Name	Required Config	Source of Config	Notes/Assumptions
+CRM Payment Event Webhook	Webhook URL (path: /events/payment)	Owner/Admin	Blocking; must be registered with CRM/Stripe
+Payment Event Config	CRM API base URL, CRM Auth Token	CRM Developer	Blocking; values must be confirmed
+Route by Payment Event Type	N/A (uses event_type field)	-	-
+Log Payment Completed	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Log Payment Failed	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Log Payment Refunded	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Check If Requires Human Review	N/A (uses event_type field)	-	-
+Queue for Human Review	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Assumptions:
+
+Webhook verification (Stripe signature) is not currently implemented; must be confirmed if required.
+Event type mapping must match Stripe event payloads.
+FLOW 6 — Google Workspace Integration
+Gmail Sub-Flow
+Node Name	Required Config	Source of Config	Notes/Assumptions
+Gmail Webhook	Webhook URL (path: /google/gmail)	Owner/Admin	Blocking; must be registered with CRM
+Send Email (Gmail)	Gmail OAuth2 credentials, OAuth scopes (send)	Owner/Admin/Neo8	Blocking; must be set before testing
+Reply to Email (Gmail)	Gmail OAuth2 credentials, OAuth scopes (send)	Owner/Admin/Neo8	Blocking; must be set before testing
+Log Gmail Activity to CRM	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Assumptions:
+
+Gmail account must have send permission.
+OAuth consent screen must be configured.
+Calendar Sub-Flow
+Node Name	Required Config	Source of Config	Notes/Assumptions
+Calendar Webhook	Webhook URL (path: /google/calendar)	Owner/Admin	Blocking; must be registered with CRM
+Create/Update/Cancel Event (Calendar)	Google Calendar OAuth2 credentials, OAuth scopes (calendar.events), Calendar ID	Owner/Admin/Neo8	Blocking; must be set before testing; Calendar ID must be confirmed
+Log Calendar Activity to CRM	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Assumptions:
+
+Calendar ID is set to "primary" by default; must be confirmed.
+Sheets Sub-Flow
+Node Name	Required Config	Source of Config	Notes/Assumptions
+Sheets Webhook	Webhook URL (path: /google/sheets)	Owner/Admin	Blocking; must be registered with CRM
+Append Row (Sheets)	Google Sheets OAuth2 credentials, OAuth scopes (sheets), Spreadsheet ID, Sheet Name	Owner/Admin/Neo8	Blocking; must be set before testing; IDs must be confirmed
+Log Sheets Activity to CRM	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Assumptions:
+
+Spreadsheet and sheet names must be confirmed.
+Docs Sub-Flow
+Node Name	Required Config	Source of Config	Notes/Assumptions
+Docs Webhook	Webhook URL (path: /google/docs)	Owner/Admin	Blocking; must be registered with CRM
+Create/Update/Append/Export Doc	Google Docs OAuth2 credentials, OAuth scopes (docs), Document ID/Folder	Owner/Admin/Neo8	Blocking; must be set before testing; IDs must be confirmed
+Log Docs Activity to CRM	CRM endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Assumptions:
+
+Folder and document IDs must be confirmed.
+FLOW 7 — Master Architect Review
+Node Name	Required Config	Source of Config	Notes/Assumptions
+Action Completed Webhook	Webhook URL (path: /review/action-completed)	Owner/Admin	Blocking; must be registered with parent workflow
+Review Config	Approval Hub endpoint, Human Alert endpoint, Max Retries, Redis Key Prefix	CRM Developer/Neo8 Admin	Blocking; values must be confirmed
+Get Retry Count	Redis credentials	Neo8 Admin	Blocking; must be set before testing
+Perform Quality Review	N/A (logic only)	-	-
+Log Approval/Retry/Escalation to Hub	Approval Hub endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Alert Human (Escalation)	Human Alert endpoint, Auth headers	CRM Developer	Blocking; endpoint must be reachable
+Assumptions:
+
+OpenAI credentials are not directly used in this flow, but may be required if AI review is enabled.
+Redis configuration must be confirmed.
+SHARED / GLOBAL CONFIGURATION
+Config Item	Required Config	Source of Config	Notes/Assumptions
+Environment Variables	All base URLs, API keys, OAuth client IDs/secrets	Owner/Admin/Neo8	Blocking; must be set before testing
+Base URLs	CRM, Stripe, Google, Approval Hub, Human Alert	CRM Developer/Neo8	Blocking; must be confirmed
+Auth Tokens	CRM, Stripe, Twilio, SendGrid, Google, Redis	CRM Developer/Neo8	Blocking; must be set before testing
+Retry Limits	Max retries for review (default: 3)	CRM Developer/Neo8	Blocking; must be confirmed
+Logging Endpoints	Central log, Approval Hub, Activity log	CRM Developer	Blocking; must be confirmed
+BLOCKING VS NON-BLOCKING
+All credentials, endpoints, and OAuth configs above are REQUIRED before end-to-end testing.
+Webhook URLs must be registered with all upstream systems before testing.
+Any hard-coded values (IDs, tokens, URLs) must be confirmed and replaced with environment variables or config nodes.
+ASSUMPTIONS TO CONFIRM
+All webhook paths and endpoints are registered and reachable.
+All OAuth credentials are valid and have correct scopes.
+All field mappings match CRM and third-party schemas.
+Stripe mode (test/live) is set as required.
+Redis is available and accessible for stateful nodes.
+No placeholder or dummy values remain in config nodes.
+This checklist is ready to hand off to the CRM developer and system owner for credential and configuration collection. No configuration or logic changes have been made.
+
+Did this answer solve your question?

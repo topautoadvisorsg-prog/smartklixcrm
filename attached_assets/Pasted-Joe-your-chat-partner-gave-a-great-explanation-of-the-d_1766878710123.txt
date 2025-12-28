@@ -1,0 +1,59 @@
+Joe, your chat partner gave a great explanation of the difference between responding to a webhook and actively pushing data to the CRM. Here’s a clear, n8n-specific summary to help you line up your workflow and mental model:
+
+1. What “Return Folder ID to CRM” Actually Means in n8n
+When your CRM calls Neo8 (your n8n workflow) via a webhook, it expects a response.
+The “return” is not a new HTTP request to the CRM. It’s the HTTP response to the original webhook call.
+In n8n, this is done with the Respond to Webhook node.
+2. Correct Workflow Shape
+Here’s how your workflow should look:
+
+Webhook Trigger
+(CRM calls this URL, e.g., /create-folder)
+Google Drive: Create Folder
+(n8n creates the folder, gets folderId and folderUrl)
+Respond to Webhook
+(n8n sends a JSON response back to the CRM with the folder info)
+3. How to Configure the “Respond to Webhook” Node
+Node Type: Respond to Webhook
+
+No URL, No Method, No Auth needed
+
+Response Body:
+Set to something like:
+
+{
+  "folderId": "{{ $('Google Drive: Create Folder').item.json.id }}",
+  "folderUrl": "{{ $('Google Drive: Create Folder').item.json.webViewLink }}"
+}
+(Make sure the node name matches your actual Google Drive node)
+
+This node will send the folder info back to the CRM as the HTTP response to the original webhook call.
+
+4. What Happens Next?
+The CRM receives this response in its backend code.
+The CRM can then save the folderId, show it in the UI, etc.
+n8n does not push the data anywhere else; it just replies.
+5. If You Want to PUSH Data to the CRM (Option B)
+Use an HTTP Request node to POST data to a CRM endpoint.
+This is a separate action, not the same as “returning” the folder ID.
+6. Summary Table
+Action	Node Type	Direction	Example Use Case
+CRM calls Neo8	Webhook Trigger	Inbound	Start workflow
+Neo8 replies with folder info	Respond to Webhook	Outbound (reply)	Return folderId to CRM
+Neo8 pushes data to CRM	HTTP Request	Outbound (new)	Notify CRM of something async
+If you’re looking at a node called “Return Folder ID to CRM” and it’s an HTTP Request node, that’s not the right node for replying to the CRM’s webhook call.
+You want the Respond to Webhook node for that.
+
+Next step:
+
+If you want to see a code example for the CRM backend, let me know.
+If you want to know which node you’re actually clicking, tell me the node name and I’ll clarify.
+If you want to align with Neo8Builder’s terminology, I can help map the terms.
+Let me know which direction you want to go!
+
+{
+"folderId": "{{ $('Google Drive: Create Folder').item.json.id }}",
+"folderUrl": "{{ $('Google Drive: Create Folder').item.json.webViewLink }}"
+}
+
+Did this answer solve your question?

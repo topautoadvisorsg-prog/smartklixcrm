@@ -1,0 +1,136 @@
+Hey, we finalized the Follow-Up & Qualification Flow. Here is what we are going with. Please make sure all CRM endpoints and data are prepared for the Neo8 Builder. After you set everything up, send back the updated prompt (with final endpoints and fields) so I can give it to the builder.
+
+FOLLOW-UP FLOW — FINAL REQUIREMENTS
+TRIGGER (IMPORTANT)
+
+This flow is manual only.
+No schedule.
+It should trigger when a human rep takes one of these actions:
+
+Rep clicks a “Send Follow-Up” button in CRM, OR
+
+Rep updates the lead status to “Follow-Up Needed”.
+
+When that happens → the flow starts inside Neo8.
+
+WHAT THE FLOW MUST DO
+1. Fetch Lead Details
+
+Endpoint needed:
+
+GET lead/contact by ID
+
+Must include: name, phone, email, tags, last interactions, notes, history, assigned rep, etc.
+
+2. AI Generates Follow-Up Message
+
+AI writes:
+
+SMS version
+
+Email version
+
+Simple, human-like, no complexity.
+
+3. Send the Message Through:
+
+Twilio (SMS)
+
+SendGrid (Email)
+
+CRM developer must confirm:
+
+stored Twilio credentials
+
+stored SendGrid credentials
+
+4. Log Activity in CRM
+
+After message is sent, flow logs activity.
+
+Endpoint needed:
+
+POST create activity/note
+Fields needed:
+
+contact ID
+
+message content
+
+channel (SMS / Email)
+
+timestamp
+
+rep that triggered it
+
+Flow does NOT update CRM status automatically.
+
+5. Wait for Lead Response
+
+Lead replies via:
+
+Twilio SMS inbound webhook
+
+Email reply (SendGrid → CRM inbox or CRM listener)
+
+CRM must store the reply in contact notes/history.
+
+No automation changes the status.
+Only logs the response.
+
+6. AI Qualification Process NOT NEEDED
+
+Flow will NOT:
+
+classify responses
+
+update CRM status
+
+auto-score leads
+
+apply tags
+
+Only store responses in notes/history.
+
+INTEGRATIONS REQUIRED
+
+Confirm the following are available for Neo8 Builder:
+
+Twilio API (SMS send + inbound replies webhook)
+
+SendGrid API (email send + inbound webhook if needed)
+
+CRM API (fetch contact, write notes, possibly trigger)
+
+CRM developer should verify:
+
+All endpoints exist
+
+All fields required are returned
+
+All authentication/token details are correct
+
+All webhooks route into CRM properly
+
+WHAT WE NEED FROM THE CRM DEVELOPER
+
+Please provide:
+
+Final API endpoints for:
+
+GET contact details
+
+POST create activity/note
+
+Twilio inbound webhook (if CRM handles it)
+
+SendGrid inbound webhook (if CRM handles it)
+
+Fields returned by CRM in the contact object.
+
+Any required headers or tokens
+(Neo Builder will need these.)
+
+Example request & response bodies for every endpoint.
+
+Once you send me that, I will paste it into the final Neo8Builder prompt and build the flow.

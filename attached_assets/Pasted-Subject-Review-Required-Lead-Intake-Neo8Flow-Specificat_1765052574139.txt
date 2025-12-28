@@ -1,0 +1,126 @@
+Subject: Review Required — Lead Intake → Neo8Flow Specification
+
+Team,
+
+Below is the specification for the Lead Intake event Smart Klix CRM will send to Neo8Flow.
+Before we send this to the n8n builder, we need your review and confirmation.
+
+Purpose
+
+Smart Klix CRM will send a Lead Intake event to Neo8Flow.
+Neo8Flow will simply receive it and trigger automation.
+This is a one-way flow only.
+
+Key Rules
+
+No deduplication in intake — CRM will handle duplicate detection internally.
+
+No merge logic in intake.
+
+No decision-making in intake.
+
+No callback from Neo8Flow to CRM.
+
+CRM handles the authentication token. Neo8Flow does NOT validate it.
+
+Neo8Flow only:
+
+receives the payload,
+
+validates required fields,
+
+logs it,
+
+triggers automation.
+
+Required Steps on Neo8Flow Side
+
+(For your awareness / validation)
+
+Receive POST webhook from Smart Klix CRM
+
+Validate required fields:
+
+schema_version
+
+event_type
+
+idempotency_key
+
+tenant_id
+
+timestamp
+
+source.channel
+
+Require at least one identifier:
+
+data.contact.email
+
+OR data.contact.phone
+
+OR data.contact.id
+
+OR data.conversation.recording_url
+
+Log/store raw payload (optional)
+
+Route by event_type (only lead.intake right now)
+
+Trigger follow-up automation (placeholder)
+
+Respond 200 OK
+
+Canonical Payload Structure
+{
+  "schema_version": "neo8flow.v1",
+  "event_type": "lead.intake",
+  "idempotency_key": "<string>",
+  "tenant_id": "<string>",
+  "timestamp": "<ISO8601>",
+  "source": {
+    "channel": "<chat_widget|contact_form|extended_form|email|twilio_voice|api>",
+    "source_id": "<string>",
+    "ip": "<string|null>"
+  },
+  "metadata": {
+    "lead_score": "<number|null>",
+    "tags": ["<string>"]
+  },
+  "data": {
+    "contact": {
+      "id": "<string|null>",
+      "firstName": "<string|null>",
+      "lastName": "<string|null>",
+      "email": "<string|null>",
+      "phone": "<string|null>",
+      "company": "<string|null>",
+      "address": {
+        "line1": "<string|null>",
+        "city": "<string|null>",
+        "postal": "<string|null>"
+      }
+    },
+    "conversation": {
+      "summary": "<string|null>",
+      "recording_url": "<string|null>"
+    },
+    "tentative_meeting": {
+      "start": "<ISO8601|null>",
+      "end": "<ISO8601|null>",
+      "calendar_hint": "<string|null>"
+    }
+  }
+}
+
+What We Need From You
+
+Do you approve this structure?
+
+Do we need to add or remove anything?
+
+Are there CRM constraints we should consider before giving this to the builder?
+
+Once we get your confirmation, we will forward this to the n8n builder exactly as written.
+
+Thank you.

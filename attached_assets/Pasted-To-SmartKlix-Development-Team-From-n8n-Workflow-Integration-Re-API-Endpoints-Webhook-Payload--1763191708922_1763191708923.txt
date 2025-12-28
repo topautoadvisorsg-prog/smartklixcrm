@@ -1,0 +1,424 @@
+To: SmartKlix Development Team
+From: n8n Workflow Integration
+Re: API Endpoints & Webhook Payload Specifications
+
+🎯 EXECUTIVE SUMMARY
+We're building n8n automation workflows to handle SmartKlix CRM events. To complete the integration, we need:
+
+API endpoint specifications (paths, request/response formats)
+Webhook payload structures for each event type
+Authentication details (API keys, base URLs)
+Business logic clarifications (deduplication, error handling)
+📍 WEBHOOK ENDPOINTS (n8n → SmartKlix)
+Your SmartKlix backend should POST to these n8n webhook URLs:
+
+1. Voice Call Events
+URL: https://smartklix.app.n8n.cloud/webhook/voice-call-event
+Method: POST
+Content-Type: application/json
+Completed Call Payload:
+
+{
+  "event": "call_completed",
+  "call_id": "twilio_call_sid_here",
+  "status": "completed",
+  "missed": false,
+  "from_number": "+15551234567",
+  "to_number": "+15559876543",
+  "caller_name": "John Doe",
+  "tags": ["new_lead", "intake"],
+  "reason": "Wants estimate for exterior lighting",
+  "details": {
+    "job_type": "outdoor_lighting",
+    "property_type": "residential",
+    "address": "123 Main St",
+    "city": "Ensenada",
+    "budget": "1500-3000",
+    "preferred_time": "Afternoons",
+    "notes": "Has existing fixtures"
+  },
+  "ai_summary": "Caller requested exterior lighting estimate...",
+  "timestamp": "2025-11-14T00:00:00Z",
+  "language": "en"
+}
+Missed Call Payload:
+
+{
+  "event": "call_missed",
+  "call_id": "twilio_call_sid_here",
+  "missed": true,
+  "from_number": "+15551234567",
+  "to_number": "+15559876543",
+  "timestamp": "2025-11-14T00:00:00Z"
+}
+2. Generic SmartKlix Events
+URL: https://smartklix.app.n8n.cloud/webhook/smartklix-event
+Method: POST
+Content-Type: application/json
+We need payload structures for these event types:
+
+Event: lead_created
+{
+  "eventType": "lead_created",
+  "contact": {
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "phone": "+15559876543"
+    // What other fields?
+  },
+  "intake": {
+    // What fields go here?
+  }
+}
+❓ Questions:
+
+What fields are in contact?
+What fields are in intake?
+Is there a leadId or contactId?
+Event: new_lead
+{
+  "eventType": "new_lead"
+  // What fields should be here?
+  // This triggers AI content generation
+}
+❓ Questions:
+
+What's the difference between lead_created and new_lead?
+What data should be included?
+What AI content should be generated (email template, SMS, summary)?
+Event: job_updated
+{
+  "eventType": "job_updated",
+  "jobId": "job_789"
+  // What other fields?
+}
+❓ Questions:
+
+What fields are included when a job updates?
+What AI content should be generated?
+Event: send_sms
+{
+  "eventType": "send_sms",
+  "body": {
+    "fromNumber": "+15551234567",
+    "toNumber": "+15559876543",
+    "message": "Your appointment is confirmed"
+  }
+}
+❓ Questions:
+
+Is this structure correct?
+When does SmartKlix trigger manual SMS?
+Event: send_email
+{
+  "eventType": "send_email",
+  "body": {
+    "fromEmail": "noreply@smartklix.com",
+    "toEmail": "customer@example.com",
+    "subject": "Your Invoice",
+    "message": "<html>...</html>"
+  }
+}
+❓ Questions:
+
+Is this structure correct?
+When does SmartKlix trigger manual emails?
+Event: invoice_created
+{
+  "eventType": "invoice_created",
+  "body": {
+    "fromEmail": "billing@smartklix.com",
+    "toEmail": "customer@example.com",
+    "subject": "Invoice #12345",
+    "message": "<html>...</html>"
+  }
+}
+❓ Questions:
+
+Should this include invoice data (amount, items, due date)?
+Event: create_payment_link
+{
+  "eventType": "create_payment_link",
+  "body": {
+    "customerId": "cus_stripe_123",
+    "amount": 15000,
+    "paymentSourceId": "src_stripe_456",
+    "productName": "Exterior Lighting Installation"
+  }
+}
+❓ Questions:
+
+Where do customerId and paymentSourceId come from?
+Should n8n return the payment link URL to SmartKlix?
+🔌 API ENDPOINTS (n8n → SmartKlix CRM)
+n8n needs to call these SmartKlix CRM API endpoints:
+
+Authentication
+All requests will include:
+
+Authorization: Bearer {YOUR_API_KEY}
+Content-Type: application/json
+❓ Required from you:
+
+CRM API Base URL (e.g., https://api.smartklix.com)
+CRM API Key
+1. Contact Management
+Lookup Contact by Phone
+GET {BASE_URL}/contacts/lookup?phone={phone_number}
+
+Response (found):
+{
+  "id": "contact_123",
+  "name": "John Doe",
+  "phone": "+1234567890",
+  "email": "john@example.com",
+  "address": "123 Main St",
+  "city": "Ensenada"
+}
+
+Response (not found):
+{
+  "error": "not_found"
+}
+OR
+404 status code
+❓ Question: What does the "not found" response look like?
+
+Create Contact
+POST {BASE_URL}/contacts/create
+
+Body:
+{
+  "phone": "+1234567890",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "address": "123 Main St",
+  "city": "Ensenada"
+}
+
+Response:
+{
+  "id": "contact_123",
+  "phone": "+1234567890",
+  "name": "John Doe",
+  ...
+}
+❓ Critical Question: Does this endpoint handle duplicates automatically (upsert), or will it create duplicate contacts if called multiple times with the same phone number?
+
+Update Contact
+POST {BASE_URL}/contacts/update
+
+Body:
+{
+  "id": "contact_123",
+  "name": "John Doe",
+  "address": "456 Oak Ave",
+  "city": "Tijuana"
+}
+
+Response:
+{
+  "id": "contact_123",
+  "name": "John Doe",
+  "address": "456 Oak Ave",
+  ...
+}
+2. Lead Management
+Create Lead
+POST {BASE_URL}/leads/create
+
+Body:
+{
+  "contactId": "contact_123",
+  "reason": "Wants estimate for exterior lighting",
+  "summary": "AI-generated summary text",
+  "status": "new"
+}
+
+Response:
+{
+  "id": "lead_456",
+  "contactId": "contact_123",
+  "status": "new",
+  ...
+}
+3. Job Management
+Create Job
+POST {BASE_URL}/jobs/create
+
+Body:
+{
+  "contactId": "contact_123",
+  "jobType": "outdoor_lighting",
+  "propertyType": "residential",
+  "address": "123 Main St",
+  "city": "Ensenada",
+  "budget": "1500-3000",
+  "preferredTime": "Afternoons",
+  "notes": "Has existing fixtures",
+  "status": "intake"
+}
+
+Response:
+{
+  "id": "job_789",
+  "contactId": "contact_123",
+  "status": "intake",
+  ...
+}
+4. Activity Logging
+Write Activity Log
+POST {BASE_URL}/activity-log/write
+
+Body:
+{
+  "contactId": "contact_123",
+  "type": "call",
+  "direction": "inbound",
+  "summary": "Caller requested exterior lighting estimate",
+  "metadata": {
+    "call_id": "twilio_sid_123",
+    "job_type": "outdoor_lighting",
+    "budget": "1500-3000"
+  },
+  "timestamp": "2025-11-14T00:00:00Z"
+}
+
+Response:
+{
+  "id": "activity_999",
+  "contactId": "contact_123",
+  ...
+}
+❓ Question: Is the endpoint /activity-log/write or /api/activity-log? We see both patterns in the workflow.
+
+5. Event Updates (Generic)
+POST {BASE_URL}/api/events/update
+
+Body:
+{
+  "status": "success",
+  "timestamp": "2025-11-14T00:00:00Z",
+  "result": { ... },
+  "eventId": "evt_123"
+}
+
+Response:
+???
+❓ Questions:
+
+Does this endpoint exist?
+What's its purpose?
+What should the response look like?
+🚨 CRITICAL BUSINESS LOGIC QUESTIONS
+1. Contact Deduplication Strategy
+When n8n calls POST /contacts/create, does your CRM:
+
+Option A: Automatically check for duplicates by phone number and update if exists (upsert)?
+Option B: Create a new contact every time (n8n must check first)?
+
+Impact: Determines if we need to call /contacts/lookup before every /contacts/create.
+
+Current workflow behavior:
+
+Voice calls: Checks for existing contact first
+Missed calls: Creates contact without checking (will create duplicates)
+Lead created events: Creates contact without checking
+❓ Which approach should we use?
+
+2. API Endpoint Path Consistency
+We see two patterns in the workflow:
+
+/contacts/create vs /api/contacts
+/activity-log/write vs /api/activity-log
+❓ Question: Should all endpoints use the /api/ prefix or not? Please confirm the correct paths.
+
+3. AI Content Generation Purpose
+For new_lead and job_updated events, what should the AI generate?
+
+Email templates?
+SMS messages?
+Summary text for CRM?
+Follow-up recommendations?
+Something else?
+❓ Please specify the expected AI output and format.
+
+4. Stripe Payment Event Handling
+When Stripe sends payment events (payment_intent.succeeded, payment_intent.payment_failed), what should n8n do?
+
+Possible actions:
+
+Update job status in CRM?
+Send confirmation email to customer?
+Create activity log entry?
+Trigger invoice generation?
+All of the above?
+❓ Please specify the complete workflow for payment success and failure.
+
+📝 DELIVERABLES CHECKLIST
+Phase 1: Immediate (Blocking Development)
+[ ] Confirm all API endpoint paths (with or without /api/ prefix)
+[ ] Provide sample JSON payloads for all event types listed above
+[ ] Clarify contact deduplication strategy (Option A or B)
+[ ] Specify AI content generation requirements
+[ ] Provide API response formats for all endpoints
+Phase 2: Configuration (Needed for Testing)
+[ ] Provide CRM API Base URL
+[ ] Provide CRM API Key (test/staging environment)
+[ ] Confirm webhook authentication requirements (if any)
+[ ] Define Stripe payment success/failure workflows
+Phase 3: Testing Support
+[ ] Provide test credentials for staging environment
+[ ] Share sample webhook payloads we can POST for testing
+[ ] Confirm expected responses for each API call
+🧪 TESTING APPROACH
+Once you provide the above information:
+
+We'll configure all API endpoints and webhook handlers
+You'll send test webhook payloads to our endpoints
+We'll verify n8n correctly processes events and calls your API
+We'll iterate on any payload/response format mismatches
+📞 RESPONSE FORMAT
+Please respond with:
+
+## API Endpoints
+- Base URL: https://api.smartklix.com
+- API Key: [provided separately]
+
+## Endpoint Paths
+- Contact lookup: GET /contacts/lookup?phone={phone}
+- Contact create: POST /contacts/create
+- [etc...]
+
+## Contact Deduplication
+- Strategy: [Option A or B]
+- Reasoning: [why this approach]
+
+## Event Payloads
+### lead_created
+```json
+{
+  "eventType": "lead_created",
+  "contact": { ... },
+  "intake": { ... }
+}
+[Continue for all event types...]
+
+AI Content Requirements
+new_lead: Generate [email template / SMS / summary]
+job_updated: Generate [...]
+Stripe Payment Workflow
+On success: [action 1, action 2, ...]
+On failure: [action 1, action 2, ...]
+
+---
+
+## ⏱️ TIMELINE
+
+**Urgent:** We need Phase 1 deliverables to unblock workflow development.  
+**Target:** Phase 2 within 48 hours for testing.  
+**Goal:** Production-ready integration within 1 week.
+
+---
+
+**Questions?** Reply with any clarifications needed. We're ready to build as soon as we have the specs!

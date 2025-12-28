@@ -1,0 +1,126 @@
+SMART KLIX CRM — ARCHITECTURAL CONFIRMATION & RESPONSE PROMPT
+(MANDATORY RESPONSE BEFORE IMPLEMENTATION)
+
+You have just been provided with the Automation Authority, Execution Locking, and Ledger System specification for Smart Klix CRM.
+
+Before writing any code, you are required to respond to this prompt.
+
+This response is used to verify:
+
+You fully understand the system
+
+You are aligned with the architectural intent
+
+You have identified risks, gaps, or improvements
+
+You are not about to implement something incorrectly or partially
+
+This is not optional.
+
+1️⃣ CONFIRMATION OF UNDERSTANDING (REQUIRED)
+
+In your own words, explain:
+
+What the Automation Ledger is and what problem it solves
+
+What execution locking means in practice
+
+Why the Master Architect is forbidden from execution
+
+How flags differ from normal failures
+
+How role-based visibility must work (admin vs non-admin)
+
+⚠️ This must be explained clearly.
+If you cannot explain it, you do not understand it.
+
+2️⃣ IMPLEMENTATION PLAN (REQUIRED)
+
+Provide a step-by-step implementation plan, including:
+
+New tables or schema changes required
+
+Backend services or middleware to be added
+
+Where execution locks are enforced
+
+How dry-run + diff will be implemented
+
+How flags are persisted and surfaced
+
+How deletion / reversal logic will work
+
+This should be written as a technical plan, not vague bullets.
+
+3️⃣ IMPACTED AREAS (REQUIRED)
+
+List every part of the existing system that will be affected, including but not limited to:
+
+Admin Chat
+
+Pipeline drag-and-drop
+
+Jobs actions
+
+Contacts creation
+
+AI Assist Queue
+
+N8N callbacks
+
+Any background jobs or workers
+
+For each area, briefly explain what will change.
+
+4️⃣ RISKS, GAPS, OR CONCERNS (REQUIRED)
+
+As the implementing engineer / architect, answer:
+
+What parts of this system are hardest to implement correctly?
+
+Where do you see potential edge cases or failure modes?
+
+Are there performance, scaling, or data integrity concerns?
+
+Is anything ambiguous or underspecified?
+
+Do not sugarcoat. This is the time to call out issues.
+
+5️⃣ RECOMMENDATIONS (OPTIONAL BUT EXPECTED)
+
+If you believe:
+
+Something should be phased
+
+Something should be simplified
+
+Something needs a prerequisite
+
+Something is missing
+
+List it clearly, with reasoning.
+
+Recommendations do not override the spec — they inform discussion.
+
+6️⃣ FINAL CONFIRMATION (REQUIRED)
+
+End your response with:
+
+✅ “I understand the system and can implement it as specified.”
+
+❌ OR clearly state what you do not understand and why.
+
+If anything is unclear, now is the time to say it.
+
+🚨 IMPORTANT
+
+Do NOT write code yet
+
+Do NOT partially implement
+
+Do NOT assume intent
+
+Do NOT skip sections
+
+This response is a gate.
+Implementation instructions come after this is reviewed and approved.

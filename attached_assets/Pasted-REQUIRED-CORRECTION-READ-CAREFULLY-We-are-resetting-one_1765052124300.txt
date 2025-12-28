@@ -1,0 +1,135 @@
+REQUIRED CORRECTION — READ CAREFULLY
+
+We are resetting one part of your answers because it does NOT match the rules we set.
+
+**❌ Your Answer #4 is incorrect.
+
+🚫 NO deduplication logic belongs in the intake flow.
+🚫 NO automatic merging.
+🚫 NO updating existing contacts.
+🚫 NO matching by phone/email at intake level.
+🚫 NO "manual review" flags.
+🚫 NO "priority match rules."
+🚫 NONE OF THAT.**
+
+This CRM is simple.
+Duplication detection happens ONLY inside the CRM, AFTER the intake event is already delivered.
+
+The intake endpoint must remain pure, dumb, and pass-through.
+
+Correct rules below — follow them exactly.
+
+✅ THE CORRECT OFFICIAL RULES
+1. Intake endpoint does NOT detect duplicates.
+
+It does NOT check phone.
+
+It does NOT check email.
+
+It does NOT check name.
+
+It does NOT search contacts.
+
+It does NOT merge shit.
+
+It does NOT update existing contacts.
+
+2. Intake endpoint simply:
+
+Accepts the payload.
+
+Saves the event into events_outbox.
+
+Returns success.
+
+That’s it.
+
+3. CRM deduplication logic
+
+This happens after intake, in the CRM UI or backend, completely separate from intake.
+
+Rules:
+
+Duplicate = phone match OR email match.
+
+CRM displays a duplicate alert when the user views the lead.
+
+Intake flow does NOT handle this.
+
+4. Contact creation
+
+Intake does NOT create or update contacts.
+
+The CRM developer should NOT do:
+
+No linking.
+
+No merging.
+
+No updating non-null fields.
+
+No matching.
+
+No audit logs for “potential duplicates.”
+
+NONE OF THAT belongs here.
+
+Contact creation will be handled in a later flow if needed.
+
+5. Idempotency stays — because that only avoids N8N double sends
+
+This is still correct:
+
+idempotency key + tenant key = unique
+
+duplicate = respond 200 "duplicate"
+
+This is NOT deduplication of leads.
+This only prevents sending the same event twice to Neo8Flow.
+
+🧨 REQUIREMENT SUMMARY (NO AMBIGUITY)
+Intake flow must do ONLY this:
+Step	Action
+1	Validate required JSON fields
+2	Insert event into events_outbox
+3	Enforce idempotency_key at DB level
+4	Return { success: true }
+NOTHING ELSE:
+
+No merging
+
+No updating
+
+No matching
+
+No dedup
+
+No CRM-level decisions
+
+No contact creation
+
+No “potential duplicate” flags
+
+No enrichment
+
+No transformations
+
+Pure pass-through.
+
+🔥 WHAT YOU SEND BACK TO HIM
+
+Say this:
+
+Here are the corrected rules.
+Your answer #4 is wrong and must be replaced with this:
+
+NO deduplication logic inside intake.
+NO contact updates.
+NO matching.
+NO merges.
+NO duplicate alerts.
+NO decisions.
+Intake is pass-through only.
+CRM handles duplicates later, inside CRM only.
+
+Update your plan and implementation accordingly.

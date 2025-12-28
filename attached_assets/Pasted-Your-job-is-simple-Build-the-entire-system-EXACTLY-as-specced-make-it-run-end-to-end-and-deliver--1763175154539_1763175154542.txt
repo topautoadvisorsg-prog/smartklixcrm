@@ -1,0 +1,197 @@
+Your job is simple:
+Build the entire system EXACTLY as specced, make it run end-to-end, and deliver it in clean, readable, maintainable code.
+
+No placeholders.
+No half-features.
+No excuses.
+No skipping steps.
+Your ONLY mission is to get everything running clean and correct.
+
+🔥 ACTIVE SCOPE (DO THIS NOW — NOTHING ELSE)
+
+You are responsible for implementing ALL of the following:
+
+1. All SmartKlix / TopOut v4.2 Core System
+
+Backend
+
+Frontend UI
+
+AI runtime (Draft, Assist, Auto)
+
+CRM
+
+Widget
+
+File uploads
+
+N8N triggers
+
+Memory system
+
+RBAC
+
+AuditLog
+
+Appointments / Jobs
+
+All existing components
+
+2. Field Service Upgrade Pack
+
+You MUST implement these fully:
+
+Estimates
+
+Invoices
+
+Payments
+
+Extended Job Pipeline
+
+Job status flow (lead → estimate → job → in_progress → completed → invoiced → paid)
+
+Activity Log UI
+
+Endpoints for all new objects
+
+Assign technicians
+
+Scheduled start / end
+
+Job closure behavior
+
+All schemas, migrations, UI pages, endpoints, and logic must be built completely.
+
+3. Real API Integrations
+
+Use real keys and real API behavior for:
+
+OpenAI
+
+n8n webhooks
+
+Twilio
+
+Email provider
+
+Any other connected service
+
+Everything must work in real time.
+This is not mock mode.
+
+🧼 CLEAN CODE DOCTRINE (MANDATORY)
+
+This is NOT optional.
+If the code is not clean, readable, and structured, it is a failure.
+
+Strict Rules You Must Follow:
+
+Strict TypeScript everywhere
+
+No dead code
+
+No commented-out blocks
+
+No unused imports
+
+No console logs in production code
+
+All modules have one purpose
+
+Clear folder architecture exactly as defined
+
+All endpoints validated with Zod
+
+Every new feature added MUST be documented
+
+All migrations must be safe, additive, reversible
+
+All actions MUST generate AuditLog entries
+
+Role permissions MUST be enforced server-side
+
+No magic, no hidden behavior, no shortcuts
+
+Zero broken routes, missing components, or 404s
+
+🧪 REQUIRED VALIDATION
+
+You must verify the following before you say anything is done:
+
+Backend
+
+All endpoints work
+
+Status changes work
+
+AI runtime works
+
+n8n triggers fire
+
+Twilio calls succeed
+
+Memory retrieval works
+
+File uploads work
+
+All tests pass
+
+Frontend
+
+No broken pages
+
+No missing assets
+
+No console errors
+
+All CRUD screens for Estimates / Invoices / Payments work
+
+Job pipeline UI works
+
+Activity Log works
+
+Widget works
+
+Clean Code
+
+ESLint passes
+
+Prettier passes
+
+No debug code
+
+No duplicate utilities
+
+No inconsistent naming
+
+If ANY check fails → you are NOT done.
+
+📘 DOCUMENTATION (YOU MUST UPDATE)
+
+When you add ANYTHING, update:
+
+architecture.md
+
+api_tools.md
+
+memory.md
+
+rbac.md
+
+workflow_boundaries.md
+
+upgrade_strategy.md
+
+widget_security.md
+
+file_storage.md
+
+No undocumented modules.
+No missing dependencies.
+
+🎯 FINAL RULE — READ CAREFULLY
+
+Do not add future steps, template prep, or anything beyond the build.
+Your ONLY responsibility right now is to deliver a full working product in clean, stable code.
+Complete the system. Test everything. Fix everything. Document everything.

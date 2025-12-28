@@ -1,0 +1,124 @@
+CRM ACTION & EXECUTION CONTRACT — CONFIRMATION
+
+We reviewed the action, execution, and approval model end-to-end to remove any ambiguity around GPT, CRM, and Neo8 responsibilities. This message confirms the intended and agreed execution contract.
+
+1. GPT Role (Initiation, Not Direct Execution)
+
+GPT is allowed to initiate real actions via structured action requests (function/tool calls), but GPT never executes external side effects directly.
+
+GPT sends action requests only to the CRM action APIs, not to Neo8 or third-party services.
+
+Examples:
+
+Send outreach
+
+Create payment
+
+Generate document
+
+Schedule meeting
+
+Update workflow state
+
+This is not a “suggestion” layer. These are actionable requests that enter the governed execution pipeline.
+
+2. CRM Role (System of Record & Control Plane)
+
+The CRM is the authoritative system for:
+
+Policy enforcement
+
+Approval requirements
+
+Retry logic
+
+Escalation thresholds
+
+Long-term memory and audit
+
+Action routing decisions
+
+For each GPT-initiated action, the CRM decides:
+
+Whether the action is allowed
+
+Whether approval is required
+
+Whether the action executes immediately or is queued
+
+Which system performs execution
+
+If the action is internal (CRM-only), the CRM executes it directly.
+If the action has external side effects, the CRM delegates execution.
+
+3. Approval & Review Model (Two-Stage Check)
+
+For actions that require review:
+
+CRM creates an assistQueue / Approval Hub entry
+
+Approval decisions live entirely in the CRM
+
+Retry counts and escalation thresholds are tracked in CRM
+
+Neo8 does not own retries, approvals, or escalation logic
+
+Execution may occur before or after approval depending on action type, but approval state is always recorded and enforced by CRM.
+
+4. Neo8 Role (Execution Only)
+
+Neo8 is an execution layer only.
+
+Neo8:
+
+Receives explicit execution commands from CRM
+
+Executes external integrations (Twilio, SendGrid, Stripe, Google, Voice)
+
+Returns structured execution results
+
+Does not decide, approve, retry, or escalate on its own
+
+Neo8 never receives requests directly from GPT.
+
+5. AI Receptionist Exception (Voice Processing Only)
+
+The only inbound execution handled by Neo8 without prior CRM initiation is voice processing for the AI Receptionist.
+
+Economic mode: Neo8 manages Twilio Gather, multi-turn state, and then sends structured results to CRM
+
+Premium mode: Neo8 receives final transcript and summary only, no state or Redis
+
+All lead creation, memory storage, and follow-up actions still originate in CRM after voice processing completes.
+
+6. Intake Sources (Confirmed Routing)
+
+All lead intake sources route directly to CRM:
+
+Website widget
+
+Contact forms
+
+GPT create-lead actions
+
+Manual CRM entry
+
+AI Receptionist output (via Neo8 → CRM)
+
+Neo8 does not own a general intake flow outside of voice processing.
+
+7. Logging & Audit
+
+All actions, approvals, retries, and outcomes are logged in CRM:
+
+auditLog
+
+assistQueue
+
+Approval Hub
+
+notes / summaries as applicable
+
+Neo8 reports execution results using the agreed execution result schema only.
+
+Please confirm this contract matches the current CRM implementation and note any deviations that need alignment. Once confirmed, this will be treated as the locked execution model moving forward.

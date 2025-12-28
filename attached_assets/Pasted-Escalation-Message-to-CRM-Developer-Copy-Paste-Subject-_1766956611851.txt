@@ -1,0 +1,117 @@
+Escalation Message to CRM Developer (Copy–Paste)
+
+Subject: 🚨 BLOCKER: Execution Never Reaches Neo8 (Payment / Estimate Flow)
+
+We re-tested the Send Payment / Estimate flow using the agreed natural-language prompt.
+
+What worked
+
+Intake Hub received the request
+
+Action AI drafted the execution
+
+Review Queue approval completed
+
+Policy approval completed
+
+Execution was approved and dispatched
+
+Critical failure
+👉 The execution NEVER reached Neo8 / n8n.
+No webhook was hit. No workflow execution occurred.
+The system stops after approval, before automation dispatch.
+
+This is a hard blocker.
+
+❌ What is broken right now
+1. Execution Dispatch Failure
+
+Approval completes successfully
+
+No outbound call is made to the Neo8 webhook
+
+The payment workflow is never triggered
+
+This was previously working — something regressed
+
+We need to know:
+
+What component is responsible for dispatching approved executions to Neo8?
+
+Why is it not firing after approval?
+
+Are executions being silently dropped or queued?
+
+2. Missing “Pre-Proposal” Visibility (Major UX Regression)
+
+Before sending anything to Review Queue, the system must show:
+
+What action is being proposed
+
+What entity will be created or reused
+
+What automation will be executed
+
+Right now:
+
+Actions are being auto-executed with no visible proposal
+
+There is no chance to verify context
+
+This violates the intended Intake → Proposal → Review → Execute model
+
+Expected behavior
+
+AI generates a clear proposal
+
+Proposal is shown in chat
+
+User explicitly approves or rejects
+
+ONLY THEN is it sent to Review Queue
+
+If this UI exists but is not rendering, that’s a bug.
+If it was removed, that was a mistake.
+
+3. Over-Automation / No Read-Only Reasoning
+
+The agent is:
+
+Executing actions when the input is informational
+
+Not pausing to confirm missing fields
+
+Not verifying existing contacts before acting
+
+The agent must:
+
+Read first
+
+Reason
+
+Propose
+
+THEN act
+
+Not skip directly to execution.
+
+✅ What we need fixed (non-negotiable)
+
+Restore execution dispatch to Neo8
+
+Approved executions must hit n8n webhooks reliably
+
+Restore proposal visibility
+
+Show what the agent is about to do before Review Queue
+
+Stop auto-execution without proposal
+
+No silent actions
+
+Add error visibility
+
+If dispatch fails, surface WHY (don’t fail silently)
+
+This is costing time and money.
+The architecture is correct — the orchestration is failing.

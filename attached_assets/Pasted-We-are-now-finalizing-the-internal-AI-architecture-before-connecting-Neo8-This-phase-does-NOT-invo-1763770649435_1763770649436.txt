@@ -1,0 +1,234 @@
+We are now finalizing the internal AI architecture before connecting Neo8.
+
+This phase does NOT involve SMS, email, payment links, or any outbound messaging.
+Everything here is internal CRM execution only.
+
+These are the ONLY tasks you need to complete now. If something is already fixed, do not repeat it.
+
+1. UNIFIED EXECUTION MODEL (No Options, No Guessing)
+
+Both agents must behave the same way and use the same execution pipeline:
+
+Agents:
+
+Master Architect (top brain)
+
+CRM Chat Agent (CRM-H, internal chat page)
+
+GPT Actions Agent (OpenAI Actions interface)
+
+Single Execution Pathway:
+
+Agent → Master Architect → Task Pipeline → Tool Execution → Result → Back to Agent
+
+There is only ONE execution model.
+Everything must follow this pipeline.
+Nothing bypasses the Master Architect.
+
+2. CRM CHAT AGENT MUST BE FULLY FUNCTIONAL
+
+Right now the CRM chat cannot execute anything.
+
+Fix this:
+
+CRM Chat must support ALL internal tools:
+
+create_lead
+
+update_contact
+
+create_job
+
+update_job_status
+
+add_note
+
+list contacts
+
+list jobs
+
+attach file metadata
+
+schedule appointment
+
+create_estimate
+
+create_invoice
+
+Every tool that exists in the backend must be callable through CRM Chat.
+
+CRM Chat → Master Architect → Tools → Back to Chat
+This pipeline must work 100%.
+
+3. GPT ACTIONS AGENT MUST USE THE SAME PIPELINE
+
+The GPT Actions agent must NOT run its own logic.
+
+It must:
+
+send every request into the Master Architect
+
+follow the same task format
+
+use the same execution flow
+
+run tools exactly the same way the CRM Chat agent does
+
+receive the result through the Master Architect layer
+
+You do NOT choose between two models.
+There is only one model and both agents use it.
+
+4. TASK PIPELINE REVIEW (NO REBUILDING, ONLY VERIFY & COMPLETE)
+
+The existing task approval system is already in place:
+
+✓ Single checkmark = task completed by agent
+✓ Double checkmark = approved by Master Architect
+
+Do NOT redesign it.
+Do NOT replace it.
+Do NOT add extra rules.
+
+You ONLY need to:
+
+review it
+
+verify it works with both CRM Chat and GPT Actions
+
+verify routing is correct
+
+fix any gaps
+
+5. ACTION SCHEMA (Must Be Standard Across All Agents)
+
+Both CRM Chat and GPT Actions must produce the same action structure.
+
+Use this schema (or expand the existing one if already created):
+
+{
+  "source": "crm_chat" | "gpt_actions",
+  "user_message": "",
+  "action_type": "",
+  "payload": {},
+  "mode": "auto" | "assist" | "draft",
+  "timestamp": "",
+  "contact_context": "",
+  "job_context": ""
+}
+
+
+The Master Architect must receive identical formatted tasks from both sources.
+
+6. MASTER ARCHITECT MUST ROUTE EVERYTHING
+
+No tool executes directly from the agents.
+
+Correct pipeline:
+
+CRM Chat → Master Architect
+
+GPT Actions → Master Architect
+
+Master Architect must:
+
+interpret the user instruction
+
+classify the required tool
+
+build the correct payload
+
+push task into pipeline
+
+run the tool (Auto)
+
+or send to queue (Assist)
+
+return the result
+
+log everything
+
+This was partially working. It must now be complete.
+
+7. INTERNAL FEATURES THAT MUST WORK BEFORE NEO8
+
+We are not connecting Neo8 yet.
+So only internal CRM functions must work now.
+
+You must ensure:
+
+Features that must work now:
+
+CRM Chat execution
+
+GPT Actions execution
+
+Master Architect routing
+
+Task pipeline + 1/2 checkmark flow
+
+Contact context passing
+
+Job context passing
+
+Tool execution inside CRM
+
+Logging
+
+Features we do NOT work on yet:
+
+SMS
+
+Email
+
+Call workflows
+
+Payment links
+
+Any Neo8 outbound workflow
+
+Those will be done AFTER internal execution stabilizes.
+
+8. DELIVERABLES
+
+You must deliver:
+
+A. Fully functional CRM Chat agent
+
+executes tools
+
+routes to Master Architect
+
+returns results
+
+B. Fully functional GPT Actions agent
+
+sends instructions to Architect
+
+follows same pipeline
+
+gets results the same way
+
+C. Master Architect review
+
+complete routing path
+
+stable classification
+
+stable tool payload creation
+
+D. Validation tests for:
+
+create lead
+
+create job
+
+update job
+
+add note
+
+list contacts/jobs
+
+attach files
+
+If any of these fail, the system is not complete.

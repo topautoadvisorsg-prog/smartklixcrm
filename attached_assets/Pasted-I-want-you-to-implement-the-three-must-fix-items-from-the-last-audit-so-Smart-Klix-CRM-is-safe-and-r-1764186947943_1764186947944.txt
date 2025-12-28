@@ -1,0 +1,218 @@
+I want you to implement the three must fix items from the last audit so Smart Klix CRM is safe and ready for the next phase with n8n and Twilio.
+
+This is not an exploration phase, this is an execution phase. Please follow the plan below, keep the codebase clean and add short documentation where needed so any future developer can understand what you did.
+
+You must keep
+
+Clean TypeScript, strict enabled, no dead code, no unused imports
+
+No direct OpenAI calls that bypass the Master Architect
+
+Clear naming and small, focused modules
+
+Short docs or comments that explain why, not obvious what
+
+When you are done, I want a short written summary of exactly what you changed, including files and behavior.
+
+Task 1, Fix MasterArchitect constructor usage in admin chat service
+
+Goal
+Admin and internal chat must use the correct MasterArchitect constructor signature so everything compiles cleanly and uses the same execution pipeline.
+
+What to do
+
+Open the admin chat service file
+
+For example, something like
+
+client/src/services/admin-chat-service.ts
+
+or similar, use the actual path in this repo
+
+Find where MasterArchitect is instantiated inside that service
+
+The audit says it was still using an object style call, for example
+
+new MasterArchitect({ mode, prompt, userId, conversationHistory })
+
+Update this call to match the current MasterArchitect signature
+
+Use the actual positional arguments in the correct order
+
+For example, something like
+
+new MasterArchitect(mode, prompt, userId, conversationHistory)
+
+Confirm the types align and there are no TypeScript errors
+
+Run TypeScript or the linter to confirm there are no type errors left related to this change
+
+Acceptance criteria
+
+No TypeScript or LSP errors related to MasterArchitect usage in the admin chat service
+
+Admin chat still works end to end through the Master Architect pipeline
+
+No duplicate or outdated helper functions are left behind
+
+Task 2, Verify and clean up legacy chat service that bypasses Master Architect
+
+Goal
+Remove or refactor any legacy chat services that call OpenAI directly and bypass the Master Architect, so we keep the single brain architecture.
+
+What to do
+
+Locate the legacy chat service file mentioned in the audit
+
+For example, something like
+
+server/src/services/chat-service.ts
+
+server/src/routes/api/chat
+
+or any similar file that uses a direct OpenAI client
+
+Identify all endpoints that use this legacy service
+
+For example
+
+/api/chat
+
+/api/chat/internal
+
+or similar paths
+
+For each endpoint, answer these questions
+
+Is this endpoint actually used by the frontend or any current code path
+
+If yes, where is it called from
+
+If no, it can probably be removed
+
+Decision
+
+If the endpoint and service are unused now
+
+Remove the route
+
+Remove the service
+
+Remove any imports that are only used by this legacy path
+
+If the endpoint is still used in the current UI
+
+Refactor it to use the Master Architect instead of calling OpenAI directly
+
+The call should flow like this
+
+Request enters the route
+
+Route builds or looks up the context
+
+Route calls MasterArchitect with the correct mode and context
+
+MasterArchitect handles tools and AI calls
+
+Route returns the MasterArchitect response
+
+After refactoring or removal
+
+Make sure there are no remaining direct calls to OpenAI in this part of the codebase
+
+Confirm that all chat related endpoints either use the Master Architect or are clearly marked as deprecated and unused
+
+Acceptance criteria
+
+No production chat endpoint bypasses the Master Architect
+
+Any unused /api/chat* endpoints are removed completely
+
+The codebase does not contain dead legacy chat service code that is no longer used
+
+All changes compile cleanly and pass TypeScript checks
+
+Task 3, Wire webhook verification to n8n related endpoints
+
+Goal
+Secure the n8n webhooks by wiring the existing HMAC verification middleware into the correct routes, so only valid calls from n8n are accepted.
+
+What to do
+
+Locate the existing webhook verification helper or middleware
+
+This was mentioned in the audit as already implemented but not in use
+
+For example
+
+server/src/middleware/webhookVerificationMiddleware.ts
+
+or similar name
+
+Identify all n8n related webhook routes
+
+For example
+
+/api/webhooks/n8n/*
+
+/api/events/update
+
+Any endpoint clearly designed as an automation callback
+
+Attach the verification middleware to these routes
+
+Example pattern in Express style
+
+router.post("/api/webhooks/n8n/whatever", webhookVerificationMiddleware, handler)
+
+Ensure the middleware uses a secret from environment variables, for example
+
+N8N_WEBHOOK_SECRET or similar
+
+No secrets hardcoded in the codebase
+
+Decide and implement behavior for failed verification
+
+Should return 401 Unauthorized or 403 Forbidden with a simple JSON error
+
+Never expose internal details in the error
+
+Log verification failures in a way that helps us debug
+
+For example
+
+Simple log with timestamp and route
+
+No sensitive payload data in the logs
+
+Acceptance criteria
+
+All n8n webhook endpoints are protected with the verification middleware
+
+Requests with invalid or missing signatures are rejected with a clear and safe error response
+
+The secret is loaded from environment variables, not hardcoded
+
+There are no TypeScript errors and no circular imports from adding the middleware
+
+Optional items to note, do not implement unless you see something trivial and safe
+
+Add a channel filter on the approval hub if it is very simple to do and stays within clean code standards
+
+Remove obviously unused files like neo8 events or similar dead code if you confirm they are not referenced anywhere
+
+If you see a simple and safe place to add an IP allow list for n8n webhooks, you can propose that in your summary
+
+Delivery
+
+When you are done with these three main tasks, I want a short written summary that includes
+
+Files changed
+
+Endpoints affected
+
+Any behavior changes I should know about
+
+Anything you think still needs to be revisited before we connect n8n and Twilio
+
+If you disagree with any part of this plan or see a better way to achieve the same goals with cleaner architecture, tell me clearly in your summary and explain your reasoning.

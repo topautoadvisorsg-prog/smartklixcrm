@@ -1,0 +1,170 @@
+CRM VISUAL DESIGN OVERHAUL – UI / UX PROMPT
+
+Objective
+The current CRM UI works functionally, but the visual quality is outdated.
+It feels dull, flat, and early-2000s (fonts, spacing, colors, components).
+
+Your task is NOT to add features.
+Your task is to visually modernize the entire CRM to match top-tier SaaS quality.
+
+Think:
+HubSpot
+Webflow
+Linear
+Stripe Dashboard
+Modern Google products (not old G Suite UI)
+
+This is a VISUAL + UX polish pass only.
+
+---
+
+Scope of Work (Visual Only)
+
+1. Global Visual Review
+Review EVERY existing screen, tab, modal, table, and form.
+Nothing new should be added.
+Everything should look cleaner, sharper, and more modern.
+
+Focus on:
+- Typography
+- Spacing
+- Color usage
+- Component consistency
+- Visual hierarchy
+- Readability
+- Overall “premium” feel
+
+---
+
+2. Typography (High Priority)
+
+Current issue:
+Fonts feel generic, small, and outdated.
+
+Requirements:
+- Select a modern SaaS-grade font (or font pair)
+- Improve font weights, sizes, and hierarchy
+- Clear distinction between:
+  - Page titles
+  - Section headers
+  - Labels
+  - Body text
+  - Metadata
+- Improve line height and readability
+
+The CRM should NOT feel cramped or text-heavy.
+
+---
+
+3. Color System Overhaul (High Priority)
+
+Current issue:
+Colors feel dull, gray-heavy, lifeless.
+
+Requirements:
+- Define a clear color system:
+  - Primary
+  - Secondary
+  - Accent
+  - Neutral (backgrounds, borders)
+  - Status colors (success, warning, error)
+- Reduce overuse of gray
+- Improve contrast and depth
+- Use color intentionally, not everywhere
+
+Goal:
+Bring the UI to life without making it flashy or noisy.
+
+---
+
+4. Layout, Spacing & Density
+
+Current issue:
+UI feels boxed, rigid, and dated.
+
+Requirements:
+- Improve spacing between elements
+- Use modern padding and margins
+- Reduce visual clutter
+- Improve alignment and balance
+- Make layouts feel breathable and intentional
+
+Everything should feel easier to scan at a glance.
+
+---
+
+5. Components & UI Elements
+
+Review and visually refine:
+- Buttons (primary, secondary, ghost)
+- Inputs and dropdowns
+- Tables
+- Cards
+- Tabs
+- Badges
+- Modals
+- Icons (consistency and sizing)
+
+Requirements:
+- Consistent border radius
+- Subtle shadows (if used)
+- Modern hover and active states
+- Clear visual feedback for actions
+
+Nothing should look “default” or unfinished.
+
+---
+
+6. Dashboard Visual Quality
+
+The dashboard must:
+- Look modern and professional
+- Have strong visual hierarchy
+- Use cards and spacing correctly
+- Feel like a real SaaS control center
+
+No new data or widgets.
+Only improve how it looks.
+
+---
+
+7. UX Clarity (Without Changing Logic)
+
+You may:
+- Improve labels
+- Improve alignment
+- Improve grouping
+- Improve visual flow
+
+You may NOT:
+- Change business logic
+- Add steps
+- Add new features
+- Remove functionality
+
+This is polish, not redesigning behavior.
+
+---
+
+Deliverable Expectations
+
+By the end of this task:
+- The CRM should visually feel like a modern SaaS product
+- It should NOT feel like a legacy admin panel
+- It should be something a user trusts instantly based on appearance
+- It should match the visual quality of top competitors
+
+Think:
+“If someone opens this for the first time, does it look expensive?”
+
+That is the bar.
+
+---
+
+Constraints
+
+- Do NOT add new pages
+- Do NOT add new features
+- Do NOT assume future functionality
+- Do NOT over-engineer animations
+- Keep it clean, modern, and professional

@@ -1,0 +1,144 @@
+We are aligning on Workflow #4 — Stripe Payment Flow.
+
+This is a CRM-side flow, not Neo8 configuration yet.
+Goal is to align on architecture and responsibilities before generating a builder prompt.
+
+🚫 Explicitly Out of Scope (Confirm These Are Disabled / Ignored)
+
+Please confirm the following are disabled, ignored, or non-blocking:
+
+❌ Stripe Terminal (no in-person / walk-in payments)
+
+❌ Cash payments (optional legacy field, not used by us)
+
+❌ Any physical POS logic
+
+❌ Any card data handling inside CRM or Neo8
+
+We provide private + virtual services only.
+
+🎯 Purpose of the Stripe / Payments Flow (THIS IS THE SOURCE OF TRUTH)
+
+The purpose of this flow is ONLY:
+
+Create & send payment requests
+
+Stripe Payment Links and/or Invoices
+
+Triggered by:
+
+Closed-Won
+
+Manual “Send Payment” action
+
+(No auto-charging cards)
+
+Receive payment status updates from Stripe
+
+Via Stripe → CRM integration / webhooks
+
+Update the Payments tab
+
+Statuses: pending, completed, failed, refunded
+
+Link to:
+
+Contact
+
+Invoice
+
+Subscription (if applicable)
+
+Log outcomes for humans
+
+Successful payments → activity log
+
+Failed / refunded payments → human review queue / task
+
+🧠 Clarifying Architecture (Please Confirm)
+
+Please confirm the following assumptions are correct:
+
+Payments vs Invoices
+
+Invoice = request for payment (“money owed”)
+
+Payment = actual money movement event
+
+One invoice can have multiple payment attempts
+
+Payments tab is a normalized ledger, not Stripe itself
+
+Stripe Responsibilities
+
+Stripe handles:
+
+Card input
+
+SCA / 3DS
+
+Retries (soft declines)
+
+Payment intent lifecycle
+
+CRM Responsibilities
+
+CRM:
+
+Creates payment links / invoices (via Stripe API)
+
+Listens to Stripe events
+
+Normalizes events into Payments tab
+
+Stores NO sensitive payment data
+
+Neo8 Responsibilities (Later)
+
+Neo8 will:
+
+React to CRM payment events
+
+Log activity
+
+Queue human follow-up when needed
+
+Neo8 will not:
+
+Process payments
+
+Create Stripe objects directly
+
+Handle card data
+
+❗ What This Flow Does NOT Do
+
+Please confirm none of the following are included:
+
+❌ No payment processing logic
+
+❌ No auto-follow-ups
+
+❌ No subscription proration logic
+
+❌ No pricing logic
+
+❌ No revenue calculations
+
+❌ No service provisioning decisions
+
+✅ Next Step Requested From You
+
+Once aligned on the above:
+
+👉 Provide a builder prompt for the Stripe / Payments workflow that:
+
+Matches this scope exactly
+
+Is diagram-first (no configuration yet)
+
+Uses Stripe + CRM cleanly
+
+Leaves Neo8 as orchestration-only
+
+We will review the prompt before it is sent to the Neo8 builder.

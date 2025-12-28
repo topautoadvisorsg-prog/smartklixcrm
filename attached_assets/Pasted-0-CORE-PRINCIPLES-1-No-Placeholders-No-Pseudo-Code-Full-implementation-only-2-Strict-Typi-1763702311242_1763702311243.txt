@@ -1,0 +1,250 @@
+0️⃣ CORE PRINCIPLES
+
+1. No Placeholders / No Pseudo-Code: Full implementation only.
+
+
+2. Strict Typing & Validation: TypeScript + Zod schemas for all entities.
+
+
+3. Anti-Fragile: All APIs must handle failure with error handling, retries, and logging.
+
+
+4. Modular & Wide-Label Ready: The system must allow per-tenant customization without breaking core logic.
+
+
+5. Flexible UI Freedom: Developers may design the UI as they see fit, as long as it meets functional, workflow, and audit requirements.
+
+
+
+
+---
+
+1️⃣ SYSTEM ARCHITECTURE
+
+Master Architect Agent: Oversees all AI activity, audits, and permissions. Can approve/block/re-route AI decisions.
+
+Embedded Operational Chat Agent: Natural language interface inside CRM UI. Can edit data, trigger workflows, modify configurations. All actions go through backend API with RBAC + audit logging.
+
+Single-Tenant Ready: Each instance can be deployed for a unique client, optionally with tenant-specific settings. Must support safe customization without breaking other functionality.
+
+
+
+---
+
+2️⃣ TECHNOLOGY STACK
+
+Frontend: Next.js 15 (App Router + React Server Components)
+
+Language: TypeScript (strict mode)
+
+Styling: Tailwind v4 + custom config (modular design, easy tenant overrides)
+
+Database: PostgreSQL (Supabase preferred) + RLS for tenant isolation
+
+Automation: n8n (webhook-first, per-tenant workflows)
+
+State Management: TanStack Query v5
+
+Memory: Redis (short-term), Postgres + pgvector (long-term, per-tenant embeddings)
+
+
+
+---
+
+3️⃣ CRM TABS + FUNCTIONAL DOMAINS
+
+Tabs: Contacts, Jobs, Appointments/Calendar, Notes, Files, AI Assist Queue, Outbound Communications, Activity/Audit Log, Metrics & Reporting, Templates, User Management, Voice/Call System, N8N Integration Status, Settings/System Config
+
+Full CRUD + workflow + audit coverage per tab
+
+Define UI elements, backend actions, events, audit points, AI interaction points
+
+Tenant-level customization allowed (e.g., custom fields, themes, automations) without breaking core functionality
+
+
+
+---
+
+4️⃣ EVENT AUDIT FLOW
+
+Every event logs:
+
+Actor (user/AI/system)
+
+Trigger (UI, workflow, cron)
+
+Before/after state
+
+Timestamp + trace ID
+
+Dependent systems
+
+Filterable by entity/type/actor/date
+
+Viewable in Activity Log tab
+
+Primary source for debugging & verification
+
+
+
+---
+
+5️⃣ AI AGENT MODES
+
+1. Draft: Suggest only, no execution
+
+
+2. Assist: Propose + user approval
+
+
+3. Auto: Execute under strict rules
+
+
+
+Auto mode cannot perform destructive actions without Architect approval
+
+Any system config changes = user + Architect approval
+
+
+
+---
+
+6️⃣ AUTOMATION + N8N
+
+Handles SMS, Voice, Email, Appointment Reminders, Follow-ups, Webhooks
+
+Workflows visible in “N8N Integration Status” tab
+
+Report success/failure, feed results into audit logs
+
+Replayable for debugging
+
+Must support tenant-specific overrides safely
+
+
+
+---
+
+7️⃣ MEMORY ARCHITECTURE
+
+Short-term: Redis session memory
+
+Long-term: Postgres + pgvector for system facts, conversation summaries
+
+Memory updated after every event, AI decision, or major workflow
+
+Per-tenant memory isolation
+
+
+
+---
+
+8️⃣ OBSERVABILITY & MONITORING
+
+OpenTelemetry traces, LLM usage stats, error/latency tracking
+
+Failed job alerts, metrics tab + alert panel in UI
+
+Tenant-level metrics isolated, configurable dashboards
+
+
+
+---
+
+9️⃣ DOCUMENTATION
+
+Live, update-safe, developer/auditor readable:
+
+architecture.md
+
+api_tools.md
+
+event_flows.md
+
+memory_design.md
+
+rbac.md
+
+audit_system.md
+
+
+
+
+---
+
+🔟 WIDE-LABEL DEPLOYMENT RULES
+
+1. Single-tenant deployment per client
+
+
+2. Optional tenant customizations (themes, fields, automations) must not break base system
+
+
+3. Clean, modular codebase; easily downloadable & updateable
+
+
+4. Support incremental updates per tenant without downtime
+
+
+5. Each deployment must pass all audit and workflow validation checks
+
+
+
+
+---
+
+1️⃣1️⃣ R&D & ENHANCEMENT
+
+Identify logic gaps, design weaknesses
+
+Propose improvements and implement them
+
+Strengthen audit, memory, and automation flows
+
+Document what was missing, why it matters, and how it was fixed
+
+
+
+---
+
+1️⃣2️⃣ EXECUTION ORDER (Step-By-Step)
+
+1. Scaffold Next.js app with Tailwind & modular tenant config
+
+
+2. Build Supabase/Postgres tables + Zod schemas for tenants
+
+
+3. Implement all CRM tabs with full backend, workflow, AI, and audit integration
+
+
+4. Build AI agent modes + Master Architect supervision
+
+
+5. Build n8n workflows with tenant awareness + audit logging
+
+
+6. Implement memory and observability systems (short + long-term)
+
+
+7. Validate full flow: UI → API → AI → n8n → DB → Memory → Audit → UI
+
+
+8. Benchmark workflows against top CRMs, optimize gaps
+
+
+9. Produce live documentation + R&D audit report
+
+
+10. Confirm tenant-level customization works without breaking core flows
+
+
+
+Completion Criteria:
+✅ Full system built & audited
+✅ Event flow verified
+✅ Audit system validated
+✅ Documentation complete
+✅ R&D improvements applied
+✅ Wide-label & tenant customization verified
+

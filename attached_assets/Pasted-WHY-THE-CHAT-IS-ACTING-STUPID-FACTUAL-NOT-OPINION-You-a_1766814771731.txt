@@ -1,0 +1,259 @@
+WHY THE CHAT IS ACTING “STUPID” (FACTUAL, NOT OPINION)
+
+You are not talking to “ChatGPT behaving naturally.”
+
+You are talking to:
+
+A language model
+
+Wrapped in a bad conversation controller
+
+With missing tool discipline
+
+And no deterministic follow-up handling
+
+When an AI:
+
+Re-asks questions you already answered
+
+Loses track of “the contacts we just talked about”
+
+Changes counts mid-conversation
+
+That means the system around the model is broken.
+
+This is well-known and documented behavior when LLMs are wired incorrectly.
+
+🎯 WHAT A “GOOD INFORMATION AI CHAT” MUST DO (NON-NEGOTIABLE)
+
+This is the exact behavioral contract your Information AI Chat must follow.
+
+1️⃣ FOLLOW-UP QUESTIONS MUST AUTO-EXECUTE
+
+NO CONFIRMATION LOOPS
+
+❌ What it’s doing now (WRONG)
+
+User:
+
+“Give me the names and phone numbers of the contacts.”
+
+AI:
+
+“Do you want me to retrieve their names and phone numbers?”
+
+This is forbidden behavior.
+
+✅ Correct behavior
+
+If the user explicitly asks for data, the AI MUST:
+
+Call the appropriate read tool
+
+Return the result
+
+Only ask clarifying questions if required data is missing
+
+Rule:
+
+Never ask permission to do the exact thing the user just asked.
+
+This is standard LLM UX design (used by OpenAI, Anthropic, Microsoft).
+
+2️⃣ TOOL RESULTS MUST BE PINNED TO CONVERSATION STATE
+
+THIS IS THE BIG ONE
+
+Once the AI retrieves:
+
+“These are the contacts”
+
+“There are 2 contacts”
+
+Those results must be cached in the conversation state and reused.
+
+❌ What’s happening now
+
+The model re-queries tools on every turn
+
+With different scopes
+
+Returning different answers
+
+✅ Required behavior
+
+First tool call defines the working set
+
+Follow-up questions operate only on that set
+
+New queries require explicit user intent
+
+Implementation requirement:
+
+Store tool results in a conversation_context
+
+Inject that context into every subsequent prompt
+
+Disallow silent re-queries unless user says things like:
+
+“Refresh”
+
+“Check again”
+
+“Include all contacts, not just those”
+
+3️⃣ READ CHAT MUST BE STRICTLY READ-ONLY
+
+NO ACTION THINKING
+
+Information AI Chat must:
+
+Never plan
+
+Never draft
+
+Never “offer to do something”
+
+Never talk about approval, execution, or next steps
+
+Its only job:
+
+Retrieve → format → explain data
+
+If the model is prompted like:
+
+“You can help manage CRM”
+
+“You can assist with actions”
+
+It will mentally switch modes and hesitate.
+
+That’s exactly what you’re seeing.
+
+4️⃣ TOOL CONTRACTS MUST BE EXPLICIT (NO GENERIC TOOLS)
+❌ Bad tool descriptions
+
+“Fetch CRM data”
+
+“Get contacts and leads”
+
+✅ Required tool definitions
+
+Each tool must clearly say:
+
+Exactly what entity it returns
+
+Exactly what fields
+
+Exactly what it does NOT return
+
+Example (this matters):
+
+get_contacts({
+  description: "Returns all CRM contacts. Read-only. Does not include leads or jobs.",
+  returns: { id, name, phone, email }
+})
+
+
+If you don’t do this, the model will mix entities.
+That is documented LLM behavior.
+
+5️⃣ SYSTEM PROMPT MUST FORBID HESITATION LOOPS
+
+There is a very common anti-pattern where devs include things like:
+
+“If unsure, ask the user”
+
+“Confirm before retrieving data”
+
+“Be cautious with sensitive information”
+
+Those kill usability in internal tools.
+
+Required rule in the system prompt:
+
+If the user explicitly requests CRM data, retrieve it without confirmation.
+
+Only ask questions when:
+
+A filter is missing
+
+Multiple interpretations are genuinely possible
+
+Not when the request is crystal clear.
+
+6️⃣ ONE SOURCE OF TRUTH PER TURN
+
+NO MULTIPLE TOOL CALLS FOR THE SAME QUESTION
+
+If the user asks:
+
+“Give me the names and phone numbers of the contacts”
+
+The AI must:
+
+Call one tool
+
+Use one dataset
+
+Answer from that dataset
+
+If the model is allowed to:
+
+Call stats tools
+
+Then entity tools
+
+Then re-check
+
+You will get contradictions every time.
+
+7️⃣ INFORMATION AI CHAT ≠ ACTIONAI CRM
+
+HARD SEPARATION
+
+You must enforce:
+
+Different system prompts
+
+Different tool sets
+
+Different authority
+
+If they share:
+
+Prompts
+
+Controllers
+
+Tool registries
+
+Then bugs leak across.
+
+You already suspected this — you’re right.
+
+🧪 ACCEPTANCE TEST (THIS MUST PASS)
+
+Give them this test. If it fails, the chat is broken.
+
+Test Script
+
+“How many contacts are in the CRM?”
+
+“Give me their names and phone numbers.”
+
+Expected behavior
+
+No clarifying questions
+
+No change in counts
+
+No re-asking permission
+
+Direct answer with names + phones
+
+If it asks anything like:
+
+“Do you want me to…?”
+
+❌ FAIL.

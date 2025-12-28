@@ -1,0 +1,194 @@
+## Purpose
+
+This prompt is for a **CRM agent developer audit and implementation review**. The goal is to evaluate whether the CRM’s conversational chat agent can reliably **perform real CRM actions end‑to‑end** (not just respond conversationally), and to identify **anything that is not working, partially working, unsafe, or poorly implemented**, along with clear recommendations on how to fix or improve it.
+
+You are expected to **test, validate, and report**, not assume intent or design choices unless explicitly documented.
+
+---
+
+## High‑Level Expectation (Non‑Negotiable)
+
+The CRM chat agent must be able to **execute any CRM operation that has an existing or creatable field/module**, purely from natural language instructions.
+
+This includes (but is not limited to):
+
+* Creating, updating, retrieving, and linking records
+* Executing multi‑step workflows across modules
+* Using existing CRM data (price books, products, contacts, invoices, quotes, etc.)
+* Confirming or requesting missing data only when strictly necessary
+
+The agent should behave like a **conversational operator with full CRM permissions**, not a chatbot that only suggests actions.
+
+---
+
+## Core Use Case Example (Baseline Capability)
+
+Example user intent (paraphrased):
+
+> “I just spoke to this contact. Send them an invoice for what we discussed.”
+
+The agent is expected to:
+
+1. Identify the referenced contact (new or existing)
+2. Determine the context of “what we discussed” using:
+
+   * Recent chat context
+   * Notes, deals, or opportunities
+   * Explicit follow‑up questions if required
+3. Pull correct pricing from:
+
+   * Price books
+   * Products / services
+   * Custom pricing rules (if any)
+4. Generate:
+
+   * A quote if required
+   * An invoice if approved or implied
+5. Send the invoice through the configured delivery method
+6. Log all actions properly inside the CRM
+
+If **any step fails, degrades, or requires manual intervention**, it must be reported.
+
+---
+
+## Audit Scope
+
+You are to review and test the following areas:
+
+### 1. Natural Language → CRM Action Mapping
+
+* Can free‑form user instructions be reliably converted into structured CRM actions?
+* Are intents correctly inferred without over‑prompting the user?
+* Does the agent handle vague but common business language correctly?
+
+Report:
+
+* Intents that fail or misfire
+* Cases where the agent responds instead of acting
+* Situations where excessive clarification is requested unnecessarily
+
+---
+
+### 2. CRUD Operations Across All Modules
+
+Validate the agent’s ability to:
+
+* Create records (contacts, companies, invoices, quotes, deals, tasks, etc.)
+* Update existing records accurately
+* Retrieve and reference existing records
+* Link records together correctly (e.g., invoice → contact → deal)
+
+Report:
+
+* Modules that are unsupported or partially supported
+* Field‑level issues (missing, incorrectly mapped, or ignored fields)
+* Data integrity or relationship issues
+
+---
+
+### 3. Price Books, Quotes, and Invoicing Logic
+
+* Can the agent correctly reference price books?
+* Does it select the correct product/service pricing?
+* Can it handle:
+
+  * Exact quotes
+  * Custom pricing
+  * Quantity‑based pricing
+  * Taxes, discounts, and totals
+
+Report:
+
+* Pricing mismatches
+* Logic gaps
+* Any assumptions the agent makes without confirmation
+
+---
+
+### 4. Context Awareness & Memory
+
+* Does the agent maintain context across a conversation?
+* Can it reference actions taken earlier in the same session?
+* Can it handle phrases like:
+
+  * “The same contact as before”
+  * “Send it like last time”
+
+Report:
+
+* Context loss
+* Incorrect references
+* Session memory limitations
+
+---
+
+### 5. Permissions, Safety, and Guardrails
+
+* Does the agent respect user permissions?
+* Are destructive actions (e.g., deleting records, sending invoices) confirmed appropriately?
+* Are there safeguards against accidental execution?
+
+Report:
+
+* Over‑permissioned behavior
+* Missing confirmations
+* Risky default behaviors
+
+---
+
+### 6. Error Handling & Feedback
+
+* How does the agent behave when something fails?
+* Are errors clearly explained?
+* Does it provide recovery paths or suggestions?
+
+Report:
+
+* Silent failures
+* Misleading confirmations
+* Poor error messaging
+
+---
+
+## Deliverables Required From You
+
+You must report back with:
+
+1. **What Works Correctly**
+
+   * List confirmed capabilities
+
+2. **What Is Broken or Incomplete**
+
+   * Specific features, workflows, or modules
+
+3. **What Is Risky or Poorly Designed**
+
+   * UX issues
+   * Security or data‑integrity concerns
+
+4. **Clear Recommendations**
+
+   * Technical fixes
+   * Architectural changes
+   * Missing integrations or logic layers
+
+5. **Assumptions You Believe Were Made**
+
+   * Call out any assumptions the system seems to rely on
+
+---
+
+## Important Notes
+
+* Do not assume requirements beyond what is stated here
+* If something is ambiguous, test it and report the ambiguity
+* If something cannot be implemented as described, explain **why**, not just that it cannot
+
+The goal is full transparency. Anything that does not meet this expectation should be flagged so it can be approved, rejected, or redesigned.
+
+---
+
+## Final Instruction
+
+Treat this as a **functional audit**, not a demo. If the agent cannot reliably do something a human CRM operator could do via the UI, that is a gap and must be reported.

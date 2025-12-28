@@ -1,0 +1,154 @@
+Perfect — this is a navigation priority problem, not a feature problem. What you want is a usage-weighted sidebar, where daily operators live at the top and technical / rarely touched stuff sinks to the bottom.
+
+Below is a clean, opinionated tab order you can hand directly to the CRM developer. This is not a suggestion list — it’s a proposed final structure with rationale so they don’t overthink it.
+
+✅ SIDEBAR TAB REORDER — USAGE-BASED PRIORITY
+🔝 TOP SECTION — Daily Operations (High Frequency)
+
+Things users touch multiple times per day
+
+Dashboard
+
+Home base, overview, pulse check
+
+Ready Execution
+
+Critical execution review
+
+Should be immediately accessible
+
+AI Voice (Receptionist)
+
+Call setup, testing, live interaction
+
+High visibility needed
+
+Information AI / AI Chat
+
+Daily interaction
+
+Core productivity driver
+
+Console
+
+Manual triggers, fast actions
+
+Power-user shortcut
+
+Email
+
+Used constantly
+
+WhatsApp
+
+Used constantly
+
+🧭 MID-TOP — Work Management (Frequent but Contextual)
+
+Used often, but not every minute
+
+Jobs
+
+Execution tracking
+
+Calendar
+
+Scheduling / overview
+
+Pipeline
+
+Review states, progress
+
+Not constant, but important
+
+Estimates
+
+Referenced frequently, created occasionally
+
+Payments
+
+Checked often, acted on less
+
+🧱 MID — Business Configuration (Occasional Use)
+
+Used during setup or periodic updates
+
+Price Book
+
+Changes occasionally
+
+Contacts
+
+Accessed, but not core navigation
+
+Google Workspace
+
+Useful integration, not daily
+
+🧠 LOWER — Review / Oversight (Low Frequency, High Authority)
+
+Used mainly by owners / architects
+
+Review Queue
+
+Oversight, not daily for most users
+
+⚙️ BOTTOM — Advanced / Technical / Rarely Used
+
+These should visually feel “out of the way”
+
+Action GPT (Setup Wizard)
+
+One-time or rare configuration
+
+AI Settings
+
+Master AI behavior
+
+Not for daily use
+
+Automation Ledger
+
+Audit / trace
+
+Almost never touched by operators
+
+Funnels
+
+Not actively used right now
+
+Social Planner
+
+Secondary feature
+
+Marketplace
+
+Discovery, not operations
+
+Settings
+
+Always last
+
+Global configuration, not workflow
+
+🎯 KEY DESIGN DIRECTIVES FOR DEV (IMPORTANT)
+
+Tell them explicitly:
+
+This order is intentional, not alphabetical
+
+Tabs are ordered by frequency of human interaction
+
+“Tech / architecture / audit” always sinks
+
+“Execution / communication / AI interaction” floats
+
+Optional (but recommended):
+
+Add visual separators between:
+
+Operations
+
+Configuration
+
+Advanced / System

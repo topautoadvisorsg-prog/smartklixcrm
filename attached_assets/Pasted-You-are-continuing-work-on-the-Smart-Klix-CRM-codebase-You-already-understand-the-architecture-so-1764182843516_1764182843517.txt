@@ -1,0 +1,481 @@
+You are continuing work on the Smart Klix CRM codebase.
+
+You already understand the architecture, so I will not restate everything, but I need you to:
+
+Implement the economy AI Receptionist architecture and config
+
+Make sure all AI channels correctly route through the Master Architect
+
+Keep the system clean, extensible, and well documented
+
+Run another honest audit and tell me what is still missing or risky
+
+This is a hands on build task, not just planning.
+
+0. Non negotiable standards
+
+Apply these to everything you touch:
+
+Clean code, strict TypeScript, no dead code, no commented garbage
+
+Clear file structure, single responsibility modules, no God files
+
+Everything must be easy to extend later, new providers, new tools, new channels
+
+Document what you build
+
+Where the code lives
+
+How the flow works end to end
+
+How to configure it from the UI
+
+No shortcuts that will block us when we plug into n8n and Twilio voice in production
+
+If at any point you believe there is a better architecture than what is described below, tell me directly, explain your concern, and propose the alternative. Do not silently change the global architecture.
+
+1. Architecture confirmation, one brain for all AI
+
+We are locking in the single brain design.
+
+Master Architect is the only AI brain for reasoning and tools
+
+All AI channels route through it
+
+CRM Chat, internal chat inside Smart Klix
+
+ChatGPT Actions, external actions hitting our API
+
+AI Receptionist, voice channel via n8n and Twilio
+
+No new AI brain, no parallel architectures.
+If you see any channel bypassing Master Architect, fix it.
+
+Add a short markdown doc under /docs:
+
+/docs/ai_channels.md
+
+High level diagram
+
+crm_chat → master_architect → tools
+
+gpt_actions → master_architect → tools
+
+voice_receptionist (Twilio via n8n) → master_architect → tools
+
+Point to the main entrypoints in the backend
+
+2. Economy AI Receptionist, architecture and config
+
+We are defining two tiers for the AI Receptionist:
+
+Premium tier, future, using the realtime OpenAI voice API
+
+Economy tier, what you are designing now
+
+For this implementation phase, you are focusing on the economy tier only.
+We are not wiring real telephony in this task, but the architecture and config must be ready to plug into Twilio and n8n.
+
+2.1 Economy tier voice stack, architecture level
+
+Document and prepare for this stack:
+
+Telephony layer
+
+We are using Twilio for calls
+
+Twilio webhooks will hit n8n, and n8n will call Smart Klix
+
+STT
+
+Whisper based STT using OpenAI, treated as the economy speech to text option
+
+LLM
+
+Master Architect using a cheaper model for economy, for example gpt-4o-mini
+
+TTS
+
+Text to speech using OpenAI TTS or another configured TTS provider in code
+
+You do not need to call Twilio directly in this task.
+You must:
+
+Expose internal endpoints and types that n8n can call
+
+Make the code ready so that when n8n sends us a voice turn, we can call Master Architect and return a reply text and metadata
+
+Add a new doc:
+
+/docs/ai_receptionist_architecture.md
+
+Explain the two tiers, premium and economy
+
+Show the economy flow:
+
+inbound Twilio call
+→ Twilio webhook to n8n
+→ n8n calls Smart Klix voice endpoint
+→ STT
+→ Master Architect
+→ tools
+→ TTS
+→ back to n8n
+→ Twilio
+
+List the internal endpoints and types you create in this task
+
+2.2 New AI Receptionist settings page
+
+Create a dedicated AI Receptionist configuration page in the Smart Klix UI.
+
+Suggested route:
+
+/settings/ai-receptionist
+or place it under an existing “AI and Automation” section if you already have that
+
+This page is for configuration, not monitoring. Split it into sections.
+
+Section 1, Mode and Provider
+
+Voice mode
+
+Selector, economy | premium
+
+For now we implement economy only, but the UI should support both
+
+LLM model for voice
+
+Dropdown with at least gpt-4o-mini and gpt-4o
+
+Economy default is the cheaper model
+
+STT provider
+
+Dropdown with whisper as default
+
+TTS provider
+
+Dropdown with the provider you wire now, structured so more can be added later
+
+Section 2, Basic behavior
+
+High level system prompt for receptionist
+
+Textarea, for example “Receptionist behavior prompt”
+
+Defines tone, what it can and cannot do, no sales, just receptionist, follow ups, information
+
+Allowed intents toggles
+Examples
+
+Allow appointment intake
+
+Allow lead capture only, no scheduling
+
+Allow basic FAQ answers about the business
+
+Call handling basics
+
+Max call duration in minutes
+
+Max unanswered questions before fallback or transfer
+
+Section 3, Tool permissions for voice channel
+
+We already have tools for CRM. For the voice channel we need per channel permissions on top of the Master Architect tool permissions.
+
+List or table of tools
+
+At minimum
+
+create_lead
+
+add_note
+
+schedule_appointment for future
+
+update_job_status if we plan to allow that later
+
+For each tool
+
+Toggle like “Voice can use this tool”
+
+Allowed modes for voice, checkboxes for Draft, Assist, Auto
+
+For example we might only allow Draft and Assist for economy mode
+
+This must integrate cleanly with the existing Master Architect tool permission system.
+If permissions are global right now, extend them to support per channel, such as channel: "chat" | "actions" | "voice".
+
+Section 4, Call handling logic
+
+Config for:
+
+What happens when the receptionist cannot understand the caller after N attempts
+
+What happens when the caller asks for a human
+
+How we hand over to voicemail or manual follow up
+
+Config fields could be:
+
+Transfer to human after N failed attempts, numeric
+
+Fallback behavior dropdown
+
+Take a message and end call
+
+Forward to voicemail route by id or label
+
+Add a simple field for n8n references:
+
+“n8n workflow identifier or notes”
+
+Just a string we store now so we can bind it to real flows later
+
+Section 5, Logging and CRM integration
+
+Add settings like:
+
+Toggle, store full call transcript in CRM or not
+
+Toggle, auto create new contact if no match found on caller phone
+
+Toggle, always create a note on the contact or lead after each call
+
+Persist all of these and make sure they are accessible in code when we later wire the real call flow.
+
+3. Backend, endpoints and storage for AI Receptionist
+
+You must create clean backend support for this without hard coding values.
+
+3.1 Config schema and storage
+
+Add or extend a config schema so AI Receptionist settings are stored per tenant.
+
+You can create a dedicated table like ai_receptionist_settings or extend an existing ai_configuration table with a JSONB field, but it must be structured and validated.
+
+Fields should cover at least:
+
+voice_mode
+
+llm_model
+
+stt_provider
+
+tts_provider
+
+behavior_prompt
+
+allowed_intents
+
+tool_permissions for voice channel
+
+call_handling
+
+logging_settings
+
+n8n_notes
+
+Create REST endpoints such as:
+
+GET /api/settings/ai-receptionist
+
+PUT /api/settings/ai-receptionist
+
+Use Zod or the existing validation pattern to strictly validate payloads and return clean errors.
+
+3.2 Internal voice orchestration endpoint, text only for now
+
+We need a backend entrypoint that n8n can call when a voice turn happens, once Twilio is wired to n8n.
+
+Create an endpoint like:
+
+POST /api/voice/receptionist/turn
+
+Request body should include:
+
+channel: "voice"
+
+caller_phone
+
+conversation_id string, for multi turn calls
+
+transcript string, caller text
+
+Optional call_state JSON object for state machine info if needed
+
+Implementation steps:
+
+Load AI Receptionist config for the tenant
+
+Build a structured context object for Master Architect with
+
+channel = "voice"
+
+caller info if contact exists
+
+call state if provided
+
+Call the Master Architect pipeline with that context
+
+Respect the same Draft, Assist, Auto behaviors we already use
+
+Draft, only reply text, no tool execution
+
+Assist, queue tools into the assist queue, do not execute directly
+
+Auto, execute allowed tools immediately, respecting tool permissions
+
+Return a response to the caller, for example
+
+{
+  "reply_text": "Thank you, I have booked your appointment for tomorrow at 3 PM",
+  "actions_taken": [
+    {
+      "tool": "schedule_appointment",
+      "status": "queued",
+      "mode": "assist"
+    }
+  ],
+  "conversation_id": "voice_abc123",
+  "metadata": {
+    "handoff_suggested": false
+  }
+}
+
+
+We are not doing STT or TTS inside this endpoint right now. That will live in n8n and Twilio.
+Your job here is to make the text and tool logic correct and ready.
+
+Document this shape in /docs/ai_receptionist_architecture.md so the n8n builder knows exactly what to send and what to expect.
+
+4. Make sure CRM Chat actually executes tools through Master Architect
+
+CRM Chat must not be a dummy chatbot.
+
+Audit and fix this chain:
+
+CRM Chat UI
+
+Sends a message with context, contact id, job id, mode, etc
+
+Backend endpoint for CRM chat
+
+Master Architect pipeline
+
+Tool calls and execution
+
+Results returned to UI
+
+Checks:
+
+In Auto mode, if I ask
+
+“Create a new lead for John Doe with this phone number and add a note that he needs an estimate”
+Then
+
+Master Architect should pick the correct tool or tools
+
+The backend should actually execute create_lead and add_note if allowed
+
+It should log these calls in assist queue and or audit log
+
+In Assist mode, tools should be queued, not executed
+
+In Draft mode, it should only propose the actions, not execute or queue them
+
+If outbound SMS or email is not yet possible because Twilio and n8n are not wired, enforce that at tool level and return a clear message to the UI like:
+
+“This action requires SMS integration and is not active yet”
+
+Do not silently fail.
+
+5. Clean code pass and inline documentation
+
+While you implement the above, do a focused cleanup around:
+
+AI Receptionist code
+
+Master Architect pipeline code
+
+CRM Chat endpoints and handlers
+
+Settings endpoints related to AI and automation
+
+What I expect:
+
+Clear module boundaries, such as
+
+server/ai/masterArchitect/*
+
+server/ai/channels/chat/*
+
+server/ai/channels/actions/*
+
+server/ai/channels/voice/*
+
+No duplicated logic for context building or LLM calls
+
+Shared helpers where it actually makes sense
+
+Small, clear functions with strong names
+
+Add short, high signal comments that explain why, not long comments that repeat the code.
+
+If you see old code that clearly violates these standards and touches the areas you are working in, clean it while you are there.
+
+6. New audit after your changes
+
+When you are done with this batch, I want another honest audit from you.
+
+Answer these clearly:
+
+AI Receptionist
+
+Is the config page complete enough for a real customer to configure an economy voice receptionist, with Twilio and n8n assumed downstream
+
+Are we missing any obvious settings
+
+Is the backend ready so that an n8n builder can wire Twilio to our endpoint without refactoring
+
+Master Architect
+
+Are all three channels, CRM Chat, ChatGPT Actions, future voice, clearly wired through it
+
+Any patterns you consider brittle or dangerous for future scale
+
+CRM Chat
+
+Can it really execute tools according to Draft, Assist, Auto behavior
+
+Are failure and limitation states clear in the UI
+
+Clean code and extensibility
+
+Any files or modules you consider too messy or hard to extend
+
+Suggest next refactor targets if needed
+
+Put that audit into:
+
+/docs/audit_next_steps_ai_receptionist.md
+
+Keep it short, direct, and technical. No fluff.
+
+7. Confirm before and after
+
+Before you start:
+
+Confirm you agree that the single Master Architect brain for all channels is the right path
+
+If you think a different design would greatly reduce complexity or cost, say so and propose it
+
+After you finish this batch:
+
+Summarize exactly what you implemented
+
+Call out any items you deliberately deferred and why
+
+Link the docs you updated or added

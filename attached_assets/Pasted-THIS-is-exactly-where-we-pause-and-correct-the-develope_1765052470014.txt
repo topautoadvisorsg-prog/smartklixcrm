@@ -1,0 +1,145 @@
+THIS is exactly where we pause and correct the developer, because he is mixing up responsibilities and adding shit that does NOT belong in the builder prompt.
+
+I’m going to give you:
+
+The exact answers to his 3 questions
+
+The corrections to his misunderstandings
+
+The final instructions you send back to him, so he stops guessing and aligns with our workflow
+
+After he confirms, THEN I produce the corrected N8N Builder Prompt
+
+Let’s break this shit down clean and tight.
+
+🔥 FIRST: CORRECT ANSWERS TO HIS QUESTIONS (NO EXTRA SHIT)
+QUESTION 1: Does N8N respond back to CRM after processing?
+✔️ CORRECT ANSWER:
+
+Not for this flow.
+Not for Lead Intake.
+Not at this stage.
+
+There is NO callback,
+NO /api/events/update,
+NO round trip.
+
+Lead Intake is ONE WAY:
+
+CRM → Neo8Flow
+Done.
+
+Callback flows will be later, separate prompts.
+
+He is adding stuff that DOES NOT belong here.
+
+QUESTION 2: Should N8N validate the token?
+✔️ CORRECT ANSWER:
+
+NO.
+Not for this flow.
+Not now.
+
+Signature + tokens are OPTIONAL for the builder.
+
+Why?
+
+Because in n8n, webhook nodes cannot require dynamic auth easily unless we add code.
+This is not part of v1 of the flow.
+
+Auth enforcement lives on the CRM side only.
+
+So:
+
+CRM → N8N
+(headers exist but N8N is not required to validate them)
+
+Builder does NOT implement token validation unless later requested in a separate task.
+
+QUESTION 3: What does the builder do with the incoming event?
+✔️ CORRECT ANSWER:
+
+For this flow, the builder only needs to:
+
+Accept the POST request
+
+Validate required fields exist
+
+Log/store if necessary (optional)
+
+Route or trigger next steps (placeholder)
+
+End the workflow
+
+NO CRM logic,
+NO writing back to CRM,
+NO decisions.
+
+So yes — anything beyond this should be placeholders, nothing more.
+
+🔥 SECOND: CORRECTIONS TO THE DEVELOPER’S MISUNDERSTANDINGS
+
+Send this BACK to him:
+
+Corrections You Need to Apply:
+❌ You added callback requirements — that is NOT part of this flow.
+
+Remove all callback references.
+
+❌ You added token verification in N8N — NOT required.
+
+Remove that part.
+
+❌ You requested full data contract — correct.
+
+We WILL include the complete canonical payload template.
+
+❌ You asked “what follow-up automation means” —
+
+It is a placeholder node, NOT part of this prompt.
+Remove questioning.
+Leave as placeholder.
+
+🔥 THIRD: WHAT YOU SEND TO THE CRM DEVELOPER EXACTLY
+
+Copy/paste this:
+
+Here are the answers to your questions and the corrections you need to apply before producing the final N8N builder prompt:
+
+There is NO callback for this flow.
+Lead Intake is one-way: CRM → Neo8Flow.
+Remove all callback requirements.
+
+N8N DOES NOT need to validate tokens for this flow.
+CRM sends the header, but N8N does not enforce it.
+Remove token validation requirements.
+
+The builder does not perform CRM logic.
+He only builds a simple webhook → validate → placeholder → finish.
+Leave follow-up automation as a placeholder step.
+
+Yes, the builder prompt will include the full canonical envelope, as you suggested. That part is correct.
+
+Once you apply these corrections, you need to provide us the final corrected N8N builder prompt, ready for us to send to the Neo8Flow Ask Agent.
+
+🔥 FOURTH: Your next step
+
+After you send him the message above, tell him:
+
+“Give me the final corrected builder prompt.”
+
+Once he sends it back, paste it here.
+
+Then I’ll:
+
+Validate it
+
+Tighten it
+
+Produce the final version for the N8N builder
+
+Then produce the version for the Ask Agent
+
+And then we advance to Build Mode on his side
+
+When you're ready, paste his reply.

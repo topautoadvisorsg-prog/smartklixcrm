@@ -1,0 +1,339 @@
+AI ARCHITECTURE & UI RESTRUCTURE — WORKING SUMMARY
+
+(For CRM Developer Discussion)
+
+1. Core Philosophy (Non-Negotiable)
+
+We are building a controlled AI system, not a “magic bot”.
+
+Goals
+
+No guessing
+
+No accidental actions
+
+No hidden side effects
+
+Full traceability
+
+Clean UX that does NOT overwhelm users
+
+Model
+
+Human + AI hybrid
+
+Architect approval before execution
+
+AI assists, proposes, and executes only where explicitly allowed
+
+2. AI Chats — HARD SEPARATION (This Fixes 80% of Problems)
+🟦 Chat with AI → Reader / Info Chat
+
+This already exists and should be locked into READ-ONLY mode.
+
+Allowed
+
+Read CRM data
+
+Answer questions
+
+Explain information
+
+Summarize records
+
+Provide recommendations
+
+Not Allowed
+
+No actions
+
+No MCP calls
+
+No emails
+
+No workflow triggers
+
+No logging
+
+Outcome
+
+Zero risk
+
+Zero side effects
+
+No ledger entries
+
+This is the “safe brain”.
+
+🟥 NEW: AI Action Chat → Execution Chat
+
+This must be separate (new chat or clearly distinct).
+
+Allowed
+
+Propose actions
+
+Execute actions after architect approval
+
+Call MCP
+
+Trigger workflows
+
+Send emails
+
+Update CRM
+
+Write to ledger
+
+Not Allowed
+
+Casual conversation
+
+Guessing channels
+
+Silent execution
+
+Rule
+
+If an action happens → it goes through this chat → it gets logged.
+
+This is the only place where things actually happen.
+
+3. Ledger / Logging System (VERY IMPORTANT)
+Logging Rule (Hard)
+
+The Action Log / Ledger records ONLY executed actions.
+
+Logged
+
+AI-initiated action
+
+Approved by architect
+
+Executed by MCP
+
+External side effects (CRM, email, Google, etc.)
+
+Not Logged
+
+Conversations
+
+Suggestions
+
+Failed proposals
+
+Read-only queries
+
+Why
+
+Ledger = truth
+
+Ledger = audit trail
+
+Ledger = “AI did something real”
+
+This prevents noise and keeps compliance clean.
+
+4. Review Queue = Approval Hub (Good Existing Asset)
+
+The Review Queue already exists and should become the central approval + action context hub.
+
+What lives here
+
+Pending AI actions
+
+Architect approval
+
+Action context (what, why, scope)
+
+Post-execution result
+
+Ledger reference
+
+What it is NOT
+
+A chat
+
+A discussion forum
+
+Think:
+
+“This is where AI actions wait to be unlocked.”
+
+5. AI Settings Tab — Needs Restructuring (Not Removal)
+
+The AI Settings tab currently has good pieces but they’re scattered and redundant.
+
+What’s Good (Keep, Refine)
+
+Internal CRM instructions
+
+External widget instructions
+
+Company knowledge base
+
+Behavior definitions
+
+These are foundational — they just need to be scoped correctly.
+
+Critical Change: Behavior Instructions Must Be Per-Brain
+
+Because we are using multiple AI brains / APIs, each one needs its own behavior scope.
+
+Examples:
+
+Reader AI behavior
+
+CRM Action AI behavior
+
+Email (SendGrid) AI behavior
+
+Google Workspace AI behavior
+
+They can share base rules, but each has its own instruction block.
+
+No global “one brain controls everything”.
+
+6. AI Actions / ChatGPT Setup / Workflows — REDUNDANCY CHECK
+
+Right now there appears to be overlap between:
+
+AI Settings
+
+AI Actions
+
+ChatGPT Setup
+
+Workflows
+
+Action Logs
+
+Direction
+
+We need clarity on:
+
+What is configuration?
+
+What is execution?
+
+What is logging?
+
+Likely outcome
+
+AI Settings = configuration + behavior + knowledge
+
+AI Actions = execution definitions (what can be done)
+
+Action Logs = ledger (read-only history)
+
+Review Queue = approval + context
+
+If two tabs do the same thing → consolidate.
+
+7. Phone Assistant Setup — WRONG LOCATION
+
+Phone assistant setup:
+
+Call handling
+
+Bands
+
+Voice logic
+
+👉 This does NOT belong in AI Settings
+
+Correct Placement
+
+Phone / Voice Server configuration
+
+Separate system
+
+AI here only receives and sends data
+
+CRM ≠ Phone brain
+
+The CRM should not house telephony logic.
+
+8. Google Workspace Integration — Explicit Actions Only
+
+Google Workspace (Gmail, Calendar, Sheets, Docs) stays — but:
+
+Rule
+No generic “send email”.
+
+We must have explicit actions, for example:
+
+send_email_sendgrid
+
+send_email_google
+
+create_google_calendar_event
+
+The AI must never guess the channel.
+
+UX must force explicit selection.
+
+9. Workflow Engines (n8n / Neo / External)
+
+Workflows already live elsewhere (n8n, Neo, etc.).
+
+CRM AI does NOT re-implement workflows
+It:
+
+Triggers them
+
+Reads results
+
+Logs execution
+
+This keeps architecture clean.
+
+10. What We Need From the CRM Developer (Conversation Agenda)
+Ask Them:
+
+What exactly does:
+
+“GPT action context”
+
+“workflow tab inside AI settings”
+actually do today?
+
+Which tabs overlap in responsibility?
+
+Where can we:
+
+Split read vs action
+
+Add approval gating
+
+Attach ledger entries cleanly
+
+How are AI behaviors stored today?
+
+Can behaviors be scoped per API / brain?
+
+Tell Them Clearly:
+
+We are separating AI by capability and risk
+
+We are not removing tabs — we are realigning responsibilities
+
+Ledger only logs executed actions
+
+No guessing, no global brains
+
+11. Big Picture Outcome
+
+When this is done:
+
+Customers are not overwhelmed
+
+AI feels safe and predictable
+
+Actions are controlled
+
+Logs mean something
+
+Future expansion is easy (new brains, same pattern)
+
+This is organized, not cluttered.

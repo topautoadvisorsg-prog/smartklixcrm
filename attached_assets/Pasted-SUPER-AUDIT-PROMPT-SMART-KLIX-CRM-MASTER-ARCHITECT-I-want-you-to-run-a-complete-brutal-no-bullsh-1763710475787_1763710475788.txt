@@ -1,0 +1,259 @@
+SUPER AUDIT PROMPT: SMART KLIX CRM MASTER ARCHITECT
+
+I want you to run a complete, brutal, no bullshit audit of the entire Smart Klix CRM system.
+
+For this phase, do not change any code. Only read, analyze, map, and report. Be fully honest, even if something is ugly, incomplete, or wrong.
+
+The end goal is this:
+
+We will have a Master Architect that lives inside the CRM, an AI control layer that can oversee any automation or AI task, review what is being requested, see the full context and prompt, and either approve, reject, or propose a safer or better version.
+
+Everything that is automated or AI related will eventually pass through this Master Architect hub before it executes.
+
+For now, your job is to audit what we have, and tell us what is missing or wrong to get there.
+
+1. Master Architect Hub Audit
+
+Find everything in the codebase that already relates to:
+
+AI agents or AI requests
+
+internal tool calls
+
+queues or pending actions
+
+any “Assist” or “Auto” modes
+
+anything called master architect, architect, assistant, agent, tools, memory, or similar naming
+
+N8N related workflows and triggers
+
+approval queues or pending tasks
+
+For each of these, document:
+
+File paths and key functions
+
+What they do right now, step by step
+
+How they are wired into the rest of the system
+
+What data they receive, and what data they send out
+
+Which parts, if any, could be used as the “Master Architect hub”
+
+What is clearly missing to reach this design:
+
+a single hub where all AI or automation tasks get registered
+
+a consistent schema for “tasks” or “actions” that can be approved or executed
+
+the original prompt and context attached to each task
+
+clear modes like Draft, Assist, Auto
+
+a human facing review UI where staff can see what the system wants to do, and approve or deny
+
+Be specific. Quote function names, file names, and routes.
+
+If there is no real Master Architect yet, say that clearly and explain what would be needed to build it on top of what we already have.
+
+2. Backend Super Audit
+
+Do a deep audit of the backend. This includes, but is not limited to:
+
+routing structure and controllers
+
+services or business logic layers
+
+integrations with N8N
+
+AI tool definitions
+
+database models and schema
+
+validation and error handling
+
+authentication and security
+
+logging and audit trails
+
+For the backend report, I want:
+
+A high level map of all main modules and their responsibilities
+
+A list of all public API endpoints, grouped by feature, with file locations
+
+A summary of where N8N calls the CRM and where the CRM calls N8N
+
+A clear explanation of how AI tools are invoked from the backend, or if that is missing
+
+Validation status
+
+where Zod or other validation is used
+
+where validation is missing or weak
+
+Error handling status
+
+patterns used
+
+places where we return confusing or unsafe errors
+
+Security review
+
+how internal token auth is implemented
+
+what protects each route
+
+any obvious security gaps you see
+
+Anything you consider brittle, confusing, or risky
+
+For each problem you find, describe:
+
+what the current behavior is
+
+why it is a problem
+
+what you recommend as a future fix or refactor
+
+Again, no code changes yet, only documentation and recommendations.
+
+3. Frontend Super Audit
+
+Now do the same kind of deep audit for the frontend.
+
+Use your previous UI audit as a base, but go further and make it fully structured so it can drive future work.
+
+I want:
+
+A full map of all tabs, pages, and major components, with file paths
+
+For each tab or page:
+
+what data it loads
+
+which backend endpoints it calls
+
+which actions and buttons are fully working
+
+which actions are fake or not wired up
+
+which parts are using mock data
+
+Clear identification of:
+
+missing contact detail page
+
+missing job detail page
+
+estimate and invoice detail and edit flows
+
+where files and notes really belong (attach them to contacts and jobs instead of global tabs)
+
+Specific recommendations for:
+
+which tabs should be removed or merged
+
+which tabs should stay
+
+what extra UI we will need for the Master Architect hub
+
+Especially for the Master Architect hub, give a concrete proposal for:
+
+where in the UI staff should see queued AI or automation tasks
+
+how they should see the original prompt, context, and proposed action
+
+how they approve, reject, or modify those actions
+
+which existing pages or components can be reused, and what has to be built from scratch
+
+4. N8N Integration Audit
+
+Audit the N8N side as it exists inside this CRM.
+
+I want you to document:
+
+How N8N currently talks to the CRM, endpoint by endpoint
+
+How the CRM currently talks to N8N, function by function
+
+Which event types are supported, and where they are handled
+
+What is missing for a full round trip:
+
+CRM generates event
+
+N8N runs automation
+
+result is sent back to CRM
+
+Master Architect hub sees it and logs it or uses it
+
+Call out any assumptions that are not documented yet.
+
+5. Gaps To Reach The Master Architect Vision
+
+After all this, I want a very clear section that answers this:
+
+If the business goal is to have a Master Architect that lives inside the CRM and oversees any AI or automation action through a single hub and approval layer, what are we missing right now, both backend and frontend?
+
+Break this into:
+
+missing databases or tables
+
+missing backend modules or services
+
+missing APIs or routes
+
+missing UI screens or components
+
+missing N8N flows or event types
+
+missing documentation
+
+For each gap, tell me:
+
+what is missing
+
+why it matters
+
+what you recommend we add later
+
+how big you think the work is (small, medium, large)
+
+6. Deliverables
+
+From this audit, I want:
+
+A written report in the repo, for example:
+
+SUPER_AUDIT_MASTER_ARCHITECT.md
+
+Inside that report:
+
+backend map and findings
+
+frontend map and findings
+
+N8N integration map and findings
+
+Master Architect hub analysis
+
+list of gaps and recommendations
+
+Any supporting diagrams or notes, if helpful, even if just as markdown diagrams.
+
+Important
+
+For this phase:
+
+Do not refactor or change code
+
+Do not add or remove routes or UI elements
+
+Only read, analyze, and document
+
+Be completely honest, even if something is badly designed or incomplete

@@ -1,0 +1,296 @@
+We are upgrading the platform to support the core field-service workflow used by top FSM systems (FieldPulse level, but minimal).
+You must add the following modules, schemas, endpoints, and UI elements into the existing architecture.
+This is an extension of the v4.2 system, NOT a rewrite.
+
+🧩 1. NEW DATA MODELS (ADD TO DATABASE)
+A. Estimates
+
+Create new table: Estimates
+
+id (PK)
+contact_id (FK)
+job_id (FK, nullable until accepted)
+status ENUM('draft','sent','accepted','rejected')
+line_items JSONB
+subtotal NUMERIC
+tax_total NUMERIC
+total_amount NUMERIC
+valid_until TIMESTAMP NULL
+created_at TIMESTAMP
+updated_at TIMESTAMP
+
+B. Invoices
+
+Create new table: Invoices
+
+id (PK)
+job_id (FK)
+contact_id (FK)
+estimate_id (FK, nullable)
+status ENUM('draft','sent','paid','overdue','void')
+line_items JSONB
+subtotal NUMERIC
+tax_total NUMERIC
+total_amount NUMERIC
+issued_at TIMESTAMP NULL
+due_at TIMESTAMP NULL
+paid_at TIMESTAMP NULL
+created_at TIMESTAMP
+updated_at TIMESTAMP
+
+C. Payments
+
+Create new table: Payments
+
+id (PK)
+invoice_id (FK)
+amount NUMERIC
+method ENUM('cash','card','bank_transfer','other')
+transaction_ref TEXT NULL
+status ENUM('pending','completed','failed','refunded')
+paid_at TIMESTAMP NULL
+created_at TIMESTAMP
+
+D. Extend Jobs table into full job ticket/work order
+
+Add the following fields to existing Jobs table:
+
+job_type ENUM('lead','job') DEFAULT 'lead'
+status ENUM('lead_intake','estimate_sent','scheduled','in_progress','completed','invoiced','paid','cancelled')
+job_number TEXT UNIQUE
+scheduled_start TIMESTAMP NULL
+scheduled_end TIMESTAMP NULL
+closed_at TIMESTAMP NULL
+assigned_techs JSONB (array of user IDs)
+source_lead_id (FK nullable)
+source_estimate_id (FK nullable)
+
+
+This converts Jobs into full field-service job tickets without overhauling existing logic.
+
+🧩 2. PIPELINE FLOW (REQUIRED SYSTEM LOGIC)
+
+The platform must now support this mandatory pipeline:
+
+Lead → Estimate → Job → In Progress → Completed → Invoice → Payment
+
+Rules:
+
+When a lead is ready for pricing, create an Estimate linked to the contact.
+
+If accepted:
+
+convert into a Job (job_type=job)
+
+job.status = 'scheduled'
+
+When technician or staff start work:
+
+job.status = 'in_progress'
+
+When finished:
+
+job.status = 'completed'
+
+closed_at = timestamp
+
+When invoice created:
+
+job.status = 'invoiced'
+
+When payment recorded:
+
+job.status = 'paid'
+
+Status changes MUST log into AuditLog automatically.
+
+🧩 3. NEW TOOL ENDPOINTS (ADD TO AI TOOLSET)
+
+Add the following endpoints to the AI tool API:
+
+create_estimate(contact_id, line_items[])
+send_estimate(estimate_id)
+accept_estimate(estimate_id)
+reject_estimate(estimate_id)
+
+create_invoice(job_id, line_items[])
+send_invoice(invoice_id)
+
+record_payment(invoice_id, amount, method, transaction_ref)
+
+update_job_status(job_id, status)
+assign_technician(job_id, technician_id)
+
+
+All endpoints must include Zod validation and RBAC.
+
+AI may suggest but cannot auto-send invoices or payments in Auto mode without human approval.
+
+🧩 4. ACTIVITY LOG (NEW UI VIEW)
+
+Use existing AuditLog data but create a user-friendly UI page:
+
+Columns:
+
+timestamp
+actor (staff, tech, system, AI)
+action
+entity_type (estimate, job, invoice, payment, contact)
+entity_id
+summary_text
+
+
+Filters:
+
+by job
+
+by contact
+
+by date
+
+by actor
+
+This gives users a clean history of everything that happened.
+
+🧩 5. FRONTEND REQUIREMENTS
+
+Add new menu items in the dashboard:
+
+Estimates (list, create, edit, send)
+
+Invoices (list, create, send)
+
+Payments (view payments)
+
+Activity Log (global + per-contact + per-job)
+
+Job Pipeline View with statuses as columns or filters:
+
+Lead Intake
+
+Estimate Sent
+
+Scheduled
+
+In Progress
+
+Completed
+
+Invoiced
+
+Paid
+
+Cancelled
+
+Job detail page must show:
+
+Timeline
+
+Estimates linked
+
+Invoices linked
+
+Payments linked
+
+🧩 6. AUTOMATION RULES (N8N)
+
+Add N8N nodes for:
+
+Notify customer when estimate is sent
+
+Notify when invoice is issued
+
+Reminder for unpaid invoices
+
+Notify internal team when a job becomes in_progress
+
+Notify when job is completed
+
+These must be webhook-triggered from backend events.
+
+🧩 7. SECURITY + PERMISSIONS
+New RBAC permissions:
+
+Technician
+
+Can view assigned jobs
+
+Can update job status: in_progress → completed
+
+Can upload job photos/files
+
+Cannot view payments
+
+Cannot send invoices
+
+Cannot modify estimates
+
+Dispatcher/Admin
+
+Can create estimates, invoices
+
+Can assign technicians
+
+Can accept/reject estimates
+
+Can record payments
+
+Owner
+
+Full access
+
+🧩 8. NO BREAKING OLD LOGIC
+
+This must integrate cleanly with:
+
+Existing memory system
+
+Existing AI runtime
+
+Existing Job + Appointment module
+
+Existing File uploads
+
+Existing Widget
+
+Existing AuditLog
+
+Existing RBAC
+
+No rewrites. Only extensions.
+
+🧩 9. DELIVERY REQUIREMENTS
+
+Developer must deliver:
+
+All new tables + migrations
+
+New endpoints fully documented
+
+Updated /docs/architecture.md
+
+Updated /docs/api_tools.md
+
+Updated /docs/rbac.md
+
+Updated frontend with new menu sections
+
+Tests for:
+
+Estimate creation
+
+Job flow
+
+Invoice creation
+
+Payment recording
+
+Role permissions
+
+N8N test workflows
+
+🧩 10. FINAL INSTRUCTION (PASTE AS-IS)
+
+“You must add the Field Operations Upgrade Pack to the existing v4.2 system.
+This includes Estimates, Invoices, Payments, Job Ticket extensions, Pipeline logic, Activity Log, and all listed endpoints.
+Integrate without breaking existing architecture.”

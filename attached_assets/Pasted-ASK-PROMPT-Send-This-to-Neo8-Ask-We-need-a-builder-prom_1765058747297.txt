@@ -1,0 +1,156 @@
+ASK PROMPT (Send This to Neo8 Ask)
+
+We need a builder prompt for Neo8Flow (n8n) that creates a complete Lead Intake Flow. Below is the full logic, all requirements, and all rules the workflow must follow. Review everything and then generate the builder prompt that constructs the full workflow with all nodes and logic included.
+
+Flow Name:
+
+Lead Intake Flow
+
+Purpose:
+
+Smart Klix CRM sends lead.intake events to Neo8Flow. Neo8Flow:
+
+Receives the webhook
+
+Validates required fields
+
+Normalizes important fields
+
+Routes only lead.intake
+
+Runs one placeholder automation
+
+Returns proper responses
+
+Logs payload inside n8n execution data
+There is no callback to CRM.
+
+Incoming Event Rules
+Required Envelope Fields
+
+The incoming JSON must contain:
+
+schema_version
+
+event_type
+
+idempotency_key
+
+tenant_id
+
+timestamp (must be ISO-8601 format)
+
+source.channel (must match allowed channels list)
+
+Allowed source.channel Values
+
+Validate against this list:
+
+“chat_widget”
+
+“contact_form”
+
+“extended_form”
+
+“email”
+
+“twilio_voice”
+
+“api”
+
+Identifier Requirement
+
+At least ONE must exist:
+
+data.contact.email
+
+data.contact.phone
+
+data.contact.id
+
+⚠ recording_url does not count as an identifier.
+
+If none exist → return validation error.
+
+Idempotency Rule
+
+If the same idempotency_key is received again:
+
+Return the previous success response
+
+Do not treat as an error
+
+Do not re-run automation
+
+Validation Error Response Format
+
+Always return JSON with these fields:
+
+{
+  "error_code": "<string>",
+  "message": "<string>",
+  "details": "<object or string>",
+  "timestamp": "<ISO8601>"
+}
+
+Normalization Rules
+
+Normalize only the following:
+
+emails → lowercase
+
+phone numbers → E.164 format
+
+tags → dedupe them
+
+No other transformations.
+
+Event Type Routing
+
+If event_type = “lead.intake” → proceed through workflow
+If event_type ≠ “lead.intake” → return HTTP 204 No Content, no body.
+
+Logging Requirements
+
+Store raw payload in n8n execution data only.
+No external DB.
+No external storage.
+
+Future Automation Placeholder
+
+Add one placeholder node named:
+“Lead Intake – Future Automation Placeholder”
+It only executes when the intake is valid and event_type = lead.intake.
+
+Successful Response Format
+
+Return HTTP 200 with:
+
+{
+  "status": "ok",
+  "idempotency_key": "<string>",
+  "message": "lead intake accepted"
+}
+
+REQUEST TO ASK
+
+Using everything above, generate the builder prompt that will create the entire working workflow inside Neo8Flow (n8n).
+The builder prompt must include:
+
+All nodes required
+
+All logic
+
+All branches
+
+All validation
+
+All normalization
+
+All response structures
+
+All routing behaviors
+
+All node connections
+
+If you need to improve the structure or add missing logic based on best practices, include your recommendations in your response before generating the builder prompt.

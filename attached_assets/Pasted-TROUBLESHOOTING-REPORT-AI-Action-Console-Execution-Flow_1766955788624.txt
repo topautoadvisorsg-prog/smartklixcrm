@@ -1,0 +1,166 @@
+TROUBLESHOOTING REPORT — AI Action Console / Execution Flow
+
+Status: Blocking issues still present
+Severity: Critical (prevents reliable execution & approval)
+
+1️⃣ AI Reasoning / Intake Behavior Is Broken
+
+The Action AI is not reasoning over provided information correctly.
+
+Observed behavior:
+
+The AI does not review or validate information already provided
+
+It does not check for existing contacts
+
+It does not reconcile context across messages
+
+It behaves as if every message is isolated
+
+Expected behavior:
+
+When a customer name/email is provided, the AI should:
+
+Check if the contact already exists
+
+Reuse existing data instead of proposing creation blindly
+
+Ask only for missing fields, not restart the flow
+
+Reading information must not create proposals
+
+Informational messages must remain read-only
+
+This indicates a context/state handling failure in the Action AI layer.
+
+2️⃣ Proposal vs Read-Only Logic Is Still Incorrect
+
+The AI is still:
+
+Creating proposed actions when it should only read
+
+Treating informational input as executable intent
+
+Failing to distinguish:
+
+Information intake
+
+Draft preparation
+
+Execution proposal
+
+This violates the intended Intake → Draft → Review → Execute model.
+
+3️⃣ Ready-for-Execution: Reject Button Does Nothing
+
+Issue:
+
+When an item is in Ready for Execution
+
+Clicking Reject does nothing
+
+No state change
+
+No feedback
+
+No ledger entry
+
+Expected:
+
+Reject should:
+
+Change state
+
+Record rejection reason
+
+Return item to previous stage (draft or review)
+
+Log to ledger
+
+This appears to be either:
+
+A broken UI handler
+
+Or missing backend state transition logic
+
+4️⃣ Dispatch for Approval Fails With Silent Error
+
+Issue:
+
+Clicking Confirm / Dispatch for Approval throws an error
+
+No error message
+
+No reason provided
+
+No visible logs or clues
+
+Expected:
+
+Any failure MUST return:
+
+Error code
+
+Human-readable reason
+
+Which validation failed (missing field, invalid state, permission, etc.)
+
+Right now, failures are opaque, making debugging impossible.
+
+5️⃣ Missing Error Transparency (Critical)
+
+Across the system:
+
+Errors do not explain:
+
+What failed
+
+Why it failed
+
+What is required to fix it
+
+This makes operators blind and blocks progress.
+
+✅ WHAT WE NEED FIXED / VERIFIED
+
+Please investigate and confirm:
+
+Action AI state management
+
+Is context persisted correctly across messages?
+
+Is the AI aware of existing CRM data when responding?
+
+Proposal gating
+
+Ensure proposals are ONLY created when explicitly requested
+
+Reading ≠ proposing
+
+Execution state machine
+
+Reject action actually performs a state transition
+
+Dispatch action validates and reports errors properly
+
+Error handling
+
+Surface backend errors to the UI
+
+Include validation failures and reasons
+
+🎯 GOAL
+
+The goal is a predictable, auditable system where:
+
+Information can be read without side effects
+
+Actions require clear intent
+
+Failures explain themselves
+
+Humans can confidently approve or reject
+
+Right now, the system is blocking that.
+
+Please confirm findings and next steps.

@@ -1,0 +1,178 @@
+Let’s go with Option B:
+✅ I want you to create a new Voice Call Event workflow from scratch in n8n that connects to the SmartKlix (TopOut) CRM using the existing REST API.
+
+Use this as the contract:
+
+CRM Base URL
+https://6ce88bbf-26a4-47c4-abb7-7ce94909d3ba-00-2kgw7q91cwdj4.kirk.replit.dev
+
+Auth header for every SmartKlix HTTP Request node
+Authorization: Bearer f13ae889ddabed317a1090f861c3904e52786e9bde3217862a62b1486f550ca1
+
+Endpoints to use (only these, with /api)
+
+GET /api/contacts/lookup?phone={phone}
+
+POST /api/contacts/create
+
+POST /api/contacts/update
+
+POST /api/leads/create
+
+POST /api/jobs/create
+
+POST /api/activity-log/write
+
+POST /api/events/update
+
+Important: contact dedup logic
+
+Do not do manual dedup in n8n
+
+Always call POST /api/contacts/create
+
+If phone exists → CRM updates that contact with only the fields you pass
+
+If phone does not exist → CRM creates a new contact
+
+If no phone is sent → always a new contact
+
+Voice Call Event workflow you should build in n8n
+
+1) Trigger
+
+Webhook node with path: /webhook/voice-call-event
+
+Method: POST
+
+Content-Type: application/json
+
+2) Expected payloads from the future voice server
+
+Completed call:
+
+{
+  "event": "call_completed",
+  "call_id": "twilio_call_sid_here",
+  "status": "completed",
+  "missed": false,
+  "from_number": "+15551234567",
+  "to_number": "+15559876543",
+  "caller_name": "John Doe",
+  "tags": ["new_lead", "intake"],
+  "reason": "Wants estimate for exterior lighting",
+  "details": {
+    "job_type": "outdoor_lighting",
+    "property_type": "residential",
+    "address": "123 Main St",
+    "city": "Ensenada",
+    "budget": "1500-3000",
+    "preferred_time": "Afternoons",
+    "notes": "Has existing fixtures"
+  },
+  "ai_summary": "Caller requested exterior lighting estimate...",
+  "timestamp": "2025-11-14T00:00:00Z",
+  "language": "en"
+}
+
+
+Missed call:
+
+{
+  "event": "call_missed",
+  "call_id": "twilio_call_sid_here",
+  "missed": true,
+  "from_number": "+15551234567",
+  "to_number": "+15559876543",
+  "timestamp": "2025-11-14T00:00:00Z"
+}
+
+Required logic for completed calls
+
+Webhook receives the call_completed payload
+
+Call POST /api/contacts/create with at least:
+
+{
+  "phone": "{{ $json.from_number }}",
+  "name": "{{ $json.caller_name || '' }}"
+}
+
+
+Use the returned id as contactId
+
+If details.job_type is present
+
+Call POST /api/jobs/create with:
+
+contactId from above
+
+jobType = details.job_type
+
+plus other detail fields (propertyType, address, city, budget, preferredTime, notes)
+Else
+
+Call POST /api/leads/create with:
+
+contactId
+
+reason = reason from payload
+
+summary = ai_summary if present
+
+Call POST /api/activity-log/write with:
+
+contactId
+
+type: "call"
+
+direction: "inbound"
+
+summary: use ai_summary if available, otherwise a simple fallback like "Inbound call from {from_number}"
+
+metadata: include call_id, job_type, budget, etc
+
+Optionally call POST /api/events/update with eventId = call_id, eventType = "call_completed", status, and a result object
+
+Required logic for missed calls
+
+Webhook receives call_missed payload
+
+Call POST /api/contacts/create with:
+
+{
+  "phone": "{{ $json.from_number }}"
+}
+
+
+CRM will dedup by phone automatically
+
+Use the returned contactId to:
+
+POST /api/leads/create with a simple reason like "Missed call from {from_number}"
+
+Send an SMS via Twilio in n8n saying we missed the call and will follow up
+
+POST /api/activity-log/write with type: "call", direction: "inbound", summary: "Missed call", and metadata { call_id, from_number, to_number }
+
+Data path rules in n8n
+
+Use $json.from_number, $json.to_number, $json.ai_summary, $json.details.job_type, etc.
+
+Do not use $json.body.* in this workflow. The payload root is already $json.
+
+When using merge nodes, if you need the contact id, use:
+
+$('Create or Update Contact').first().json.id
+
+Please create this Voice Call Event workflow directly in n8n using the contract above.
+
+Once it is built, we can test by manually sending call_completed and call_missed JSON payloads to /webhook/voice-call-event and verifying that:
+
+contacts are created/updated
+
+jobs/leads are created
+
+activity logs are written
+
+and (optionally) /api/events/update is called with the result.

@@ -1,0 +1,121 @@
+— We need 3 things from YOU before we can configure:
+
+I need you to give me:
+
+A. Your Twilio phone number
+
+Format: +1234567890
+(This fills the Workflow Configuration warning.)
+
+B. Your CRM Base URL
+
+Most likely the same one you’ve been using:
+https://fc72d6fb-042c-4082-91e0-3407142d48a1-00-3uwy5zqj8ej5v.janeway.replit.dev
+
+C. Your CRM Webhook URLs needed:
+
+We need to confirm the following endpoints exist:
+
+GET Contact Info
+Should be something like:
+/api/contacts/get-info
+or
+/api/contacts/{contactId}
+or
+/api/contact-info
+
+Log Follow-Up Activity
+Should be:
+/api/logs/follow-up
+
+Log Reply to CRM
+Should be:
+/api/replies/inbound
+
+You must confirm these with your CRM developer or give me the endpoints they provided.
+NOW — Let me explain the errors and exactly what you need to fill.
+❌ 1. Get Contact Info: Parameter "URL" is required
+
+Open the "Get Contact Info" node and fill:
+
+URL =
+{{ $('Workflow Configuration').first().json.crmApiBaseUrl }}/api/contacts/{{ $json.contactId }}
+
+But ONLY if your CRM developer confirms that is the correct route.
+
+❌ 2–4. Send SMS: "From", "To", "Message" required
+Fix "From"
+
+In the SMS node, set:
+
+From =
+{{ $('Workflow Configuration').first().json.twilioFromNumber }}
+
+This requires you to first fill TwilioFromNumber in Workflow Configuration.
+
+Fix "To"
+
+To =
+{{ $('Get Contact Info').first().json.phone }}
+
+Fix "Message"
+
+Message =
+{{ JSON.parse($json.message).sms }}
+
+This is already correct based on your screenshot.
+
+❌ 5. Send Email: Parameter "Name" required
+
+Open the “Send Email” (SendGrid) node.
+
+Fill:
+
+Sender Name =
+Smart Klix CRM Reports
+
+or anything you want.
+
+This field cannot be empty.
+
+❌ 6. Log Follow-Up Activity: Parameter "URL" is required
+
+Set:
+
+URL =
+{{ $('Workflow Configuration').first().json.crmApiBaseUrl }}/api/logs/follow-up
+
+But again, confirm with your CRM dev.
+If they give a different log endpoint, we use theirs.
+
+❌ 7. Inbound SMS Webhook: Parameter "Trigger On" required
+
+Open the Inbound SMS Webhook node.
+
+Set:
+
+Trigger On = Received Message
+(or the closest option, depending on n8n UI.)
+
+Also assign Twilio credentials.
+
+❌ 8. Log Reply to CRM: Parameter "URL" is required
+
+Open the "Log Reply to CRM" node.
+
+Set:
+
+URL =
+{{ $('Workflow Configuration').first().json.crmApiBaseUrl }}/api/replies/inbound
+
+❌ 9. Workflow Configuration: Twilio phone number required
+
+Open Workflow Configuration.
+
+Add a field:
+
+Name: twilioFromNumber
+Value: your Twilio number, like:
++12223334444
+
+This value is used in the SMS node.

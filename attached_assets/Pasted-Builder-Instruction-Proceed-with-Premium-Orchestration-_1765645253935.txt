@@ -1,0 +1,124 @@
+Builder Instruction — Proceed with Premium Orchestration (Clean, Same Workflow)
+
+We are proceeding with Option A: Premium AI Receptionist (Orchestration-Only in n8n).
+
+Important clarifications up front (please read carefully):
+
+We are NOT creating a new workflow.
+
+We are continuing to build inside the same existing workflow.
+
+We conceptually separate logic using diagrams / sections, not separate workflows.
+
+Keep everything clean, minimal, and non-redundant.
+
+Audit the entire workflow as you build — remove or consolidate duplicate notes, labels, or logic.
+
+If one note or explanation applies to multiple nodes, use ONE shared note.
+
+Architecture Decision (Approved)
+
+The Premium AI Receptionist uses OpenAI Realtime API, which requires a persistent WebSocket connection.
+n8n does not host or proxy live audio.
+
+Therefore:
+
+Live voice conversation happens externally:
+
+Twilio Media Streams ↔ External WebSocket Server ↔ OpenAI Realtime API
+
+n8n handles orchestration only:
+
+Call start
+
+Call end
+
+Data ingestion
+
+CRM logging
+
+Intake handoff
+
+This is intentional and correct.
+
+What to Build (Premium Diagram Inside Same Workflow)
+
+Create a new Premium section / diagram inside the existing workflow with the following logical nodes (names are illustrative, not prescriptive):
+
+Call Start (Twilio Webhook)
+
+Triggered when call begins
+
+Return TwiML – Start Media Stream
+
+Returns <Connect><Stream>
+
+Stream URL points to EXTERNAL WebSocket server
+
+This node clearly marks the audio boundary
+
+External Realtime Voice Server (Boundary / Note Node)
+
+Explicitly documents:
+
+Audio does NOT pass through n8n
+
+WebSocket server is external
+
+Handles Twilio ↔ OpenAI Realtime
+
+This prevents future builders from adding STT/TTS or per-turn loops
+
+Call End (Twilio StatusCallback Webhook)
+
+Triggers when call completes
+
+Receive / Fetch Session Data
+
+Transcript
+
+Metadata
+
+Conversation summary (source may be external server or OpenAI API)
+
+Extract Lead Data
+
+Name, phone, email, reason for calling (no scoring, no premium upsells)
+
+Log Call to CRM
+
+Same CRM endpoints as Basic
+
+One clean summary
+
+Send to Intake Flow
+
+Same intake webhook as Basic
+
+Explicit Non-Goals (Do NOT Add)
+
+❌ No STT nodes
+
+❌ No TTS nodes
+
+❌ No Redis memory
+
+❌ No per-turn webhook loops
+
+❌ No lead scoring
+
+❌ No premium feature logic beyond architecture
+
+❌ No duplicate notes or redundant explanations
+
+Final Notes
+
+This Premium section should coexist cleanly with the Basic section.
+
+Do not refactor or break the Basic flow unless redundancy is found.
+
+If something is unclear, document it once, clearly, at the correct boundary.
+
+The goal is clarity, auditability, and future-proofing, not feature creep.
+
+Proceed with this understanding.

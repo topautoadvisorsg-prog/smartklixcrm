@@ -1,0 +1,355 @@
+Your goals for this phase
+
+Implement a proper Emails page with backend support
+
+Implement a proper Intake Builder page with backend support
+
+Wire both in cleanly to existing entities and AI context, without breaking anything that already works
+
+While you are doing this, if you see any other missing pages or config that should logically exist around email or intake, call it out and suggest it
+
+Everything must follow clean code, strict TypeScript, no dead code, and include clear documentation about what you built and where it lives.
+
+1. Emails module
+
+Create a new top level page
+
+Route: /emails
+
+Sidebar label: Emails
+
+UI requirements
+
+Emails page should include at minimum
+
+Email accounts area
+
+Table of connected email accounts
+
+Columns, Account name, Email address, Status, Last sync, Company, Direction (send only, send and receive)
+
+Button, Add email account
+
+Status badges, Connected, Error, Disabled
+
+Account config dialog
+
+When user clicks Add email account or edits a row
+
+Fields
+
+Display name
+
+Email address
+
+Incoming, IMAP host, port, SSL toggle
+
+Outgoing host, port, SSL toggle
+
+Username, password or app password
+
+Default company or company tag
+
+Test connection button that calls a backend endpoint
+
+Save button that validates and persists
+
+Email list view
+
+Below accounts, add a basic list with tabs
+
+Tabs, Inbox, Sent, All
+
+Filters, account filter, company filter, date range, text search
+
+Columns, From, To, Subject, Related contact or job summary, Company, Date, Status
+
+Clicking a row opens an email detail drawer or modal with
+
+From, To, CC, BCC, Date
+
+Subject
+
+Body rendered safely
+
+Attachments list if present
+
+Linked contact and job if known
+
+For now
+
+Compose and reply can open a simple compose dialog
+
+Drafts should be saved in the database
+
+The actual send integration can remain a TODO with a clear comment for future n8n or provider wiring
+
+Backend and data
+
+Add or extend tables such as
+
+email_accounts
+
+id, tenant_id
+
+display_name
+
+email_address
+
+incoming_host, incoming_port, incoming_ssl
+
+outgoing_host, outgoing_port, outgoing_ssl
+
+username, encrypted_secret or password_hash
+
+status (connected, error, disabled)
+
+last_sync_at
+
+default_company tag or id
+
+emails
+
+id, tenant_id, account_id
+
+message_id, thread_id nullable
+
+direction (incoming, outgoing)
+
+from_address
+
+to_addresses
+
+subject
+
+body_html, body_text
+
+received_at, sent_at
+
+status (synced, draft, failed, queued)
+
+contact_id nullable
+
+job_id nullable
+
+company tag or id
+
+Endpoints
+
+CRUD for email accounts with validation
+
+List emails with filters for inbox, sent, all
+
+Save draft endpoint for future sending
+
+Make sure
+
+No secrets are exposed to frontend
+
+Status values match the UI
+
+If you implement auto linking to contacts or jobs, be conservative, do not link when it is ambiguous
+
+If you see a better minimal schema, you can adjust, just keep it consistent and document it.
+
+2. Intake Builder module
+
+Create a new top level page
+
+Route, /intakes
+
+Sidebar label, Intake Builder
+
+Intake list view
+
+Table of intake forms
+
+Columns, Name, Company, Channel (web, phone, other), Status (active, inactive), Default pipeline stage, Last updated
+
+Button, New intake form
+
+Intake editor
+
+For each intake form provide
+
+Basic info
+
+Intake name
+
+Company, either select from existing company list or free text company name, depending on current data model
+
+Channel type, web form, phone script, other
+
+Active toggle
+
+Field configuration
+
+Ordered list of fields
+
+For each field
+
+Label
+
+Internal key
+
+Type, text, textarea, phone, email, date, select, multi select, boolean
+
+Required flag
+
+Help text
+
+Option list for selects when needed
+
+Mapping, for each field allow mapping to
+
+Contact field
+
+Job field
+
+Or leave unmapped
+
+Routing and creation rules
+
+What happens on intake submit
+
+Try to match existing contact by email or phone, or always create new, configurable
+
+Decide when to create a job, always or only under some condition, you can start with a simple always create behavior now and leave conditional rules as a TODO if needed
+
+Default pipeline stage for new jobs
+
+Default tags for contact and job
+
+AI behavior instructions
+
+Text area, company and intake instructions, where the user can write business rules and behavior for this intake
+
+This will be passed as context to the existing Master Architect when a task comes from this intake
+
+Integration outputs
+
+Show a webhook endpoint URL for the intake, which will be what n8n or other systems call later
+
+Show a sample JSON payload showing what fields the intake expects
+
+Buttons, Copy webhook URL, Copy sample payload
+
+You do not need to wire n8n now, just expose the webhook and sample payload in a clear and stable way.
+
+Backend
+
+Add or extend tables such as
+
+intakes
+
+id, tenant_id
+
+name
+
+company tag or company_id
+
+channel_type
+
+active boolean
+
+default_pipeline_stage
+
+default_contact_tags
+
+default_job_tags
+
+ai_instructions text
+
+webhook_token or secret
+
+intake_fields
+
+id, intake_id
+
+label
+
+key
+
+type
+
+required boolean
+
+help_text
+
+field_order
+
+mapped_entity (contact, job, none)
+
+mapped_field_key
+
+intake_submissions
+
+id, intake_id
+
+payload JSON
+
+contact_id nullable
+
+job_id nullable
+
+created_at
+
+Add endpoints
+
+List, create, update, delete intakes
+
+List, create, update, delete intake fields
+
+Optionally list submissions
+
+The existing Master Architect and AI logic are already being handled, so here you just need to expose these definitions in a clean way so the AI code can pull them when needed.
+
+3. Check for anything else we missed around Emails or Intake
+
+While you are implementing this, do a quick pass and think like a user.
+
+If there is any other obvious page, setting, or small component that should exist around emails or intake but does not, for example
+
+A simple email settings section inside Settings
+
+A way to see submissions for a given intake
+
+A small piece of UI that should connect emails to contacts or jobs
+
+call it out in your report and either
+
+Implement it if it is small and low risk in this phase, or
+
+Mark it clearly as a TODO with a short suggestion of how you would do it
+
+We are not asking you to redesign the whole app here, we just do not want to miss something obvious in these two areas again.
+
+4. Clean code and docs
+
+As always
+
+Strict TypeScript
+
+No dead code or unused files
+
+Validation on all new endpoints
+
+Consistent naming, folders, and patterns with the existing codebase
+
+Documentation
+
+Add or update docs describing
+
+Emails module, UI route, main components, backend endpoints, database tables, where future send and sync will plug in
+
+Intake Builder module, route, components, backend endpoints, database tables, and how it ties into the existing AI and company logic
+
+At the end of this phase, send back a short summary that includes
+
+What you implemented for Emails
+
+What you implemented for Intake Builder
+
+Any other related things you added or flagged as TODO
+
+Anything in the plan that you could not do and why

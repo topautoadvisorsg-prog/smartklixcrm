@@ -1,0 +1,134 @@
+MPLEMENTATION CONFIRMATION — PIPELINE TAB
+
+You are approved to proceed with the changes as outlined, with the following confirmations and guardrails.
+
+1️⃣ Stage Model — APPROVED
+
+✅ Yes, the stage rename and replacement is required.
+
+Replace entirely:
+
+lead_intake
+
+estimate_sent
+
+scheduled
+
+in_progress
+
+completed
+
+With these 5 FIXED, NON-CONFIGURABLE stages:
+
+new_request (0%)
+
+qualification (25%)
+
+negotiation (50%)
+
+approved (90%) — GATE
+
+booked (100%) — LOCKED
+
+Rules:
+
+❌ No skipping stages
+
+❌ No movement out of booked
+
+❌ No optimistic UI for approved → booked
+
+This aligns with README and product intent.
+
+2️⃣ AI Win Score / Velocity Sparklines — REMOVE
+
+✅ Correct to remove entirely
+
+AI Win Score
+
+Velocity sparklines
+
+Client-side mock “AI signals”
+
+These do not belong in Pipeline.
+AI intelligence lives elsewhere (Action AI / Ledger), not here.
+
+3️⃣ Role Enforcement — DEMO TOGGLE APPROVED
+
+✅ Using a demo role toggle (Sales ↔ Operator) is acceptable for now
+
+Constraints:
+
+Sales / Estimator:
+
+Can move cards up to approved only
+
+Operator:
+
+Required for approved → booked
+
+⚠️ This toggle is UI-only, clearly marked as demo logic.
+Real auth will replace it later.
+
+4️⃣ hasActiveEstimate — MOCK APPROVED (TEMPORARY)
+
+✅ Yes, mock hasActiveEstimate on cards for demonstration only
+
+Rules enforced in UI:
+
+negotiation → approved requires hasActiveEstimate === true
+
+Cards without it must show:
+
+Warning block
+
+Disabled drop zone
+
+Backend/schema update will come later — do not block UI work on it.
+
+5️⃣ Conversion Wizard — MANDATORY
+
+✅ Approved and REQUIRED
+
+Approved → Booked must:
+
+Open 4-step Conversion Wizard
+
+Require explicit confirmation
+
+Wait for backend confirmation before completing
+
+Never optimistically move the card
+
+This is a hard gate, not cosmetic.
+
+6️⃣ Velocity Dashboard Header — APPROVED
+
+✅ Build exactly as specified:
+
+Total Weighted Forecast
+
+Multi-colored Velocity Bar
+
+Role Indicator (Operator / Sales)
+
+⚠️ No AI logic.
+⚠️ No backend ledger work.
+UI math only.
+
+7️⃣ Explicit “DO NOT BUILD” — CONFIRMED
+
+You are correct not to build:
+
+❌ Billing
+❌ Job scheduling
+❌ Estimate editing
+❌ Backend ledger events
+❌ Real authentication
+❌ AI intelligence on cards
+
+Pipeline is a state machine + gate, nothing else.
+
+🔒 FINAL DIRECTIVE
+
+Proceed with implementation exactly as scoped.

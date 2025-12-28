@@ -1,0 +1,153 @@
+🚨 **IMPORTANT — N8N WORKFLOW CONFIGURATION IS READY.
+
+Your CRM MUST NOW MATCH THIS CONTRACT EXACTLY.**
+
+Neo8 (the automation worker) has implemented an event orchestration workflow for SmartKlix.
+To integrate correctly, the CRM must:
+
+1. Send Outbound Events to Neo8
+
+Send all automation events to:
+
+POST https://smartklix.app.n8n.cloud/webhook/smartklix-event
+
+
+Payload MUST be EXACTLY:
+
+{
+  "eventType": "new_lead | job_updated | send_sms | missed_call | send_email | invoice_created | create_payment_link",
+  "body": {
+    "eventId": "unique-event-id",
+    "prompt": "",
+    "leadName": "",
+    "fromNumber": "",
+    "toNumber": "",
+    "message": "",
+    "fromEmail": "",
+    "toEmail": "",
+    "subject": "",
+    "customerId": "",
+    "amount": "",
+    "paymentSourceId": "",
+    "productName": ""
+  }
+}
+
+
+No renames, no deletions.
+
+2. Accept Inbound Results From Neo8
+
+Implement this callback:
+
+POST /api/events/update
+
+
+Protected by:
+
+Authorization: Bearer <N8N_INTERNAL_TOKEN>
+
+
+This endpoint must:
+
+Validate schema
+
+Log to AuditLog
+
+Update CRM state (estimates, invoices, payments, SMS status, etc.)
+
+3. Enforce Token Security
+
+All internal automation endpoints MUST require:
+
+N8N_INTERNAL_TOKEN
+
+
+No exceptions.
+
+4. Event Routing Layer
+
+CRM must map event types to automation logic.
+
+Examples:
+
+send_sms → Neo8 Twilio workflow
+
+send_email → Neo8 SendGrid workflow
+
+invoice_created → Neo8 Stripe node
+
+create_payment_link → Neo8 Stripe link generator
+
+new_lead → AI content, SMS, email
+
+job_updated → follow-up logic
+
+5. Audit Logging
+
+Every outbound AND inbound automation event must be logged:
+
+timestamp
+
+event type
+
+payload
+
+success/failure
+
+response from Neo8
+
+6. Result Handling (CRM MUST SUPPORT)
+
+Neo8 will send back:
+
+AI-generated texts
+
+Payment links
+
+Email/SMS send confirmations
+
+Stripe payment status
+
+Invoice results
+
+CRM must store these results.
+
+Confirm you understand each requirement BEFORE continuing development.
+🟢 YES — This is exactly what you send him.
+
+If you do NOT send him this:
+
+CRM and Neo8 will be out of sync
+
+Events will fail
+
+Payments will break
+
+SMS will break
+
+Invoices won't update
+
+AI tools will fail
+
+You will have a nightmare to fix
+
+This is why you needed this step.
+
+👍 Ready for next step
+
+If you want:
+
+I can generate:
+
+✅ Full SmartKlix → Neo8 event dispatcher code
+(JavaScript, TypeScript, or Python)
+
+✅ Full /api/events/update endpoint
+Including Zod validation + audit logging
+
+✅ Full Zod schema for event validation
+
+Just tell me:
+
+“Generate the CRM event dispatcher.”

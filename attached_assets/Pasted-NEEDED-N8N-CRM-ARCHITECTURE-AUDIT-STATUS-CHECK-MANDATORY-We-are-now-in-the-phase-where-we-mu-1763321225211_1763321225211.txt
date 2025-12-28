@@ -1,0 +1,170 @@
+NEEDED: N8N + CRM ARCHITECTURE AUDIT & STATUS CHECK (MANDATORY)
+
+We are now in the phase where we must ensure the connection between:
+
+CRM backend
+
+N8N automation layer
+
+Website chat widget
+
+Website contact form
+
+Memory system
+
+ChatGPT actions layer
+
+…are all correctly wired and nothing is missing.
+
+This is a required audit + status request — DO NOT skip anything and confirm each item with a yes/no + explanation.
+
+1. N8N INTEGRATION STATUS
+
+We need confirmation on every one of these:
+
+✅ Has the primary inbound webhook been created in N8N for initial lead/contact intake?
+✅ Is the webhook responding with 200 OK?
+✅ Are we able to push test payloads from the CRM to N8N successfully?
+✅ Are outbound requests from N8N to the CRM authenticated and working?
+✅ Are all required headers (Bearer + Content-Type) correct?
+Confirm where these live and how they rotate.
+
+2. CHAT WIDGET (WEBSITE BOT) ROUTING
+
+We need confirmation on the entire flow:
+
+The chat widget on the website must:
+
+✔ Collect user questions
+✔ Collect contact info when needed
+✔ Send conversations + lead info into CRM
+✔ Trigger N8N for any automations (follow-up, call attempts, appointment scheduling, etc.)
+✔ Log all events
+
+Confirm:
+
+Is the chat widget installed in the test environment?
+
+Does the chat widget send data → CRM backend?
+
+Does the CRM forward required events → N8N?
+
+Do we have a unified “Create/Update Contact” action?
+
+Do we have protection against duplicates?
+
+Do we have memory updates pushed to CRM embeddings?
+
+3. WEBSITE CONTACT FORM ROUTING
+
+The “Contact Us” form must:
+
+✔ Create a contact in CRM
+✔ Fire the same N8N webhook
+✔ Add tags so we know it came from “Contact Form”
+✔ Trigger follow-up sequences
+
+Confirm:
+
+Is the backend endpoint built?
+
+Does the data map correctly to our CRM schema?
+
+Does it fire N8N automation with the same payload format as the chat widget?
+
+Are validation rules in place?
+
+4. MEMORY SYSTEM
+
+We need confirmation on:
+
+✔ Short-term memory (session scratchpad)
+✔ Long-term memory (pgvector embeddings)
+✔ Summarization pipeline
+✔ Retrieval logic (top 3 chunks)
+✔ Memory updates when new data arrives from chat widget or contact form
+✔ N8N’s ability to push events into memory if needed
+
+Confirm:
+
+Is memory schema complete?
+
+Are embeddings working?
+
+Are summaries generated?
+
+Do agent tools retrieve memory correctly?
+
+Is the Master Architect LLM receiving memory context before executing actions?
+
+5. CRM ↔ N8N ↔ AI FLOW
+
+We need confirmation the full triangle is operational.
+
+✔ CRM → N8N
+✔ N8N → CRM
+✔ CRM → AI
+✔ Chat widget → CRM → N8N
+✔ AI actions → CRM → N8N → Result → CRM
+
+Confirm each direction, including:
+
+endpoint URLs
+
+payload structure
+
+authentication
+
+failure handling
+
+logging
+
+6. MISSING COMPONENT CHECK
+
+You must confirm if any of the following are NOT implemented yet:
+
+☐ Chat widget event ingestion
+☐ Contact form ingestion
+☐ Lead creation pipeline
+☐ Appointment workflow
+☐ Follow-up workflow
+☐ Voice call triggers
+☐ File upload + metadata handling
+☐ N8N outbound log tracking
+☐ Audit log entries
+☐ Role permissions
+☐ ChatGPT Actions configuration
+☐ Memory write-back
+☐ Duplicate contact merging
+☐ Tenant isolation
+
+List ALL missing pieces explicitly.
+
+7. NEXT STEPS AFTER N8N SETUP
+
+Once N8N & routing is verified, we move to:
+
+UI improvements
+Memory quality tuning
+Widget UX
+Role-based actions
+Queueing
+Notifications
+Dashboard metrics
+
+But NONE of that begins until the above audit passes fully.
+
+Deliver a complete audit report + status of every single item above.
+No partial answers.
+If anything is unclear, ask immediately.
+
+============================================================
+
+END OF MESSAGE
+
+If you'd like me to also generate:
+
+🔹 A version for your N8N agent
+🔹 A version for your CRM’s “Master Architect” LLM
+🔹 A version for internal documentation
+🔹 Flow diagrams (API → N8N → CRM → AI)

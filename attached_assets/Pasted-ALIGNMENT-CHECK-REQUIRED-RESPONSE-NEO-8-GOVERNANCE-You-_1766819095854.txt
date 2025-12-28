@@ -1,0 +1,169 @@
+ALIGNMENT CHECK + REQUIRED RESPONSE (NEO-8 GOVERNANCE)
+
+You said something that raised a red flag and we need to stop and realign before any more work continues.
+
+You stated that “the CRM doesn’t trigger Neo-8.”
+That is incorrect and contradicts the entire system architecture.
+
+1️⃣ NON-NEGOTIABLE ARCHITECTURE (CONFIRM UNDERSTANDING)
+
+Please explicitly confirm yes/no to each item below:
+
+Does the CRM ever execute actions directly (email, WhatsApp, SMS, docs, sheets, calendar)?
+→ Expected answer: NO
+
+Are ALL outbound actions executed by Neo-8 (n8n), regardless of source?
+→ Expected answer: YES
+
+Does the CRM’s role stop at:
+
+drafting
+
+proposing
+
+routing for approval
+
+triggering Neo-8 after approval
+→ Expected answer: YES
+
+Does Neo-8 handle:
+
+provider APIs (Google, SendGrid, WhatsApp, SMS, etc.)
+
+retries
+
+webhooks
+
+execution callbacks
+→ Expected answer: YES
+
+If any answer above is not YES / NO exactly as expected, stop and explain why.
+
+2️⃣ ACTION FLOW (YOU MUST AGREE TO THIS)
+
+Every actionable system follows this chain — no exceptions:
+
+User / AI request
+→ ActionAI drafts proposal
+→ assist_queue (pending)
+→ Review Queue (human approval)
+→ CRM triggers Neo-8
+→ Neo-8 executes external action
+→ Neo-8 callback received
+→ automation_ledger written
+
+
+Confirm that:
+
+The CRM DOES trigger Neo-8
+
+The CRM NEVER replaces Neo-8
+
+There is no alternative execution path
+
+3️⃣ WHAT WE ARE WORKING ON RIGHT NOW (SCOPE LOCK)
+
+Current phase is NOT provider integration.
+
+We are doing:
+
+UI
+
+backend wiring
+
+documentation
+
+Neo-8–ready triggers
+
+ledger correctness
+
+We are NOT:
+
+connecting WhatsApp directly
+
+sending real emails
+
+executing real Google actions
+
+But the system must behave exactly as if it were live, including:
+
+review queue entries
+
+ledger events
+
+visible UI state
+Even in test mode.
+
+Confirm you understand this distinction.
+
+4️⃣ REQUIRED AUDIT (DO THIS AGAIN, PROPERLY)
+
+Re-audit all of the following, assuming Neo-8 is the execution engine:
+
+A. Information AI Chat
+
+Natural conversation works
+
+Reads CRM data correctly
+
+No ledger entries created for read-only queries
+
+No repeated clarification loops
+
+No hallucinated counts (contacts/leads mismatch)
+
+B. ActionAI CRM
+
+Drafts proposals only
+
+Never executes directly
+
+Every proposal creates:
+
+assist_queue entry
+
+AI_PROPOSAL_CREATED ledger event
+
+C. Review Queue
+
+Approve → triggers Neo-8
+
+Reject → writes ledger
+
+Retry → governed + logged
+
+D. Intake
+
+Intake events logged to automation_ledger
+
+Intake data visible to ActionAI
+
+Intake tied to Client ID
+
+E. Ledger
+
+Ledger only records actions, not reads
+
+Ledger tab UI matches dashboard counts
+
+Every lifecycle step visible and traceable
+
+5️⃣ DELIVERABLE I EXPECT FROM YOU
+
+Reply with all three:
+
+Written confirmation that you understand Neo-8 is the execution engine and the CRM triggers it.
+
+A corrected execution diagram (text is fine) showing where Neo-8 is called.
+
+Your concrete plan:
+
+What you will fix
+
+In what order
+
+What you will test
+
+How you will prove it works in the UI
+
+Do not proceed with new features until this is resolved.

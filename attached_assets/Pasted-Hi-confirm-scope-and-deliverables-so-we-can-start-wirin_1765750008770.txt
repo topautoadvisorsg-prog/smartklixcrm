@@ -1,0 +1,98 @@
+Hi, confirm scope and deliverables so we can start wiring immediately.
+
+Protect ALL Neo8 facing endpoints with requireInternalToken.
+This includes at minimum:
+POST /api/activity-log/write
+POST /api/leads/create
+POST /api/events/update
+POST /api/whatsapp/inbound
+POST /api/whatsapp/status
+POST /api/notifications/send
+GET, PATCH /api/contacts/:id
+POST /api/human-review/queue
+POST /api/approval-hub/log
+POST /api/alerts/human
+POST /api/assist-queue/:id/approve
+POST /api/voice/receptionist/turn
+
+Provide two concrete values as soon as the middleware is applied, even if production publish is not done yet:
+A. STAGING CRM_BASE_URL that will remain stable for wiring and testing
+B. N8N_INTERNAL_TOKEN value that Neo8 will use in Authorization: Bearer {token}
+
+Confirm expected auth failure behavior:
+Missing or invalid token returns 401.
+
+Once I have STAGING CRM_BASE_URL and N8N_INTERNAL_TOKEN, we begin Neo8 wiring immediately. Production URL can be provided later, and we will only swap CRM_BASE_URL.
+
+That message forces him to stop saying “after publishing” and give you a stable staging URL plus the token now.
+
+What to tell the Neo8 builder right now
+
+Copy, paste, send this:
+
+Neo8 builder, we are starting wiring now in parallel. Do not wait for production URL.
+
+Confirm these env vars exist in Neo8 environment, values will be supplied by CRM dev:
+CRM_BASE_URL
+N8N_INTERNAL_TOKEN
+
+Confirm every HTTP Request node that calls CRM uses:
+Authorization: Bearer {{$env.N8N_INTERNAL_TOKEN}}
+URL uses {{$env.CRM_BASE_URL}} plus path
+No hardcoded tokens, no hardcoded CRM domains
+
+Prepare credential wiring in Neo8 credentials manager, do not activate live triggers yet:
+Twilio
+OpenAI
+Redis
+Stripe
+SendGrid
+Google OAuth2, Gmail, Calendar, Docs, Sheets
+Webhook header auth for CRM initiated WhatsApp send
+
+Prepare one test for each provider using Execute Node, with dummy inputs, no real customers:
+Twilio send SMS to test number
+Twilio send WhatsApp to test number
+OpenAI generate simple message
+Redis set and get test key
+Stripe create customer in test mode
+SendGrid send to test inbox
+Gmail send to test inbox
+Calendar create event on test calendar
+Docs create doc in test folder
+Sheets append to test sheet
+
+Once we receive CRM_BASE_URL and N8N_INTERNAL_TOKEN, we will run end to end tests flow by flow.
+
+What you can do right now, without waiting on anyone
+
+This is your immediate checklist, in order.
+
+Confirm Neo8 has two env var slots created, even if values are blank for now.
+CRM_BASE_URL
+N8N_INTERNAL_TOKEN
+
+Confirm Neo8 credentials page is ready, and each integration is added but not used live yet.
+
+Prepare your test targets now so you do not stall later:
+One test phone number for SMS
+One test WhatsApp enabled number
+One test email inbox to receive SendGrid and Gmail
+One Google account to authorize OAuth
+One test Google Drive folder for docs
+One test sheet ID and sheet name
+Stripe test mode keys
+
+The key correction to his message
+
+He said “Get you the production URL after publishing.”
+
+That is fine later.
+
+But you need a stable staging URL and the token now, or you cannot wire. So you are going to push him to provide:
+
+STAGING CRM_BASE_URL
+
+N8N_INTERNAL_TOKEN
+
+As soon as you paste me his reply with the staging URL and token status, I’ll give you the exact step by step wiring sequence starting with the fastest flows first.

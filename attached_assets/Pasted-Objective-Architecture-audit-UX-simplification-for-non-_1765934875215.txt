@@ -1,0 +1,125 @@
+Objective: Architecture audit + UX simplification for non-technical agency users
+
+We completed an architectural review and are making the following changes and requests.
+
+1. Architectural Alignment (Critical)
+
+Remove any review, approval, or “master architect” logic from Neo8 workflows.
+
+All intake, summarization, intent detection, decision-making, and approvals live inside the CRM.
+
+Neo8 should act strictly as an execution engine, not a decision maker.
+
+If any existing Neo8 flows:
+
+Perform quality review
+
+Re-decide actions
+
+Escalate based on content (not infra errors)
+
+They should be removed or refactored to infra-only handling (retry, logging, failure alerts).
+
+2. UX Audit — “Non-Techie / Agency Friendly Mode”
+
+Benchmark standard:
+Top agencies + Webflow-level clarity
+
+Current issue:
+
+UI is too technical
+
+Exposes implementation details users don’t need
+
+Forces users to think about models, providers, configs that are already defaulted in Neo8
+
+Required UX changes:
+AI Receptionist
+
+Remove or hide:
+
+Model names
+
+Provider selections
+
+Technical defaults already enforced in Neo8
+
+Replace with:
+
+Plain-language setup flow:
+
+“How should your assistant behave?”
+
+“What can it help with?”
+
+“How should it handle calls?”
+
+“Where should conversations be logged?”
+
+The user should never need to know:
+
+Which model is used
+
+Economy vs premium
+
+Internal routing details
+
+Defaults should be implicit.
+
+3. Review System — CRM Is Source of Truth
+
+Neo8 should assume:
+
+Anything it receives is already approved
+
+Any action it executes is intentional
+
+The review lifecycle is:
+
+AI review (CRM)
+
+Architect review (CRM)
+
+Human confirmation (CRM, optional final checkmark)
+
+Neo8 should only report:
+
+Execution success
+
+Execution failure (infra-level only)
+
+4. Inbound → Action Lifecycle Consistency
+
+Confirm that:
+
+All inbound events (SMS, email, calls, widget, forms) are logged
+
+Summarized in CRM
+
+Reviewed in CRM
+
+Actions proposed and approved in CRM
+
+Executed by Neo8
+
+Completion is check-marked and visible to humans
+
+No duplicated logic across systems.
+
+Deliverable Requested
+
+Audit report of:
+
+What Neo8 is currently reviewing
+
+What should be removed
+
+What should be hidden from UI
+
+Updated Neo8 diagram reflecting:
+
+Execution-only responsibility
+
+Cleaner, simpler user mental model
+
+Recommendations to match top-agency, non-technical UX standards

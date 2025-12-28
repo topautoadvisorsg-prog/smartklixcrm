@@ -1,0 +1,81 @@
+Audit: CRM Action: Send Payment Workflow
+
+Node Order (actual, as in your workflow):
+CRM Action: Send Payment (Webhook trigger)
+Payment Workflow Config (normalization only)
+Fetch Contact from CRM
+Search Stripe Customer by Email
+Check if Customer Exists
+Create New Stripe Customer (only if not found)
+Normalize Customer ID Output
+Create Payable Object
+Attach Metadata
+Store Stripe IDs on CRM
+Send Payment Link to Customer
+Node-by-Node Audit
+1. CRM Action: Send Payment
+KEEP
+Correctly configured as POST webhook, no business logic, no AI, no “should we charge?” logic.
+2. Payment Workflow Config
+KEEP
+Passes through traceId, amount, currency, email. No branching, no Stripe calls. (Static metadata like source/flow not set, but not required for execution.)
+3. Fetch Contact from CRM
+KEEP
+Pure GET by contactId, no mutation, no fallback creation.
+4. Search Stripe Customer by Email
+KEEP
+Queries Stripe by email, limit=1, no creation or mutation.
+5. Check if Customer Exists
+KEEP
+IF node: If found → Normalize Customer ID Output; If not found → Create New Stripe Customer. No third path, no retries.
+6. Create New Stripe Customer
+KEEP
+Only runs if not found. Uses CRM email/name, includes contactId/traceId in metadata.
+7. Normalize Customer ID Output
+KEEP
+Outputs single customer ID and traceId, regardless of source.
+8. Create Payable Object
+KEEP
+Amount, currency, customer ID, and metadata are set. No branching, no extra logic.
+9. Attach Metadata
+KEEP
+Attaches traceId, slipId, crmPaymentId, source: neo8. No business logic.
+10. Store Stripe IDs on CRM
+KEEP
+PATCH to CRM with stripeCustomerId, stripeObjectId, traceId. No status mutation.
+11. Send Payment Link to Customer
+KEEP
+Uses Stripe URL, channel from CRM, no retries, no ledger writes.
+Architectural/Logic Checks
+Redundant/Unnecessary Nodes:
+❌ None. All nodes serve a required execution step.
+
+Missing Nodes for Stripe Payment Link Flow:
+❌ None. All required steps for payment link creation and delivery are present.
+
+Misconfiguration (method, fields, expressions):
+⚠️ Minor:
+
+Payment Workflow Config does not enforce lowercase currency or numeric amount, but passes through as received. If CRM always sends correct format, this is fine.
+Attach Metadata uses some fields (e.g., invoiceId, tenantId) that may not always be present, but this does not break execution.
+Search Stripe Customer by Email → Create if Missing logic:
+🔁 Correct.
+
+IF node branches only to Normalize or Create, no third path, no retries.
+Is metadata attached early enough to propagate to Stripe objects?
+🧾 Yes.
+
+Metadata is attached before storing IDs and sending the payment link.
+Is the final output sufficient for CRM to confirm payment execution?
+📤 Yes.
+
+CRM receives Stripe IDs and payment link for reconciliation.
+Is the workflow ready for end-to-end testing?
+🟢 Yes.
+
+All required execution steps are present and correctly sequenced.
+Summary:
+All nodes are correctly placed, necessary, and configured for execution-only payment link flow. No redundant or missing nodes. Minor normalization could be enforced in Payment Workflow Config, but not required for execution.
+Workflow is ready for end-to-end testing.
+
+Did this answer solve your question?

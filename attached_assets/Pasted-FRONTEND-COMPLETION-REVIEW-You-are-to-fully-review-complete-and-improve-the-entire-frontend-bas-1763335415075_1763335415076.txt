@@ -1,0 +1,121 @@
+FRONTEND COMPLETION + REVIEW
+
+You are to fully review, complete, and improve the entire frontend based on the research we’ve gathered.
+
+Your responsibilities:
+
+Verify every required frontend component exists
+
+Create or fix anything missing
+
+Improve any weak UI/UX areas
+
+Ensure every page, component, and workflow is clean, readable, modular, and consistent with our clean-code rules
+
+Remove any leftover, unused, or placeholder code
+
+Verify that the structure is scalable and ready for N8N / Neo8 integrations
+
+Frontend must match the architecture we agreed on
+
+If something is missing, add it
+
+If something can be improved, improve it
+
+If something is unclear, propose a better solution
+
+2. SPECIFIC COMPONENTS TO VERIFY
+
+You must confirm (and implement if missing):
+
+Full admin dashboard UI
+
+Contact management UI
+
+Tasks UI
+
+Pipelines / deals UI
+
+Settings pages
+
+User management pages
+
+Chat widget frontend (customer-side)
+
+Admin Bot frontend (internal CRM bot interface)
+
+Any UI required for Neo8 memory, retrieval, and context logs
+
+All forms (contact form, intake forms, etc.)
+
+Notifications, modals, confirmations
+
+Reusable components (buttons, inputs, loaders, etc.)
+
+3. CLEAN CODE REQUIREMENTS
+
+No unused imports
+
+No commented-out garbage
+
+No meta tags we don’t need
+
+Every component in its own clean folder
+
+Strict naming conventions
+
+Minimal logic in components — move logic to hooks/services
+
+Everything typed properly (no any)
+
+No weird hacks, no shortcuts
+
+Everything optimized for future AI features
+
+4. IMPROVE ANYTHING YOU CAN
+
+If you find:
+
+A better UI structure
+
+Better UX pattern
+
+Missing sections
+
+Weak design decisions
+
+→ Fix it or propose the improvement.
+
+After you finish this phase, tell us:
+
+“Frontend is fully verified, completed, and clean. Ready for final audit.”
+
+❗ After he completes this, THEN we run the full audit.
+
+A full audit requires BOTH:
+
+Backend (API, database, Neo8 prep, etc.)
+
+Frontend (UI, components, flows)
+
+And then we check:
+
+Architecture
+
+Code quality
+
+Missing features
+
+Integration points
+
+Folder structure
+
+Scalability
+
+Naming conventions
+
+Readability
+
+Performance
+
+THEN we connect everything to N8N

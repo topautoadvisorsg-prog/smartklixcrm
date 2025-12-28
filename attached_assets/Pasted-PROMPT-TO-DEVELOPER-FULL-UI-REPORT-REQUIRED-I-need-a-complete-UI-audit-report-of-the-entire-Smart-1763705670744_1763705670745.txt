@@ -1,0 +1,229 @@
+PROMPT TO DEVELOPER (FULL UI REPORT REQUIRED)
+
+I need a complete UI audit report of the entire SmartKlix CRM frontend.
+Top to bottom. Tab by tab. Panel by panel.
+
+Here is exactly what I need from you:
+
+1. GLOBAL OVERVIEW
+
+Start with the main structure of the UI.
+
+List the following:
+
+Every tab in the sidebar
+
+Every sub-view
+
+Every modal
+
+Every button or action bar
+
+Any UI element that leads to another screen
+
+This must be written as a hierarchy, for example:
+
+Dashboard
+– Metrics cards
+– Activity feed
+– Quick actions
+Contacts
+– List
+– Filters
+– Contact detail
+– Notes panel
+– Files panel
+…etc.
+
+Do this for every single section in the entire frontend.
+
+2. FUNCTIONALITY PER TAB
+
+For each tab, report:
+
+What exists
+
+What works
+
+What is broken
+
+What is missing
+
+What is duplicated or makes no sense
+
+What is UI only with no backend connection
+
+Be honest.
+If something is a placeholder, say it.
+If something is useless, call it out.
+
+3. SPECIFICALLY THESE AREAS:
+A. Contacts
+
+Tell me exactly what the contacts section includes:
+
+Fields shown
+
+Actions available
+
+Notes panel
+
+Files panel
+
+Jobs list
+
+Activity feed
+
+Any duplicate UI sections
+
+B. Jobs / Leads
+
+I want to know:
+
+What a job detail page actually contains
+
+What buttons exist
+
+What each one does
+
+Whether notes are tied to the job
+
+Whether attachments are tied to the job
+
+Whether appointments link correctly
+
+Whether status updates work
+
+C. Files Tab
+
+This is the one I’m questioning.
+
+Tell me:
+
+Why is it its own tab?
+
+What does it show?
+
+How does it relate to contacts or jobs?
+
+Does it pull real data?
+
+Should it be merged into other tabs?
+
+Is it redundant?
+
+I want your professional recommendation here.
+
+D. Notes Tab
+
+Same thing.
+
+What is this tab supposed to be?
+
+Is it standalone?
+
+Are notes duplicated between contact, job, and notes tab?
+
+Should it exist or be removed?
+
+If it’s useless, tell me straight.
+
+4. IDENTIFY BAD/REDUNDANT UI DESIGN
+
+Specifically call out UI that:
+
+Does not make logical sense
+
+Duplicates something already in another tab
+
+Belongs inside job/contact detail pages instead of its own tab
+
+Doesn’t connect to backend
+
+Has no purpose
+
+Confuses the user
+
+Example:
+
+“If ‘Files’ tab shows global files with no filtering or linking, this is bad UI and should be moved into job/contact detail.”
+
+Call shit out. I want no sugarcoating.
+
+5. WHAT SHOULD BE MERGED OR REMOVED
+
+Give recommendations for:
+
+Tabs that should be deleted
+
+Tabs that should be merged
+
+Tabs that should be redesigned
+
+For example:
+
+Files tab → move into jobs + contacts
+
+Notes tab → move into job/contact
+
+Activity log → OK as separate
+
+Metrics → stays in dashboard
+
+N8N integration → stays separate
+
+Tell me the correct UX architecture.
+
+6. WHAT IS MISSING
+
+List every missing UI component that the CRM needs, including:
+
+Appointment scheduling view
+
+Calendar
+
+AI Assist Queue
+
+Outbound communication logs
+
+Templates management
+
+Settings
+
+User management
+
+Integration health
+
+Loading/empty/error states
+
+Confirmation modals
+
+Buttons with no logic
+
+I want this as a full list.
+
+7. FINAL OUTPUT FORMAT
+
+Your final report must be structured like this:
+
+UI Structure Overview
+
+Tab-by-Tab Description
+
+What Works
+
+What’s Broken
+
+What’s Missing
+
+What Makes No Sense
+
+What Needs to be Removed
+
+What Needs to be Merged
+
+Recommended Final UI Architecture
+
+Additional Notes or Concerns
+
+This report must be complete, accurate, and no bullshit.

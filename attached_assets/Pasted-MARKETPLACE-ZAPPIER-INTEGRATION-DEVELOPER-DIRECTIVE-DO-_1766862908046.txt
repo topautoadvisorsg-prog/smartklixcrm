@@ -1,0 +1,180 @@
+MARKETPLACE + ZAPPIER INTEGRATION — DEVELOPER DIRECTIVE
+
+DO NOT redesign the Marketplace UI.
+It already matches the mockups and architecture.
+
+UI Task (Simple, Non-Negotiable)
+
+Replace all grayscale / monochrome partner logos
+
+Use official, full-color brand logos
+
+Maintain aspect ratio
+
+No filters, no opacity, no tinting
+
+That’s it on the frontend.
+
+🔌 Backend Integration Contract
+What Marketplace Does
+
+Displays available integrations
+
+Handles OAuth / connection status
+
+Can request information from Zappier-connected services
+
+Marketplace never executes actions.
+
+📥 Information Flow (No Ledger)
+
+Example:
+
+“Did we receive a Stripe payment?”
+
+Flow:
+
+Marketplace / Info AI
+→ Zappier API (read)
+→ CRM context
+→ Natural language response
+
+
+✅ No ledger
+✅ No queue
+✅ No n8n
+
+✍️ Action Flow (Ledger + Queue Required)
+
+If anything implies a mutation:
+
+“Based on that payment, update the job status.”
+
+Flow:
+
+Action AI
+→ AI_PROPOSAL_CREATED (ledger)
+→ Review Queue
+→ Approval
+→ n8n workflow
+→ External execution
+→ Result logged
+
+
+Marketplace and Zappier never skip this.
+
+4️⃣ n8n — What Workflow Is Actually Needed
+
+Here’s the important part you asked for.
+
+❗ Key Insight
+
+Zappier does NOT need to directly trigger n8n in most cases.
+
+You only need n8n workflows for execution, not for information gathering.
+
+✅ Recommended n8n Setup (Phase 1 – Correct & Minimal)
+Workflow Type: “Approved Action Executor”
+
+Trigger
+
+Webhook from CRM
+
+Fired only after queue approval
+
+Payload Includes
+
+action_type (send_email, update_status, create_invoice, etc.)
+
+source = Zappier | Intake | Human
+
+validated parameters
+
+trace_id / ledger_id
+
+Nodes
+
+Webhook Trigger
+
+Switch / Router
+
+Route by action_type
+
+Service Nodes
+
+Email
+
+WhatsApp
+
+Payments
+
+Calendar
+
+Result Callback
+
+POST back to CRM
+
+Include success / failure / metadata
+
+That’s it.
+
+❌ What We Do NOT Build (On Purpose)
+
+❌ Zappier → n8n direct automation
+
+❌ Zappier executing workflows autonomously
+
+❌ n8n polling Zappier
+
+❌ n8n deciding logic
+
+n8n is muscle, not brain.
+
+5️⃣ Why This Is the Right Call (Reality Check)
+
+From real-world patterns (teams using Zapier/Zappier + n8n):
+
+Zapier-style tools are great at connectivity
+
+They are terrible at governance
+
+Teams that let Zapier execute directly lose control fast
+
+Teams that gate execution through an internal queue scale safely
+
+You’re building the second kind of system.
+
+6️⃣ Immediate Next Steps (Concrete)
+Today / Next Sprint
+
+✅ Fix Marketplace logos (frontend)
+
+✅ Define Zappier read-only API wrapper in backend
+
+✅ Finalize Action AI → Queue → n8n webhook contract
+
+✅ Build one n8n workflow:
+
+“Execute Approved Action”
+
+Later (Optional Enhancements)
+
+Template-based Zappier connections
+
+“Coming Soon” Marketplace cards
+
+Usage metrics / trust badges
+
+Final Answer (No Noise)
+
+Yes, we’re aligned
+
+Yes, the research supports your instincts
+
+The Marketplace stays as-is
+
+Zappier = information + connectivity
+
+n8n = execution only
+
+Action AI + Queue = authority

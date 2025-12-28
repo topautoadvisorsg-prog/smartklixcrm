@@ -1,0 +1,161 @@
+Everything you touch from here must be wired, testable, and aligned with system authority.
+
+Below is the required integration checklist. Treat this as a gate.
+If an item below does not work, the implementation is not acceptable.
+
+1️⃣ AI CHAT (Natural Conversation) – MUST WORK
+
+This is NOT an action console.
+
+Requirements
+
+AI Chat must:
+
+Hold natural conversation
+
+Read from CRM data (contacts, jobs, invoices, etc.)
+
+Respond conversationally without executing actions
+
+NO side effects
+
+NO silent action execution
+
+Rules
+
+Chat = information + reasoning only
+
+If a user asks to do something, it must:
+
+Draft a proposal
+
+Send it to Review Queue
+
+Await approval
+
+2️⃣ ACTION CONSOLE – MUST RESPECT REVIEW FLOW
+
+When an instruction implies doing something (send, update, schedule, modify):
+
+Flow is mandatory
+
+ActionAI CRM drafts proposal
+
+Proposal is written to Ledger
+
+Proposal enters Review Queue
+
+Human (Architect) approves or rejects
+
+If approved → moves to Ready Execution
+
+Ledger entry is written at every step
+
+Only then may execution occur
+
+Non-negotiable
+
+No bypassing review
+
+No “direct execute” paths
+
+No UI-triggered shortcuts
+
+3️⃣ MASTER ARCHITECT – API KEY AUTHORITY
+
+The Master Architect controls and validates API credentials.
+
+Requirements
+
+API keys are:
+
+Named
+
+Scoped
+
+Identifiable by purpose
+
+Architect must be able to:
+
+See which key is used for what
+
+Rotate / revoke keys
+
+Validate integrations
+
+No other role may override or silently change keys.
+
+4️⃣ WIDGET – EXPANDED, INSTRUCTIONAL, NOT JUST CONFIG
+
+The Widget section must be larger and more explicit than a normal settings panel.
+
+It MUST include
+
+Widget configuration
+
+Clear copy-paste instructions:
+
+Example <script> snippet
+
+Where to paste it (e.g., index.html, <head> or <body>)
+
+Plain-language steps a non-developer could follow
+
+Important
+
+Widget instructions belong here
+
+Widget behavior logic still lives on the AI server
+
+This page only configures and instructs
+
+5️⃣ API KEYS – OPENAI / CHATGPT (TESTING MODE)
+
+We are NOT using our own production keys during testing.
+
+Rules
+
+Use Riplet AI–provided OpenAI / ChatGPT API keys
+
+These keys:
+
+Are provided by Riplet AI
+
+Are billed to Riplet AI
+
+Are for testing only
+
+Do NOT request or require the client’s own OpenAI keys during testing
+
+Additionally
+
+Each key must be:
+
+Locked to a specific purpose
+
+Clearly named (e.g., chat-testing, action-draft-testing, widget-test)
+
+Traceable in logs
+
+No shared, anonymous, or multipurpose keys.
+
+6️⃣ FINAL EXPECTATION
+
+Before asking for approval, you must confirm:
+
+Chat works end-to-end
+
+Action proposals go through Review Queue
+
+Ledger entries are written at every step
+
+Widget instructions are clear and usable
+
+API keys are correctly scoped and attributed
+
+Architect authority is respected everywhere
+
+If something is unclear, you stop and report before implementing.
+
+No assumptions.
+No improvisation.

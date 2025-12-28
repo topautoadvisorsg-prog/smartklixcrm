@@ -1,0 +1,139 @@
+Thanks for the Phase 1 UI walkthrough report.
+Everything you flagged lines up with expectations for a product that is still actively being built and tested.
+
+There are no major blockers identified yet — this phase now moves us from visibility → execution.
+
+Your Mandate (Effective Immediately)
+
+You are to continue testing the full system end-to-end AND fix issues as they are discovered, instead of waiting for a separate approval loop.
+
+This is an iterative test–fix–report cycle.
+
+1️⃣ Continue FULL-SCOPE TESTING
+
+You must test everything a real customer would do, including but not limited to:
+
+SMS
+
+WhatsApp
+
+Email
+
+AI-generated messages
+
+Approval flows
+
+Scheduling calls
+
+Calendar invites
+
+Contact lifecycle updates
+
+Invoices (create + send)
+
+Stripe test payments
+
+Docs & Excel usage
+
+Audit logs
+
+Error handling
+
+If it exists in the product, it gets exercised.
+
+2️⃣ Fix What You Can Immediately
+
+If you encounter issues that are:
+
+Configuration-related
+
+UI wiring issues
+
+Missing buttons / actions
+
+Broken states
+
+Bad defaults
+
+Clear UX problems
+
+👉 Fix them directly where possible instead of only reporting them.
+
+Do not wait if the fix is obvious and low-risk.
+
+3️⃣ Report What Cannot Be Fixed Immediately
+
+For anything you cannot fix right away, document:
+
+What is broken or missing
+
+Why it’s blocked (tech, dependency, scope)
+
+What is required to implement it
+
+Whether it is:
+
+Launch-blocking
+
+Post-launch improvement
+
+Nice-to-have
+
+4️⃣ UX / UI Improvements Are In Scope
+
+You are explicitly authorized to recommend and/or implement:
+
+New buttons or quick actions (e.g., Send SMS / Email / WhatsApp)
+
+Better placement of messaging controls
+
+Confirmation pop-ups
+
+Error messages
+
+Loading states
+
+Any UI change that makes the system clearer or safer
+
+If something feels confusing to you, it will be confusing to customers.
+
+5️⃣ ChatGPT Actions / Localhost Note
+
+The 127.0.0.1 Actions URL is acknowledged as dev-mode.
+
+Note it
+
+Plan for production domain replacement
+
+No action required yet unless it blocks testing
+
+6️⃣ Deliverables (Rolling, Not One-Time)
+
+Provide ongoing updates with:
+
+✅ What works end-to-end
+
+🔧 What you fixed
+
+❌ What is still broken
+
+⚠️ What is partially implemented
+
+🧱 What is missing
+
+🎨 UX / UI recommendations
+
+🚀 What is ready vs not ready
+
+Short, clear, no fluff.
+
+Definition of Success (Current Phase)
+
+A real customer can be created, contacted, scheduled, invoiced, and managed through the system with minimal friction and no silent failures.
+
+Final Note
+
+This is expected product work, not a failure state.
+We are validating, fixing, and tightening — not rolling back or rethinking architecture.
+
+Proceed.

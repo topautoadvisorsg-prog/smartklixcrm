@@ -1,0 +1,194 @@
+Below is the exact list of changes required so your CRM team can confirm the design before we ship it to the n8n builder.
+
+1️⃣ Normalize Envelope Field Naming
+Required
+
+Convert all envelope fields to snake_case, NOT camelCase.
+
+Fields affected
+
+tenantId → tenant_id
+
+idempotencyKey → idempotency_key
+
+schemaVersion → schema_version
+
+eventType → event_type
+
+recordingUrl → recording_url
+
+leadScore → lead_score
+
+Action
+
+Update the JSON schema
+
+Update validation logic
+
+Update DB column mappings (if using JSONB, no column changes needed)
+
+Update generated documentation (OpenAPI / README)
+
+2️⃣ Add Mandatory timestamp Field
+Spec
+
+timestamp (ISO-8601 string, server defaults if omitted)
+
+Action
+
+Add field to request schema
+
+Validate format
+
+Add server default (new Date().toISOString())
+
+Persist it to outbox row
+
+3️⃣ “At Least One Identifier Required” Validation
+Required fields (at least ONE of):
+
+email
+
+phone
+
+contact.id
+
+recording_url
+
+Action
+
+Add validation block:
+
+if (!email && !phone && !contact?.id && !recording_url) {
+  throw 400 "At least one identifier required"
+}
+
+4️⃣ Idempotency: Exact Duplicate Response Format
+Required Response
+
+On duplicate idempotency_key:
+
+{
+  "status": "duplicate",
+  "outbox_id": "xxx",
+  "message": "idempotent"
+}
+
+Action
+
+Update handler to return this exact format
+
+Not "existing_status" or other variants
+
+5️⃣ Outbox Insert Must Trigger Dispatch to Neo8Flow
+Required Behavior
+
+After insert → POST to n8n:
+
+POST {NEO8FLOW_URL}/events/intake
+Headers:
+
+x-internal-token: {system-wide-shared-secret}
+
+Content-Type: application/json
+
+Body:
+
+entire canonical envelope (unchanged)
+
+Action
+
+Implement queue worker or immediate async dispatch
+
+Retries with exponential backoff
+
+Store status as:
+
+pending
+
+delivered
+
+failed
+
+6️⃣ CRM Sync After Dispatch
+Required Downstream Behaviors
+
+When the event enters CRM:
+
+Contact Create / Update
+
+If contact.id exists → update existing
+
+If no contact.id:
+
+Match by email or phone
+
+Otherwise create new contact
+
+Conversation + Agent Chat
+
+Insert new conversation record
+
+Insert first message into agent_chat (if available)
+
+Link contact → conversation
+
+Recording URL
+
+Store under contact → interactions → recordings array
+
+Tags
+
+Add any tags in payload to contact.tags (avoid duplicates)
+
+Lead Score
+
+Add integer lead_score to contact record
+
+Action
+
+Implement a “CRM Intake Handler” that consumes dispatched events
+
+7️⃣ One Unified README (So CRM Doesn’t Hunt for Files)
+README MUST INCLUDE
+
+Canonical event envelope format (JSON)
+
+Field dictionary
+
+Validation rules
+
+Idempotency behavior
+
+Outbox schema
+
+Dispatch workflow
+
+CRM sync workflow
+
+Example payloads
+
+Example duplicates
+
+Error formats
+
+Testing instructions
+
+8️⃣ End-to-End Test Cases
+Write tests for:
+
+happy path
+
+missing identifiers
+
+camelCase vs snake_case rejection
+
+duplicate idempotency key
+
+dispatch to Neo8Flow
+
+Neo8Flow failure retry
+
+CRM sync creation
+
+tags & lead score

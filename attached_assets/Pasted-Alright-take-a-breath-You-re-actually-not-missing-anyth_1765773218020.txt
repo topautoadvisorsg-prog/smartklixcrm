@@ -1,0 +1,117 @@
+Alright — take a breath 😄. You’re actually not missing anything in the UI. What’s tripping you up is these values literally do not go anywhere inside n8n’s interface. That’s the key point.
+
+I’ll say this very plainly and then show you how to sanity-check it.
+
+The core misunderstanding (not your fault)
+
+N8N_INTERNAL_TOKEN
+CRM_BASE_URL
+
+❌ Do NOT go in:
+
+Credentials
+
+Nodes
+
+Workflow settings
+
+“Complete these steps before executing workflow”
+
+Any text field in the UI
+
+✅ They ONLY exist as environment variables on the machine/container that runs n8n
+
+n8n just reads them. It does not store them.
+
+That’s why you feel like “there’s nowhere to put this info” — because there isn’t.
+
+Think of it like this
+
+n8n UI = dashboard
+
+Environment variables = hidden configuration under the hood
+
+Workflows can reference env vars, but never define them
+
+So when a node uses:
+
+{{$env.N8N_INTERNAL_TOKEN}}
+
+n8n is basically saying:
+
+“Hey operating system / container, do you have a variable named N8N_INTERNAL_TOKEN?”
+
+If the OS says “no”, the workflow fails.
+
+What “complete these steps before executing workflow” REALLY means
+
+That message is not asking you to paste values somewhere.
+
+It means:
+
+“Stop. Go configure your runtime (Docker / server / terminal). Then come back.”
+
+That wording is honestly misleading.
+
+How you know you did it right (important)
+
+After you set the variables and restart n8n, do this:
+
+Open any node
+
+In a field, temporarily type:
+
+{{$env.CRM_BASE_URL}}
+
+Click outside the field
+
+If it shows the URL → ✅ you’re done
+If it stays blank / errors → ❌ env vars not set or n8n not restarted
+
+You can remove it afterward — this is just a test.
+
+Most common mistakes I see (check these)
+
+❌ Set env vars but did not restart n8n
+
+❌ Added them to .env but Docker isn’t loading it
+
+❌ Running n8n via Docker Desktop but editing a different compose file
+
+❌ Using Windows and setting them in the wrong shell (cmd vs PowerShell)
+
+❌ Typo in variable name (case-sensitive)
+
+I need ONE thing from you to finish this cleanly
+
+Tell me exactly how you are running n8n:
+
+Docker Desktop?
+
+docker-compose?
+
+n8n cloud?
+
+npm (n8n start)?
+
+VPS / server (Linux)?
+
+Once I know that, I’ll tell you the exact file or command where those two values go — no guessing, no generic steps.
+
+n8n AI
+Great summary! You’re absolutely right: environment variables like N8N_INTERNAL_TOKEN and CRM_BASE_URL are not set anywhere in the n8n UI—they must be configured in the environment where n8n is running (e.g., Docker, server, or cloud environment). n8n reads these at startup, and they’re accessible in expressions via {{$env.VARIABLE_NAME}}.
+
+To give you the exact steps for your setup, I just need to know:
+How are you running n8n?
+
+Docker Desktop
+docker-compose
+n8n cloud
+npm (n8n start)
+VPS/server (Linux)
+Something else?
+Once you let me know, I’ll provide the precise file or command to set N8N_INTERNAL_TOKEN and CRM_BASE_URL for your environment. No guesswork—just the exact steps you need!
+
+{{$env.VARIABLE_NAME}}
+
+Did this answer solve your question?

@@ -1,0 +1,1206 @@
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, numeric, real, index, uniqueIndex, vector } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// User roles for approval authorization:
+// - "master_architect": Can approve all actions, full autonomy control
+// - "admin": Can approve all actions
+// - "staff": Cannot approve gated actions
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  email: text("email").notNull().unique(),
+  role: text("role").notNull().default("staff"), // "master_architect" | "admin" | "staff"
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const contacts = pgTable("contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name"),
+  email: text("email"),
+  phone: text("phone"),
+  countryCode: text("country_code"),
+  company: text("company"),
+  status: text("status").notNull().default("new"),
+  avatar: text("avatar"),
+  // Customer type: customer, lead, prospect
+  customerType: text("customer_type").notNull().default("lead"),
+  // Billing address fields
+  billingAddress: text("billing_address"),
+  billingCity: text("billing_city"),
+  billingState: text("billing_state"),
+  billingZip: text("billing_zip"),
+  // Stripe integration
+  stripeCustomerId: text("stripe_customer_id"),
+  // Google Drive integration
+  driveFolderId: text("drive_folder_id"),
+  driveFolderUrl: text("drive_folder_url"),
+  // Tags for categorization
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  stripeCustomerIdIdx: index("contacts_stripe_customer_id_idx").on(table.stripeCustomerId),
+  customerTypeIdx: index("contacts_customer_type_idx").on(table.customerType),
+}));
+
+// ========================================
+// LOCATIONS (Service Locations for Customers)
+// ========================================
+
+export const locations = pgTable("locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // e.g., "Main Office", "Warehouse", "Home"
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zip: text("zip"),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  notes: text("notes"),
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  contactIdIdx: index("locations_contact_id_idx").on(table.contactId),
+}));
+
+// ========================================
+// EQUIPMENT (Equipment at Locations)
+// ========================================
+
+export const equipment = pgTable("equipment", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  locationId: varchar("location_id").notNull().references(() => locations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  model: text("model"),
+  serialNumber: text("serial_number"),
+  manufacturer: text("manufacturer"),
+  installDate: timestamp("install_date"),
+  warrantyExpiry: timestamp("warranty_expiry"),
+  notes: text("notes"),
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  locationIdIdx: index("equipment_location_id_idx").on(table.locationId),
+  serialNumberIdx: index("equipment_serial_number_idx").on(table.serialNumber),
+}));
+
+// ========================================
+// PRICEBOOK (Parts, Labor, Services)
+// ========================================
+
+export const pricebookItems = pgTable("pricebook_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sku: text("sku").unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull().default("service"), // part, labor, service, material
+  unitPrice: numeric("unit_price").notNull().default("0"),
+  unitCost: numeric("unit_cost").notNull().default("0"), // Internal cost - hidden in presentation
+  unit: text("unit").notNull().default("each"), // each, hour, sqft, etc.
+  tier: text("tier"), // good, better, best - for GBB presentation
+  taxable: boolean("taxable").notNull().default(true),
+  active: boolean("active").notNull().default(true),
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  skuIdx: index("pricebook_items_sku_idx").on(table.sku),
+  categoryIdx: index("pricebook_items_category_idx").on(table.category),
+  tierIdx: index("pricebook_items_tier_idx").on(table.tier),
+}));
+
+// ========================================
+// TAGS (Global Tag Registry)
+// ========================================
+
+export const tags = pgTable("tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").default("#6B7280"), // Hex color for display
+  entityTypes: text("entity_types").array().default(sql`ARRAY['contact', 'job', 'location']::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  nameIdx: index("tags_name_idx").on(table.name),
+}));
+
+// ========================================
+// STORED PAYMENT METHODS (Stripe PaymentMethods)
+// ========================================
+
+export const storedPaymentMethods = pgTable("stored_payment_methods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  stripePaymentMethodId: text("stripe_payment_method_id").notNull(),
+  type: text("type").notNull().default("card"), // card, us_bank_account, etc.
+  last4: text("last4"),
+  brand: text("brand"), // visa, mastercard, amex
+  expiryMonth: integer("expiry_month"),
+  expiryYear: integer("expiry_year"),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  contactIdIdx: index("stored_payment_methods_contact_id_idx").on(table.contactId),
+  stripePaymentMethodIdIdx: index("stored_payment_methods_stripe_pm_idx").on(table.stripePaymentMethodId),
+}));
+
+export const jobs = pgTable("jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  clientId: varchar("client_id").references(() => contacts.id),
+  locationId: varchar("location_id").references(() => locations.id), // Service location for this job
+  status: text("status").notNull().default("lead_intake"),
+  value: numeric("value"),
+  deadline: timestamp("deadline"),
+  description: text("description"),
+  jobType: text("job_type").notNull().default("lead"),
+  jobNumber: text("job_number"),
+  scheduledStart: timestamp("scheduled_start"),
+  scheduledEnd: timestamp("scheduled_end"),
+  closedAt: timestamp("closed_at"),
+  assignedTechs: jsonb("assigned_techs").default(sql`'[]'::jsonb`),
+  sourceLeadId: varchar("source_lead_id"),
+  sourceEstimateId: varchar("source_estimate_id"),
+  // Dispatch fields
+  priority: text("priority").notNull().default("normal"), // low, normal, high, urgent
+  // Google Drive integration
+  driveFolderId: text("drive_folder_id"),
+  driveFolderUrl: text("drive_folder_url"),
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  statusIdx: index("jobs_status_idx").on(table.status),
+  locationIdIdx: index("jobs_location_id_idx").on(table.locationId),
+  priorityIdx: index("jobs_priority_idx").on(table.priority),
+}));
+
+export const appointments = pgTable("appointments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  contactId: varchar("contact_id").references(() => contacts.id),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  duration: integer("duration").notNull().default(60),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const notes = pgTable("notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  entityType: text("entity_type"),
+  entityId: varchar("entity_id"),
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  pinned: boolean("pinned").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const files = pgTable("files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  size: integer("size").notNull(),
+  url: text("url"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  entityType: text("entity_type"),
+  entityId: varchar("entity_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ========================================
+// WORKSPACE FILES (Google Workspace Artifact Mirror)
+// ========================================
+
+export const workspaceFiles = pgTable("workspace_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  googleFileId: text("google_file_id").notNull(), // Google Drive/Docs/Sheets file ID
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'doc' | 'sheet' | 'drive'
+  url: text("url").notNull(), // Direct Google URL to open file
+  jobId: varchar("job_id").references(() => jobs.id, { onDelete: "set null" }),
+  contactId: varchar("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  lastModifiedBy: text("last_modified_by"), // Name of person who last modified
+  lastModifiedTime: timestamp("last_modified_time"),
+  status: text("status").notNull().default("active"), // 'active' | 'orphaned'
+  metadata: jsonb("metadata").default(sql`'{}'::jsonb`), // Additional Google API metadata
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  googleFileIdIdx: uniqueIndex("workspace_files_google_file_id_idx").on(table.googleFileId),
+  jobIdIdx: index("workspace_files_job_id_idx").on(table.jobId),
+  contactIdIdx: index("workspace_files_contact_id_idx").on(table.contactId),
+  typeIdx: index("workspace_files_type_idx").on(table.type),
+}));
+
+export const auditLog = pgTable("audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  entityType: text("entity_type"),
+  entityId: varchar("entity_id"),
+  details: jsonb("details"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+export const estimates = pgTable("estimates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id),
+  jobId: varchar("job_id").references(() => jobs.id),
+  status: text("status").notNull().default("draft"),
+  lineItems: jsonb("line_items").notNull().default(sql`'[]'::jsonb`),
+  subtotal: numeric("subtotal").notNull().default("0"),
+  taxTotal: numeric("tax_total").notNull().default("0"),
+  totalAmount: numeric("total_amount").notNull().default("0"),
+  validUntil: timestamp("valid_until"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceNumber: text("invoice_number"), // Human-readable invoice number
+  jobId: varchar("job_id").references(() => jobs.id), // Made optional for standalone invoices
+  contactId: varchar("contact_id").notNull().references(() => contacts.id),
+  estimateId: varchar("estimate_id").references(() => estimates.id),
+  status: text("status").notNull().default("draft"),
+  lineItems: jsonb("line_items").notNull().default(sql`'[]'::jsonb`),
+  subtotal: numeric("subtotal").notNull().default("0"),
+  taxTotal: numeric("tax_total").notNull().default("0"),
+  totalAmount: numeric("total_amount").notNull().default("0"),
+  issuedAt: timestamp("issued_at"),
+  dueAt: timestamp("due_at"),
+  paidAt: timestamp("paid_at"),
+  notes: text("notes"),
+  // Accounting sync placeholders (QuickBooks/Xero)
+  syncEnabled: boolean("sync_enabled").notNull().default(false),
+  externalInvoiceId: text("external_invoice_id"), // QBO/Xero invoice ID
+  accountingIntegration: jsonb("accounting_integration").default(sql`'{}'::jsonb`), // Future sync metadata
+  lastSyncedAt: timestamp("last_synced_at"),
+  syncError: text("sync_error"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  invoiceNumberIdx: index("invoices_invoice_number_idx").on(table.invoiceNumber),
+  externalInvoiceIdIdx: index("invoices_external_invoice_id_idx").on(table.externalInvoiceId),
+}));
+
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: varchar("invoice_id").notNull().references(() => invoices.id),
+  contactId: varchar("contact_id").references(() => contacts.id), // Direct link to customer
+  amount: numeric("amount").notNull(),
+  method: text("method").notNull().default("cash"), // cash, card, check, stripe
+  transactionRef: text("transaction_ref"),
+  // Stripe integration
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripePaymentMethodId: text("stripe_payment_method_id"),
+  status: text("status").notNull().default("pending"), // pending, completed, failed, refunded
+  // Origin tracking for governance model
+  origin: text("origin").notNull().default("human"), // "human" | "ai" - determines Review Queue routing
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  stripePaymentIntentIdIdx: index("payments_stripe_pi_idx").on(table.stripePaymentIntentId),
+  contactIdIdx: index("payments_contact_id_idx").on(table.contactId),
+}));
+
+// ========================================
+// PAYMENT SLIPS (Draft Payments for Execution)
+// ========================================
+// Payment Slips are structured draft payloads that match Stripe-required fields.
+// They can be Human-created (execute immediately via EOA) or AI-created (require Review Queue approval first).
+// Payment records in the payments table are immutable results from Stripe webhooks.
+export const paymentSlips = pgTable("payment_slips", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Origin determines authority flow: human = direct EOA, ai = Review Queue first
+  origin: text("origin").notNull().default("human"), // "human" | "ai"
+  // Status: draft (created) -> approved (AI only) -> sent (to n8n) -> completed/failed (from Stripe)
+  status: text("status").notNull().default("draft"), // draft, approved, sent, completed, failed
+  // Amount
+  amount: numeric("amount").notNull(),
+  currency: text("currency").notNull().default("usd"),
+  // Customer info (Stripe-aligned)
+  contactId: varchar("contact_id").references(() => contacts.id),
+  customerEmail: text("customer_email"),
+  customerName: text("customer_name"),
+  // Description
+  description: text("description"),
+  memo: text("memo"),
+  // Optional linkages
+  invoiceId: varchar("invoice_id").references(() => invoices.id),
+  estimateId: varchar("estimate_id").references(() => estimates.id),
+  jobId: varchar("job_id").references(() => jobs.id),
+  // Payment method types
+  paymentMethodTypes: text("payment_method_types").array().default(sql`ARRAY['card']::text[]`), // card, us_bank_account, terminal
+  // Stripe refs (filled AFTER execution)
+  stripeIntentId: text("stripe_intent_id"),
+  processorRef: text("processor_ref"),
+  // Correlation ID for observability (generated on execution, format: pay_<nanoid>)
+  traceId: text("trace_id"),
+  // Audit
+  createdBy: varchar("created_by").references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  sentAt: timestamp("sent_at"),
+  completedAt: timestamp("completed_at"),
+  failedAt: timestamp("failed_at"),
+  failureReason: text("failure_reason"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  statusIdx: index("payment_slips_status_idx").on(table.status),
+  originIdx: index("payment_slips_origin_idx").on(table.origin),
+  contactIdIdx: index("payment_slips_contact_id_idx").on(table.contactId),
+}));
+
+export const assistQueue = pgTable("assist_queue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  mode: text("mode").notNull(),
+  userRequest: text("user_request").notNull(),
+  status: text("status").notNull().default("pending"),
+  agentResponse: text("agent_response"),
+  toolsCalled: jsonb("tools_called").default(sql`'[]'::jsonb`),
+  toolResults: jsonb("tool_results").default(sql`'[]'::jsonb`),
+  requiresApproval: boolean("requires_approval").notNull().default(false),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  rejectedBy: varchar("rejected_by").references(() => users.id),
+  rejectedAt: timestamp("rejected_at"),
+  executedAt: timestamp("executed_at"),
+  completedAt: timestamp("completed_at"),
+  error: text("error"),
+  // Gated action tracking fields
+  gatedActionType: text("gated_action_type"), // Tool name like "send_invoice", "send_estimate", "record_payment"
+  finalizationPayload: jsonb("finalization_payload"), // Arguments to execute when approved
+  architectApprovedAt: timestamp("architect_approved_at"), // When Master Architect approved
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const aiReflection = pgTable("ai_reflection", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assistQueueId: varchar("assist_queue_id").references(() => assistQueue.id),
+  auditLogId: varchar("audit_log_id").references(() => auditLog.id),
+  userRequest: text("user_request").notNull(),
+  initialPlan: text("initial_plan"),
+  reflectionPrompt: text("reflection_prompt").notNull(),
+  reflectionOutput: text("reflection_output").notNull(),
+  revisedPlan: text("revised_plan"),
+  approved: boolean("approved").notNull().default(false),
+  executedAt: timestamp("executed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const settings = pgTable("settings", {
+  id: varchar("id").primaryKey().default('default'),
+  agentMode: text("agent_mode").notNull().default("assist"),
+  autoEmail: boolean("auto_email").notNull().default(true),
+  autoSchedule: boolean("auto_schedule").notNull().default(true),
+  autoStatus: boolean("auto_status").notNull().default(false),
+  companyName: text("company_name").default("Smart Klix CRM"),
+  primaryColor: text("primary_color").default("#FDB913"),
+  secondaryColor: text("secondary_color").default("#1E40AF"),
+  logoUrl: text("logo_url"),
+  // Tax configuration
+  defaultTaxRate: numeric("default_tax_rate", { precision: 5, scale: 2 }).notNull().default("8.25"),
+  // Integration settings
+  n8nWebhookUrl: text("n8n_webhook_url"),
+  openaiApiKey: text("openai_api_key"),
+  stripeSecretKey: text("stripe_secret_key"),
+  twilioAccountSid: text("twilio_account_sid"),
+  twilioAuthToken: text("twilio_auth_token"),
+  sendgridApiKey: text("sendgrid_api_key"),
+  // Communication templates
+  smsTemplateAppointment: text("sms_template_appointment"),
+  smsTemplateInvoice: text("sms_template_invoice"),
+  emailTemplateEstimate: text("email_template_estimate"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const aiTasks = pgTable("ai_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assistQueueId: varchar("assist_queue_id").references(() => assistQueue.id),
+  auditLogId: varchar("audit_log_id").references(() => auditLog.id),
+  taskType: text("task_type").notNull(),
+  delegatedTo: text("delegated_to").notNull().default("neo8"),
+  payload: jsonb("payload").notNull(),
+  status: text("status").notNull().default("pending"),
+  result: jsonb("result"),
+  error: text("error"),
+  retryCount: integer("retry_count").notNull().default(0),
+  attemptedAt: timestamp("attempted_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: varchar("contact_id").references(() => contacts.id, { onDelete: "cascade" }),
+  // Client ID in format: first_name_4digits (e.g., joe_4837) - primary identifier
+  clientId: text("client_id"),
+  // Conversation ID for Neo8 lifecycle grouping (e.g., joe_4837-1)
+  conversationId: text("conversation_id"),
+  status: text("status").notNull().default("active"),
+  // Channel: widget, whatsapp, sms
+  channel: text("channel").notNull().default("widget"),
+  // WhatsApp session status: active, expiring, expired (24h window)
+  sessionStatus: text("session_status").default("active"),
+  // When the WhatsApp session expires (24h from last customer message)
+  sessionExpiresAt: timestamp("session_expires_at"),
+  // Urgency score for triage sorting (0-100)
+  urgencyScore: integer("urgency_score").default(50),
+  // Assigned operator user ID
+  assignedUserId: varchar("assigned_user_id").references(() => users.id),
+  sessionToken: text("session_token"),
+  leadScore: integer("lead_score"),
+  lastMessageAt: timestamp("last_message_at"),
+  // Job reference for dispatch context
+  jobId: varchar("job_id").references(() => jobs.id),
+  metadata: jsonb("metadata").default(sql`'{}'::jsonb`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  contactIdIdx: index("conversations_contact_id_idx").on(table.contactId),
+  contactIdStatusIdx: index("conversations_contact_status_idx").on(table.contactId, table.status),
+  lastMessageAtIdx: index("conversations_last_message_at_idx").on(table.lastMessageAt),
+  sessionTokenIdx: index("conversations_session_token_idx").on(table.sessionToken),
+  clientIdIdx: index("conversations_client_id_idx").on(table.clientId),
+  conversationIdIdx: index("conversations_conversation_id_idx").on(table.conversationId),
+  channelIdx: index("conversations_channel_idx").on(table.channel),
+  sessionStatusIdx: index("conversations_session_status_idx").on(table.sessionStatus),
+}));
+
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  // Sender type: customer, operator, system, ai_draft
+  senderType: text("sender_type").default("operator"),
+  // Message status: sent, delivered, read, failed
+  messageStatus: text("message_status").default("sent"),
+  // Media attachments
+  media: jsonb("media").default(sql`'[]'::jsonb`),
+  // Provider-specific message ID (metadata only, never used as primary key)
+  providerMessageId: text("provider_message_id"),
+  metadata: jsonb("metadata").default(sql`'{}'::jsonb`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  conversationIdCreatedAtIdx: index("messages_conversation_created_idx").on(table.conversationId, table.createdAt),
+  senderTypeIdx: index("messages_sender_type_idx").on(table.senderType),
+  messageStatusIdx: index("messages_message_status_idx").on(table.messageStatus),
+}));
+
+export const memoryEntries = pgTable("memory_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").references(() => conversations.id, { onDelete: "cascade" }),
+  contactId: varchar("contact_id").references(() => contacts.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  summary: text("summary"),
+  embedding: vector("embedding", { dimensions: 1536 }),
+  importance: integer("importance").notNull().default(5),
+  metadata: jsonb("metadata").default(sql`'{}'::jsonb`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  conversationIdIdx: index("memory_conversation_id_idx").on(table.conversationId),
+  contactIdIdx: index("memory_contact_id_idx").on(table.contactId),
+}));
+
+// AI Settings - Per-entity configuration for the 4 AI surfaces
+// Matches the AI Settings tab in the UI
+export const aiSettings = pgTable("ai_settings", {
+  id: varchar("id").primaryKey().default('default'),
+  
+  // Edge Agent (Widget) - Public chat intake
+  edgeAgentPrompt: text("edge_agent_prompt"),
+  edgeAgentConstraints: jsonb("edge_agent_constraints").default(sql`'[]'::jsonb`),
+  edgeAgentEnabled: boolean("edge_agent_enabled").notNull().default(true),
+  
+  // Discovery AI (Information AI Chat) - Read-only CRM queries
+  discoveryAiPrompt: text("discovery_ai_prompt"),
+  discoveryAiConstraints: jsonb("discovery_ai_constraints").default(sql`'[]'::jsonb`),
+  discoveryAiEnabled: boolean("discovery_ai_enabled").notNull().default(true),
+  
+  // ActionAI CRM - Action Console execution
+  actionAiPrompt: text("action_ai_prompt"),
+  actionAiConstraints: jsonb("action_ai_constraints").default(sql`'[]'::jsonb`),
+  actionAiEnabled: boolean("action_ai_enabled").notNull().default(true),
+  
+  // Master Architect - Proposal validation (uses masterArchitectConfig for detailed settings)
+  masterArchitectPrompt: text("master_architect_prompt"),
+  masterArchitectConstraints: jsonb("master_architect_constraints").default(sql`'[]'::jsonb`),
+  masterArchitectEnabled: boolean("master_architect_enabled").notNull().default(true),
+  
+  // Global settings
+  companyKnowledge: text("company_knowledge"),
+  globalEnabled: boolean("global_enabled").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const masterArchitectConfig = pgTable("master_architect_config", {
+  id: varchar("id").primaryKey().default('default'),
+  model: text("model").notNull().default("gpt-4o"),
+  temperature: real("temperature").notNull().default(0.7),
+  maxTokens: integer("max_tokens").notNull().default(1500),
+  topP: real("top_p").notNull().default(1.0),
+  frequencyPenalty: real("frequency_penalty").notNull().default(0.0),
+  systemPrompt: text("system_prompt").notNull().default("You are a helpful AI assistant for the Smart Klix CRM."),
+  reflectionEnabled: boolean("reflection_enabled").notNull().default(true),
+  maxReflectionRounds: integer("max_reflection_rounds").notNull().default(1),
+  recursionDepthLimit: integer("recursion_depth_limit").notNull().default(3),
+  maxConversationHistory: integer("max_conversation_history").notNull().default(50),
+  contextSummarizationEnabled: boolean("context_summarization_enabled").notNull().default(false),
+  autoPruneAfterMessages: integer("auto_prune_after_messages").notNull().default(100),
+  toolPermissions: jsonb("tool_permissions").default(sql`'{}'::jsonb`),
+  channelToolPermissions: jsonb("channel_tool_permissions").default(sql`'{}'::jsonb`),
+  finalizationMode: text("finalization_mode").notNull().default("semi_autonomous"), // "fully_autonomous" | "semi_autonomous"
+  isActive: boolean("is_active").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const webhookEvents = pgTable("webhook_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  url: text("url").notNull(),
+  method: text("method").notNull().default("POST"),
+  payload: jsonb("payload").default(sql`'{}'::jsonb`),
+  statusCode: integer("status_code"),
+  responseBody: jsonb("response_body"),
+  errorMessage: text("error_message"),
+  duration: integer("duration"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const companyInstructions = pgTable("company_instructions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyName: text("company_name").notNull().unique(),
+  behaviorInstructions: text("behavior_instructions"),
+  activeChannels: jsonb("active_channels").default(sql`'{"crm_chat":true,"widget":true,"voice":false,"gpt_actions":false}'::jsonb`),
+  defaultPipelineStage: text("default_pipeline_stage").default("lead_intake"),
+  defaultTags: text("default_tags").array().default(sql`ARRAY[]::text[]`),
+  toolPermissionOverrides: jsonb("tool_permission_overrides").default(sql`'{}'::jsonb`),
+  customFlags: jsonb("custom_flags").default(sql`'{}'::jsonb`),
+  finalizationMode: text("finalization_mode").notNull().default("semi_autonomous"), // "fully_autonomous" | "semi_autonomous"
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  companyNameIdx: index("company_instructions_name_idx").on(table.companyName),
+}));
+
+// AI Voice Dispatch Config - DISPATCH & OBSERVABILITY ONLY
+// All AI behavior/prompts live on external voice server
+// CRM only stores: enabled state, routing, and CRM integration flags
+export const aiVoiceDispatchConfig = pgTable("ai_voice_dispatch_config", {
+  id: varchar("id").primaryKey().default('default'),
+  enabled: boolean("enabled").notNull().default(false),
+  
+  // Voice Server Routing
+  voiceServerUrl: text("voice_server_url"),
+  webhookSecret: text("webhook_secret"),
+  
+  // CRM Integration Flags (what CRM does when call ends)
+  storeTranscript: boolean("store_transcript").notNull().default(true),
+  autoCreateContact: boolean("auto_create_contact").notNull().default(true),
+  autoCreateNote: boolean("auto_create_note").notNull().default(true),
+  
+  // Dispatch Metadata
+  maxCallDuration: integer("max_call_duration").notNull().default(300),
+  useOutsideBusinessHours: boolean("use_outside_business_hours").notNull().default(true),
+  
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+  email: true,
+  role: true,
+});
+
+export const insertContactSchema = createInsertSchema(contacts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertJobSchema = createInsertSchema(jobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ========================================
+// NEW TABLE INSERT SCHEMAS
+// ========================================
+
+export const insertLocationSchema = createInsertSchema(locations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEquipmentSchema = createInsertSchema(equipment).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPricebookItemSchema = createInsertSchema(pricebookItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTagSchema = createInsertSchema(tags).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertStoredPaymentMethodSchema = createInsertSchema(storedPaymentMethods).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNoteSchema = createInsertSchema(notes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFileSchema = createInsertSchema(files).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWorkspaceFileSchema = createInsertSchema(workspaceFiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertWorkspaceFile = z.infer<typeof insertWorkspaceFileSchema>;
+export type WorkspaceFile = typeof workspaceFiles.$inferSelect;
+
+export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
+  id: true,
+  timestamp: true,
+});
+
+export const insertEstimateSchema = createInsertSchema(estimates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPaymentSlipSchema = createInsertSchema(paymentSlips).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPaymentSlip = z.infer<typeof insertPaymentSlipSchema>;
+export type PaymentSlip = typeof paymentSlips.$inferSelect;
+
+export const insertAiReflectionSchema = createInsertSchema(aiReflection).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAiTaskSchema = createInsertSchema(aiTasks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAssistQueueSchema = createInsertSchema(assistQueue).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertConversationSchema = createInsertSchema(conversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMemoryEntrySchema = createInsertSchema(memoryEntries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSettingsSchema = createInsertSchema(settings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Contact = typeof contacts.$inferSelect;
+export type InsertContact = z.infer<typeof insertContactSchema>;
+export type Job = typeof jobs.$inferSelect;
+export type InsertJob = z.infer<typeof insertJobSchema>;
+export type Appointment = typeof appointments.$inferSelect;
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+export type Note = typeof notes.$inferSelect;
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+export type FileRecord = typeof files.$inferSelect;
+export type InsertFileRecord = z.infer<typeof insertFileSchema>;
+export type AuditLogEntry = typeof auditLog.$inferSelect;
+export type InsertAuditLogEntry = z.infer<typeof insertAuditLogSchema>;
+export type Estimate = typeof estimates.$inferSelect;
+export type InsertEstimate = z.infer<typeof insertEstimateSchema>;
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+// New entity types
+export type Location = typeof locations.$inferSelect;
+export type InsertLocation = z.infer<typeof insertLocationSchema>;
+export type Equipment = typeof equipment.$inferSelect;
+export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
+export type PricebookItem = typeof pricebookItems.$inferSelect;
+export type InsertPricebookItem = z.infer<typeof insertPricebookItemSchema>;
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = z.infer<typeof insertTagSchema>;
+export type StoredPaymentMethod = typeof storedPaymentMethods.$inferSelect;
+export type InsertStoredPaymentMethod = z.infer<typeof insertStoredPaymentMethodSchema>;
+
+export type AiReflection = typeof aiReflection.$inferSelect;
+export type InsertAiReflection = z.infer<typeof insertAiReflectionSchema>;
+export type AiTask = typeof aiTasks.$inferSelect;
+export type InsertAiTask = z.infer<typeof insertAiTaskSchema>;
+export type AssistQueueEntry = typeof assistQueue.$inferSelect;
+export type InsertAssistQueueEntry = z.infer<typeof insertAssistQueueSchema>;
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type MemoryEntry = typeof memoryEntries.$inferSelect;
+export type InsertMemoryEntry = z.infer<typeof insertMemoryEntrySchema>;
+export type Settings = typeof settings.$inferSelect;
+export type InsertSettings = z.infer<typeof insertSettingsSchema>;
+export type AiSettings = typeof aiSettings.$inferSelect;
+
+export const insertAiSettingsSchema = createInsertSchema(aiSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+export type InsertAiSettings = z.infer<typeof insertAiSettingsSchema>;
+
+export const insertMasterArchitectConfigSchema = createInsertSchema(masterArchitectConfig).omit({
+  id: true,
+  updatedAt: true,
+});
+export type InsertMasterArchitectConfig = z.infer<typeof insertMasterArchitectConfigSchema>;
+export type MasterArchitectConfig = typeof masterArchitectConfig.$inferSelect;
+
+export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+
+export const insertAiVoiceDispatchConfigSchema = createInsertSchema(aiVoiceDispatchConfig).omit({
+  id: true,
+  updatedAt: true,
+});
+export type InsertAiVoiceDispatchConfig = z.infer<typeof insertAiVoiceDispatchConfigSchema>;
+export type AiVoiceDispatchConfig = typeof aiVoiceDispatchConfig.$inferSelect;
+
+export const insertCompanyInstructionsSchema = createInsertSchema(companyInstructions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCompanyInstructions = z.infer<typeof insertCompanyInstructionsSchema>;
+export type CompanyInstructions = typeof companyInstructions.$inferSelect;
+
+// ========================================
+// EMAIL MODULE
+// ========================================
+
+export const emailAccounts = pgTable("email_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  displayName: text("display_name").notNull(),
+  emailAddress: text("email_address").notNull().unique(),
+  incomingHost: text("incoming_host"),
+  incomingPort: integer("incoming_port").default(993),
+  incomingSsl: boolean("incoming_ssl").notNull().default(true),
+  outgoingHost: text("outgoing_host"),
+  outgoingPort: integer("outgoing_port").default(587),
+  outgoingSsl: boolean("outgoing_ssl").notNull().default(true),
+  username: text("username"),
+  encryptedPassword: text("encrypted_password"),
+  status: text("status").notNull().default("disconnected"), // connected, error, disabled, disconnected
+  direction: text("direction").notNull().default("send_receive"), // send_only, send_receive
+  defaultCompany: text("default_company"),
+  lastSyncAt: timestamp("last_sync_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  emailAddressIdx: index("email_accounts_email_idx").on(table.emailAddress),
+  statusIdx: index("email_accounts_status_idx").on(table.status),
+}));
+
+export const emails = pgTable("emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountId: varchar("account_id").notNull().references(() => emailAccounts.id, { onDelete: "cascade" }),
+  messageId: text("message_id"), // Email's Message-ID header
+  threadId: text("thread_id"), // For grouping replies
+  direction: text("direction").notNull().default("incoming"), // incoming, outgoing
+  fromAddress: text("from_address").notNull(),
+  toAddresses: text("to_addresses").array().default(sql`ARRAY[]::text[]`),
+  ccAddresses: text("cc_addresses").array().default(sql`ARRAY[]::text[]`),
+  bccAddresses: text("bcc_addresses").array().default(sql`ARRAY[]::text[]`),
+  subject: text("subject"),
+  bodyHtml: text("body_html"),
+  bodyText: text("body_text"),
+  attachments: jsonb("attachments").default(sql`'[]'::jsonb`), // [{name, size, type, url}]
+  status: text("status").notNull().default("synced"), // synced, draft, failed, queued, sent
+  contactId: varchar("contact_id").references(() => contacts.id),
+  jobId: varchar("job_id").references(() => jobs.id),
+  company: text("company"),
+  receivedAt: timestamp("received_at"),
+  sentAt: timestamp("sent_at"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  accountIdIdx: index("emails_account_id_idx").on(table.accountId),
+  directionIdx: index("emails_direction_idx").on(table.direction),
+  contactIdIdx: index("emails_contact_id_idx").on(table.contactId),
+  jobIdIdx: index("emails_job_id_idx").on(table.jobId),
+  receivedAtIdx: index("emails_received_at_idx").on(table.receivedAt),
+  messageIdIdx: index("emails_message_id_idx").on(table.messageId),
+}));
+
+export const insertEmailAccountSchema = createInsertSchema(emailAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertEmailAccount = z.infer<typeof insertEmailAccountSchema>;
+export type EmailAccount = typeof emailAccounts.$inferSelect;
+
+export const insertEmailSchema = createInsertSchema(emails).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertEmail = z.infer<typeof insertEmailSchema>;
+export type Email = typeof emails.$inferSelect;
+
+// ========================================
+// INTAKE BUILDER MODULE
+// ========================================
+
+export const intakes = pgTable("intakes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  company: text("company"), // Company name or tag
+  channelType: text("channel_type").notNull().default("web"), // web, phone, other
+  active: boolean("active").notNull().default(true),
+  defaultPipelineStage: text("default_pipeline_stage").default("lead_intake"),
+  defaultContactTags: text("default_contact_tags").array().default(sql`ARRAY[]::text[]`),
+  defaultJobTags: text("default_job_tags").array().default(sql`ARRAY[]::text[]`),
+  contactMatchBehavior: text("contact_match_behavior").notNull().default("match_or_create"), // match_or_create, always_create
+  createJobBehavior: text("create_job_behavior").notNull().default("always"), // always, conditional
+  aiInstructions: text("ai_instructions"), // AI behavior instructions for this intake
+  webhookToken: text("webhook_token").notNull().default(sql`gen_random_uuid()`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  nameIdx: index("intakes_name_idx").on(table.name),
+  companyIdx: index("intakes_company_idx").on(table.company),
+  webhookTokenIdx: index("intakes_webhook_token_idx").on(table.webhookToken),
+}));
+
+export const intakeFields = pgTable("intake_fields", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  intakeId: varchar("intake_id").notNull().references(() => intakes.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  key: text("key").notNull(), // Internal field name
+  type: text("type").notNull().default("text"), // text, textarea, phone, email, date, select, multi_select, boolean
+  required: boolean("required").notNull().default(false),
+  helpText: text("help_text"),
+  options: text("options").array().default(sql`ARRAY[]::text[]`), // For select/multi_select
+  fieldOrder: integer("field_order").notNull().default(0),
+  mappedEntity: text("mapped_entity"), // contact, job, or null
+  mappedFieldKey: text("mapped_field_key"), // The actual field on contact/job
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  intakeIdIdx: index("intake_fields_intake_id_idx").on(table.intakeId),
+  intakeIdOrderIdx: index("intake_fields_intake_order_idx").on(table.intakeId, table.fieldOrder),
+}));
+
+export const intakeSubmissions = pgTable("intake_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  intakeId: varchar("intake_id").notNull().references(() => intakes.id, { onDelete: "cascade" }),
+  payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+  contactId: varchar("contact_id").references(() => contacts.id),
+  jobId: varchar("job_id").references(() => jobs.id),
+  status: text("status").notNull().default("pending"), // pending, processed, failed
+  errorMessage: text("error_message"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  intakeIdIdx: index("intake_submissions_intake_id_idx").on(table.intakeId),
+  contactIdIdx: index("intake_submissions_contact_id_idx").on(table.contactId),
+  statusIdx: index("intake_submissions_status_idx").on(table.status),
+  createdAtIdx: index("intake_submissions_created_at_idx").on(table.createdAt),
+}));
+
+export const insertIntakeSchema = createInsertSchema(intakes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertIntake = z.infer<typeof insertIntakeSchema>;
+export type Intake = typeof intakes.$inferSelect;
+
+export const insertIntakeFieldSchema = createInsertSchema(intakeFields).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertIntakeField = z.infer<typeof insertIntakeFieldSchema>;
+export type IntakeField = typeof intakeFields.$inferSelect;
+
+export const insertIntakeSubmissionSchema = createInsertSchema(intakeSubmissions).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertIntakeSubmission = z.infer<typeof insertIntakeSubmissionSchema>;
+export type IntakeSubmission = typeof intakeSubmissions.$inferSelect;
+
+// ========================================
+// WHATSAPP MESSAGES
+// ========================================
+
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: varchar("contact_id").references(() => contacts.id),
+  jobId: varchar("job_id").references(() => jobs.id),
+  direction: text("direction").notNull().default("outgoing"), // incoming, outgoing
+  fromPhone: text("from_phone").notNull(),
+  toPhone: text("to_phone").notNull(),
+  body: text("body").notNull(),
+  messageSid: text("message_sid"), // Twilio message SID
+  conversationId: varchar("conversation_id"), // For grouping messages in a thread
+  status: text("status").notNull().default("queued"), // queued, sent, delivered, failed, received
+  mediaUrl: text("media_url"),
+  mediaContentType: text("media_content_type"),
+  templateId: text("template_id"),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at"),
+  deliveredAt: timestamp("delivered_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  contactIdIdx: index("whatsapp_messages_contact_id_idx").on(table.contactId),
+  jobIdIdx: index("whatsapp_messages_job_id_idx").on(table.jobId),
+  directionIdx: index("whatsapp_messages_direction_idx").on(table.direction),
+  conversationIdIdx: index("whatsapp_messages_conversation_id_idx").on(table.conversationId),
+  messageSidIdx: index("whatsapp_messages_message_sid_idx").on(table.messageSid),
+  createdAtIdx: index("whatsapp_messages_created_at_idx").on(table.createdAt),
+}));
+
+export const insertWhatsappMessageSchema = createInsertSchema(whatsappMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;
+export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
+
+// ========================================
+// EVENTS OUTBOX (Neo8Flow Integration)
+// ========================================
+
+export const eventsOutbox = pgTable("events_outbox", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  idempotencyKey: varchar("idempotency_key").notNull(),
+  schemaVersion: varchar("schema_version").notNull().default("1.0"),
+  eventType: varchar("event_type").notNull(),
+  channel: varchar("channel").notNull(),
+  sourceId: varchar("source_id"),
+  sourceIp: varchar("source_ip"),
+  recordingUrl: varchar("recording_url"),
+  leadScore: integer("lead_score"),
+  payload: jsonb("payload").notNull(),
+  status: varchar("status").notNull().default("pending"),
+  dispatchedAt: timestamp("dispatched_at"),
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  tenantIdempotencyUniqueIdx: uniqueIndex("events_outbox_tenant_idempotency_unique_idx").on(table.tenantId, table.idempotencyKey),
+  statusIdx: index("events_outbox_status_idx").on(table.status),
+  eventTypeIdx: index("events_outbox_event_type_idx").on(table.eventType),
+}));
+
+export const insertEventsOutboxSchema = createInsertSchema(eventsOutbox).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertEventsOutbox = z.infer<typeof insertEventsOutboxSchema>;
+export type EventsOutbox = typeof eventsOutbox.$inferSelect;
+
+// ========================================
+// AUTOMATION LEDGER (Agent Action Logging)
+// ========================================
+// Purpose: Immutable record of all agent-triggered mutations
+// Single-entry model: One row per action, updated over its lifecycle
+// Only state-changing actions are logged (no reads, queries, searches)
+
+export const LedgerMode = {
+  DRY_RUN: "dry_run",
+  EXECUTED: "executed",
+  REJECTED: "rejected",
+} as const;
+export type LedgerMode = (typeof LedgerMode)[keyof typeof LedgerMode];
+
+export const LedgerStatus = {
+  PENDING: "pending",
+  SUCCESS: "success",
+  FAILED: "failed",
+  FLAGGED: "flagged",
+} as const;
+export type LedgerStatus = (typeof LedgerStatus)[keyof typeof LedgerStatus];
+
+// Explicit action types - not generic verbs
+export const LedgerActionType = {
+  CREATE_CONTACT: "create_contact",
+  UPDATE_CONTACT: "update_contact",
+  DELETE_CONTACT: "delete_contact",
+  CREATE_JOB: "create_job",
+  UPDATE_JOB: "update_job",
+  UPDATE_JOB_STATUS: "update_job_status",
+  DELETE_JOB: "delete_job",
+  CREATE_ESTIMATE: "create_estimate",
+  UPDATE_ESTIMATE: "update_estimate",
+  SEND_ESTIMATE: "send_estimate",
+  CREATE_INVOICE: "create_invoice",
+  UPDATE_INVOICE: "update_invoice",
+  SEND_INVOICE: "send_invoice",
+  RECORD_PAYMENT: "record_payment",
+  SEND_EMAIL: "send_email",
+  SEND_SMS: "send_sms",
+  PIPELINE_TRANSITION: "pipeline_transition",
+  CREATE_APPOINTMENT: "create_appointment",
+  UPDATE_APPOINTMENT: "update_appointment",
+  DELETE_APPOINTMENT: "delete_appointment",
+  CREATE_NOTE: "create_note",
+  ASSIGN_TECHNICIAN: "assign_technician",
+  // AI Voice Ledger Events (Human Path)
+  HUMAN_DISPATCH_INITIATED: "human_dispatch_initiated",
+  HUMAN_AUTHORIZATION_CONFIRMED: "human_authorization_confirmed",
+  // AI Voice Ledger Events (AI Path - goes through Review Queue)
+  AI_PROPOSAL_CREATED: "ai_proposal_created",
+  AI_REVIEW_DECISION: "ai_review_decision",
+  HUMAN_EXECUTION_DECISION: "human_execution_decision",
+  // AI Voice Shared Events
+  DISPATCH_SENT: "dispatch_sent",
+  EXECUTION_RESULT_RECORDED: "execution_result_recorded",
+} as const;
+export type LedgerActionType = (typeof LedgerActionType)[keyof typeof LedgerActionType];
+
+export const automationLedger = pgTable("automation_ledger", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  agentName: text("agent_name").notNull(),
+  actionType: text("action_type").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: varchar("entity_id"),
+  mode: text("mode").notNull().default("dry_run"),
+  status: text("status").notNull().default("pending"),
+  diffJson: jsonb("diff_json"),
+  reason: text("reason"),
+  assistQueueId: varchar("assist_queue_id"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  agentNameIdx: index("automation_ledger_agent_name_idx").on(table.agentName),
+  actionTypeIdx: index("automation_ledger_action_type_idx").on(table.actionType),
+  entityTypeIdx: index("automation_ledger_entity_type_idx").on(table.entityType),
+  modeIdx: index("automation_ledger_mode_idx").on(table.mode),
+  statusIdx: index("automation_ledger_status_idx").on(table.status),
+  timestampIdx: index("automation_ledger_timestamp_idx").on(table.timestamp),
+}));
+
+export const insertAutomationLedgerSchema = createInsertSchema(automationLedger).omit({
+  id: true,
+  timestamp: true,
+  updatedAt: true,
+});
+export type InsertAutomationLedger = z.infer<typeof insertAutomationLedgerSchema>;
+export type AutomationLedger = typeof automationLedger.$inferSelect;
+
+// ========================================
+// AI VOICE DISPATCH LOGS
+// ========================================
+
+export const voiceDispatchLogs = pgTable("voice_dispatch_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: varchar("contact_id").references(() => contacts.id),
+  contactName: text("contact_name").notNull(),
+  intent: text("intent").notNull(),
+  contextNotes: text("context_notes"),
+  engine: text("engine").notNull().default("economic"), // economic, premium
+  status: text("status").notNull().default("pending"), // pending, in_progress, success, failed
+  originType: text("origin_type").notNull().default("human"), // human, ai
+  summary: text("summary"),
+  transcriptUrl: text("transcript_url"),
+  ledgerId: varchar("ledger_id").references(() => automationLedger.id),
+  dispatchedAt: timestamp("dispatched_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  statusIdx: index("voice_dispatch_logs_status_idx").on(table.status),
+  originTypeIdx: index("voice_dispatch_logs_origin_type_idx").on(table.originType),
+  contactIdIdx: index("voice_dispatch_logs_contact_id_idx").on(table.contactId),
+  createdAtIdx: index("voice_dispatch_logs_created_at_idx").on(table.createdAt),
+}));
+
+export const insertVoiceDispatchLogSchema = createInsertSchema(voiceDispatchLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertVoiceDispatchLog = z.infer<typeof insertVoiceDispatchLogSchema>;
+export type VoiceDispatchLog = typeof voiceDispatchLogs.$inferSelect;

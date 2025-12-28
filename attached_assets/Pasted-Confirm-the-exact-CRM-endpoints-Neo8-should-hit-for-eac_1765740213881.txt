@@ -1,0 +1,60 @@
+Confirm the exact CRM endpoints Neo8 should hit for each flow
+Minimum list:
+
+Activity log, POST /api/activity-log/write
+
+Lead creation from AI receptionist call end, POST /api/leads/create or POST /api/intake/:intakeId/submit, pick one and lock it
+
+Contacts fetch, GET /api/contacts/{contactId}
+
+Contacts update, PATCH /api/contacts/{contactId}
+
+Human review queue, POST /api/human-review/queue
+
+Approval hub log, POST /api/approval-hub/log
+
+Human alerts, POST /api/alerts/human
+
+WhatsApp inbound, POST /api/whatsapp/inbound
+
+WhatsApp status, POST /api/whatsapp/status
+
+Notifications send, POST /api/notifications/send
+He must provide the exact payload schema for each one, even if it is a short JSON example.
+
+Confirm auth header contract for every CRM endpoint Neo8 calls
+You already have this but lock it in writing:
+
+Header: Authorization
+
+Format: Bearer {N8N_INTERNAL_TOKEN}
+
+Single tenant token per deployment
+Also confirm if any endpoints are intentionally unauthenticated for internal traffic, if none, then every Neo8 to CRM HTTP node must include Authorization.
+
+Confirm idempotency key per flow
+He already gave the rules, now make it operational:
+
+Outreach, payment create, google actions, whatsapp outbound, must include actionId or assistQueueId or taskId in the inbound payload from CRM to Neo8
+
+AI receptionist call end uses callSid
+
+Payment events use event id from the CRM sent payload
+He should confirm, yes, every CRM dispatched request includes one stable unique id field, and name it consistently, like actionId.
+
+Confirm payment events source
+Lock this sentence:
+
+CRM sends Stripe shaped payloads to Neo8
+
+Neo8 does not receive Stripe webhooks
+
+Payment event processing flow does not call Stripe, it only logs and queues, so no Stripe creds required there
+
+Confirm Twilio voice endpoints and webhook registration targets
+He should confirm which public Neo8 webhook URLs are registered in Twilio for:
+
+per segment gather webhook
+
+status callback webhook
+So Neo8 dev is not guessing.

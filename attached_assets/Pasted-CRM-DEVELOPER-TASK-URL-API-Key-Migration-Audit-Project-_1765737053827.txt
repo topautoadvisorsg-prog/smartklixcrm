@@ -1,0 +1,139 @@
+CRM DEVELOPER TASK — URL & API Key Migration Audit
+
+Project: Smart Klix CRM
+Context: Platform migration completed
+Priority: High
+Type: Configuration & Integration Audit (No Feature Changes)
+
+🎯 Objective
+
+Perform a full system audit and update to ensure all references to legacy URLs, endpoints, and credentials are fully removed and replaced with the current production configuration.
+
+This includes environment variables, hardcoded values, integration configs, and third-party service settings.
+
+No functional redesign is requested — this is a migration hygiene and correctness task.
+
+🔍 Scope of Work
+1️⃣ URL & Endpoint Audit (MANDATORY)
+
+Identify and update any reference to the old URL, including but not limited to:
+
+APP_BASE_URL
+
+Webhook callback URLs
+
+N8N integration endpoints
+
+Frontend API base URLs
+
+OAuth redirect URLs (if present)
+
+Widget embed URLs
+
+Hardcoded links in:
+
+Frontend (React)
+
+Backend (Express)
+
+Config files
+
+Docs or setup scripts
+
+Deliverable:
+Confirm that only the new production URL is referenced anywhere in the codebase or deployment config.
+
+2️⃣ Environment Variable & Secrets Review
+
+Review all environment variables and confirm they are:
+
+Present
+
+Correct
+
+Pointing to the new environment
+
+Specifically verify:
+
+DATABASE_URL
+
+APP_BASE_URL
+
+N8N_WEBHOOK_URL
+
+N8N_INTERNAL_TOKEN
+
+SESSION_SECRET
+
+Any payment, SMS, email provider keys
+
+Remove or invalidate any legacy or unused variables.
+
+3️⃣ OpenAI / ChatGPT API Key Update
+
+Update AI configuration to use a new internal OpenAI API key owned by Smart Klix.
+
+Replace any old or shared keys
+
+Store only in environment variables (no hardcoding)
+
+Select and configure the recommended OpenAI model for production use
+(developer discretion, but must be documented)
+
+Ensure:
+
+AI agent initializes successfully
+
+/api/health reports AI as ready
+
+AI tools continue to function normally
+
+4️⃣ Integration Verification
+
+After updates, verify:
+
+N8N → CRM callbacks succeed (/api/events/update)
+
+CRM → N8N webhooks trigger correctly
+
+Lead intake (/api/intake/lead) still functions
+
+No CORS, auth, or URL mismatch errors occur
+
+Minimal smoke testing is sufficient — no deep QA required.
+
+✅ Completion Criteria
+
+This task is considered complete when:
+
+No legacy URLs remain anywhere in the system
+
+All API keys and secrets are updated and valid
+
+AI agent is operational with the new key/model
+
+N8N integrations function against the new URL
+
+Developer confirms findings and changes in a short summary
+
+🚫 Explicit Non-Goals
+
+No feature changes
+
+No schema changes
+
+No workflow redesign
+
+No UI changes
+
+📝 Required Developer Notes
+
+Provide a brief summary covering:
+
+What was updated
+
+Any legacy values found
+
+OpenAI model selected and why
+
+Any follow-up risks or recommendations

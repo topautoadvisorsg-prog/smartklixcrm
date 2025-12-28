@@ -1,0 +1,161 @@
+You’re right. Docs was missed. That’s on me.
+Let’s fix it cleanly and without extra bullshit, diagram-level only.
+
+CORRECTION — GOOGLE WORKSPACE FLOW MUST INCLUDE DOCS
+
+Google Workspace ≠ Gmail + Calendar + Sheets only
+It is FOUR execution surfaces:
+
+Gmail
+
+Calendar
+
+Sheets
+
+Docs ← missing
+
+Docs is not optional. It’s required for:
+
+Proposals
+
+Agreements
+
+Intake summaries
+
+AI-generated notes
+
+Internal documentation
+
+Client-facing docs
+
+UPDATED WORKFLOW #6 — GOOGLE WORKSPACE (DIAGRAM-LEVEL)
+SUB-FLOW A — GMAIL
+
+Purpose: Send or reply to emails when CRM requests it
+Trigger: CRM → Neo8 webhook
+Actions: send_email, reply_email
+End: Log result to CRM
+
+[Webhook: Gmail]
+   ↓
+[Route by action]
+   ↓
+[Gmail API]
+   ↓
+[Log to CRM]
+
+SUB-FLOW B — CALENDAR
+
+Purpose: Sync meetings with Google Calendar
+Trigger: CRM → Neo8 webhook
+Actions: create_event, update_event, cancel_event
+End: Store eventId + log
+
+[Webhook: Calendar]
+   ↓
+[Route by action]
+   ↓
+[Google Calendar API]
+   ↓
+[Store Event ID]
+   ↓
+[Log to CRM]
+
+SUB-FLOW C — SHEETS
+
+Purpose: Append or update structured records
+Trigger: CRM → Neo8 webhook
+Actions: append_row, update_row
+End: Done (optional CRM log)
+
+[Webhook: Sheets]
+   ↓
+[Sheets API]
+   ↓
+[Done]
+
+✅ SUB-FLOW D — DOCS (THE MISSING PIECE)
+SUB-FLOW D — DOCS
+
+Purpose: Create & update Google Docs from CRM/AI output
+Trigger: CRM → Neo8 webhook
+Actions:
+
+create_doc
+
+update_doc
+
+append_content
+
+replace_placeholders
+
+export_doc (PDF optional)
+
+Use cases:
+
+Proposal generation
+
+Call summaries
+
+AI receptionist notes
+
+Contracts / agreements
+
+Internal SOPs
+
+[Webhook: Docs]
+   ↓
+[Route by action]
+   ↓
+[Google Docs API]
+   ↓
+[Store Doc ID / URL]
+   ↓
+[Log to CRM]
+
+
+Important:
+
+Neo8 executes only
+
+CRM / AI decides what content goes in
+
+Doc IDs + URLs are returned to CRM
+
+FINAL STRUCTURE (LOCK THIS IN)
+
+Workflow #6 — Google Workspace Integration
+
+Gmail ✅
+
+Calendar ✅
+
+Sheets ✅
+
+Docs ✅ (NOW INCLUDED)
+
+Each is:
+
+Webhook-triggered
+
+Action-routed
+
+Execution-only
+
+Logged back to CRM
+
+No AI logic
+No approvals
+No business decisions
+No UI replacement
+
+NEXT STEP (CLEAR & SIMPLE)
+
+You now have two options:
+
+I give you the corrected builder prompt (with Docs included)
+
+We draft the CRM-side requirement: “Google Workspace tab must expose Gmail / Calendar / Sheets / Docs actions”
+
+Say 1 or 2.
+We move immediately.

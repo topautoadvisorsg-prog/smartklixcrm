@@ -1,0 +1,190 @@
+What we discovered
+
+During live shakedown testing, we discovered a hard production blocker:
+The workflow cannot be activated because Google Calendar nodes require a Calendar ID, and no production-safe Calendar ID was properly defined or centralized.
+
+This prevents:
+
+Workflow activation
+
+End-to-end live testing with a real customer
+
+Calendar-based automation (which is core to the product)
+
+This is not a UI issue and not a testing mistake.
+It is a missing production configuration decision.
+
+Confirmed solution (Neo8-approved)
+
+The correct, production-safe pattern is:
+
+Use one org-level shared Google Calendar as the source of truth
+
+Store its calendarId in a central config
+
+Reference it consistently in all calendar actions
+
+This must be implemented now so testing and deployment can proceed.
+
+🧑‍💻 PROMPT 1 — FULL-STACK CRM DEVELOPER
+
+(Front-end + CRM back-end owner)
+
+Subject: Production Blocker Identified – Calendar Integration Alignment (Immediate)
+
+Context
+
+We are currently blocked from production testing due to missing Calendar ID configuration in the automation workflow. Neo8 has confirmed the correct production approach.
+
+Your role is to ensure the CRM behavior, UI flows, and assumptions align with this fix.
+
+What You Need To Do
+
+Assume a single org-level shared calendar
+
+No user calendar selection
+
+No per-user calendar logic for now
+
+Scheduling should “just work” for customers
+
+Review CRM flows that touch scheduling:
+
+Intake → follow-up → meeting scheduling
+
+Manual contact creation
+
+AI-assisted scheduling actions
+
+Ensure the CRM:
+
+Does not require Calendar ID input from users
+
+Does not expose calendar selection UI prematurely
+
+Handles calendar success/failure states cleanly
+
+After Neo8 workflow activation:
+
+Verify real events appear on the org calendar
+
+Confirm CRM state updates correctly (scheduled / rescheduled / canceled)
+
+Flag any UI or logic mismatches immediately
+
+Goal
+
+Align CRM behavior with the fixed Neo8 workflow so:
+
+Live customer testing works
+
+No hidden assumptions break scheduling
+
+We can move toward SOPs and production rollout
+
+This is alignment and validation — not a redesign.
+
+🧠 PROMPT 2 — NEO8BUILDER
+
+⚠️ THIS IS THE IMPORTANT ONE — SINGLE BUILD STRIKE, DO EVERYTHING BELOW IN ONE PASS
+
+Subject: 🚨 FINAL BUILD INSTRUCTION – Production Calendar ID Fix & Diagram Update
+
+Context
+
+We have identified a production blocker during shakedown testing:
+Calendar-related workflow nodes cannot activate because there is no centralized, production-safe Calendar ID.
+
+This instruction is intended to fully resolve the issue in one build pass.
+
+REQUIRED IMPLEMENTATION (ALL OF THIS IN ONE BUILD)
+1️⃣ Calendar Source of Truth
+
+Use one org-level shared Google Calendar as the production calendar
+
+Do NOT use user calendars or placeholders
+
+2️⃣ Central Configuration
+
+Add calendarId to the Global Config node (or equivalent)
+
+This node must be the only source of truth for calendar ID
+
+Example:
+
+{
+  "calendarId": "shared-calendar-id@group.calendar.google.com"
+}
+
+3️⃣ Workflow Wiring
+
+Update ALL calendar-related nodes to reference the config value:
+
+Create Event
+
+Update Event
+
+Cancel Event
+
+Use:
+
+{{ $('Global Config').first().json.calendarId }}
+
+
+No hardcoding. No optional fields. No branching logic.
+
+4️⃣ Validation / Safety
+
+Ensure the Google Calendar credential has access to the shared calendar
+
+Add or confirm a simple validation step so invalid Calendar IDs fail fast
+
+5️⃣ Diagram & Architecture Update
+
+Update the workflow diagram to explicitly show:
+
+Org-level shared calendar
+
+Central config node supplying calendarId
+
+All calendar actions depending on that config
+
+Remove any ambiguity around calendar ownership or selection
+
+Definition of Done
+
+Workflow activates successfully in production
+
+Calendar events are created on the shared calendar
+
+Diagram reflects the correct architecture
+
+No additional build passes required for calendar logic
+
+This instruction is intentionally comprehensive to avoid further build strikes.
+
+✅ FINAL CHECK (FOR YOU)
+
+You were right to stop testing
+
+You were right to question skipping Calendar ID
+
+You were right to demand a real production answer
+
+Neo8’s recommendation is solid and now properly weaponized
+
+Once this Neo8 build is done:
+
+You test with your real contact
+
+Intake → SMS → Email → Calendar → Invoice
+
+No excuses, no “it should work”
+
+If you want, next I can:
+
+Draft a post-fix verification checklist (5 minutes to confirm everything)
+
+Or help you define hard production rules so this never slips again
+
+But structurally — you’re now aligned and in control.

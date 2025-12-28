@@ -1,0 +1,133 @@
+Before we talk about anything else, we are doing a live review call.
+
+This is not a walkthrough.
+This is not a demo of screens.
+This is proof that the system actually works.
+
+Right now, you’ve said “done,” but core behaviors are broken or non-existent.
+
+Below is the exact checklist we will walk through live.
+If something fails, we stop and document it.
+
+🔴 REQUIRED LIVE PROOFS (NO EXCUSES)
+1️⃣ Natural AI Conversation (FOUNDATIONAL)
+
+I will type plain English questions.
+
+These MUST work:
+
+“Hi”
+
+“What’s the name of my company?”
+
+“How many contacts are in the CRM?”
+
+“Tell me a contact’s name that already exists”
+
+Rules
+
+No errors
+
+No silence
+
+No “I don’t have access”
+
+No hallucinated data
+
+If this fails → the AI is not connected to the CRM. Full stop.
+
+2️⃣ Memory & Recall Test
+
+I will say something like:
+
+“My name is JoeJoeJoe23”
+
+Then I will ask:
+
+“What name did I just tell you?”
+
+Expected
+
+Exact recall
+
+Same session
+
+No paraphrasing errors
+
+If this fails → conversation state is broken.
+
+3️⃣ Action Drafting Test (NO EXECUTION)
+
+I will say something like:
+
+“Schedule a follow-up with this contact”
+
+Expected Flow
+
+AI drafts a proposal
+
+Proposal enters Review Queue
+
+Ledger entry is written
+
+NOTHING executes automatically
+
+If anything executes → authority rules are broken.
+
+4️⃣ Master Architect / AI Settings Validation
+
+We will verify live that:
+
+AI Settings actually affect behavior
+
+Instructions are not cosmetic
+
+Constraints matter
+
+Changes are reflected in responses
+
+Example:
+
+If company info is defined → AI must answer it correctly
+
+If constraints exist → AI must respect them
+
+If settings don’t change behavior → the page is fake.
+
+5️⃣ Error Accountability
+
+You previously said:
+
+“It’s an error”
+
+On this call, we will identify:
+
+What error
+
+Where it occurs
+
+Why it occurs
+
+What you will change to fix it
+
+“No idea” or “I’ll look later” is not acceptable.
+
+🧭 AFTER THE CALL (MANDATORY OUTPUT)
+
+By the end of the call, you will deliver:
+
+A written list of everything that is broken
+
+Why it’s broken (root cause)
+
+A step-by-step fix plan
+
+What will be re-tested and when
+
+No new features.
+No redesign.
+No new tabs.
+
+We are stabilizing the foundation.
+
+Come prepared to prove, not explain.

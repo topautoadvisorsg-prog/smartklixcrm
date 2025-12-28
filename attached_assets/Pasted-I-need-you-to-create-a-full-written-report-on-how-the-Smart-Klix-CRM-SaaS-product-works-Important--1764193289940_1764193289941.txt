@@ -1,0 +1,192 @@
+I need you to create a full written report on how the Smart Klix CRM SaaS product works.
+
+Important notes before you start:
+
+This is a documentation task, not an implementation task.
+
+I do NOT want code in this report, just explanations of logic, tech stack, and GUI.
+
+The report needs to be clear enough so that another senior “research and development” developer can read it and immediately understand how everything is wired and where the possible gaps are.
+
+If you see anything that looks wrong, incomplete, or like a future risk, I want you to call it out and recommend how you would fix or improve it.
+
+Please save this as a markdown file in the repo, for example:
+docs/smartklix_system_overview.md
+
+1. Global System Overview
+
+Start the report with a high level overview of the entire system:
+
+Tech stack, front end
+
+Framework (React, Vite, TypeScript, UI libs, state management, etc)
+
+How pages are structured and routed
+
+Any global layout components, themes, or design systems
+
+Tech stack, backend
+
+Node / Express structure
+
+Where the main routers live
+
+How Prisma / database is organized
+
+Any background processes, queues, cron, or workers
+
+Database
+
+Main entities (contacts, jobs, estimates, invoices, payments, appointments, AI tables, etc)
+
+How relationships are set up (one to many, many to many)
+
+Any important constraints or assumptions
+
+AI / Master Architect
+
+Confirm that we are using a single “Master Architect” brain for all channels (CRM Agent Chat, ChatGPT Actions, AI Receptionist, etc)
+
+Explain how requests from each channel are routed to the Master Architect
+
+List which tools the Master Architect can call and at a high level what they do
+
+Integrations
+
+Where n8n fits into the picture
+
+Where Twilio fits (current and future voice receptionist)
+
+Any other external services we touch
+
+Also, in this global section, please list any known limitations or tech debt that you see.
+
+2. Per-Tab / Per-Page Breakdown
+
+For each of the following tabs/pages, I need a short section with:
+
+Purpose and main use case in the app
+
+Main user flows, described step by step in plain language
+
+Which API endpoints or backend modules it relies on
+
+How (if at all) it interacts with the Master Architect or AI tools
+
+What is currently implemented and working
+
+What is partially implemented / stubbed / “coming soon”
+
+Any gaps or future improvements you recommend
+
+Tabs / Pages to document:
+
+Dashboard
+
+Contacts
+
+Jobs
+
+Estimates
+
+Invoices
+
+Payments
+
+Calendar
+
+Pipeline
+
+CRM Agent (chat page inside CRM)
+
+CRM Agent Config
+
+ChatGPT Actions / GPT Actions
+
+Explain clearly how this connects to the ChatGPT Actions console, what the base URL is, what the schema looks like conceptually, and how it routes into the Master Architect and tools.
+
+AI Receptionist
+
+Explain current state of economy voice vs premium real-time voice.
+
+How the settings on this page are stored and how they are supposed to control behavior.
+
+How this is expected to connect to Twilio and the Master Architect.
+
+Approval Hub
+
+This is the Master Architect approvals area.
+
+Explain the checkmark system (task created, task executed, task approved) and how the flow works.
+
+Explain how Draft / Assist / Auto modes play into this.
+
+Emails
+
+Explain the plan for IMAP/email connection, how emails are supposed to show up, and how they relate to contacts and jobs.
+
+Note what is actually implemented and what is still missing.
+
+Intake Builder
+
+Explain how intake forms work, how they are stored, and how they tie into contacts, jobs, and Master Architect behavior.
+
+Mention that this platform is meant to support multiple companies, and that behavior is distinguished by company context (company name etc).
+
+Call out anything that still needs to be done to really make this multi-tenant friendly.
+
+Settings
+
+Break down the sections inside Settings (company settings, branding, AI configuration, integrations, users/permissions, etc).
+
+Explain where AI settings live and how they connect to the Master Architect.
+
+Explain where n8n and Twilio configuration will live (or already lives) and how you expect it to be used.
+
+3. AI & Approval Logic
+
+Add a focused section just for AI and approvals:
+
+Explain clearly the single-brain architecture
+
+CRM Agent Chat
+
+ChatGPT Actions
+
+AI Receptionist
+
+How all of these send their work to the Master Architect
+
+Explain the approval workflow
+
+Creation of tasks
+
+Execution of tasks
+
+Approval and double-check behavior
+
+What happens in Draft mode, Assist mode, Auto mode
+
+Explain any limits or safety controls that already exist
+
+Rate limiting, cost control, validation, etc
+
+If these do NOT exist yet, call that out.
+
+4. Gaps, Risks, and Recommendations
+
+Finally, add a closing section where you are brutally honest:
+
+List all gaps you see in the current implementation (UI, backend, AI architecture, testing, security, performance).
+
+Call out any parts of the system that you think are fragile, hacky, or likely to break under real customer usage.
+
+Recommend what you would do next if you were in charge of research and development to harden this into a real production SaaS (in terms of refactors, missing features, missing tests, etc).
+
+I do not want code pasted into this report. I want a clear written explanation so that:
+
+I understand how everything fits together, and
+
+A future R&D-focused developer can read this and then design improvements and implementations based on every tab and subsystem.
+
+If anything in this prompt is unclear or you think there is a better way to structure the report, tell me what you recommend before you start writing it.

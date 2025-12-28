@@ -1,0 +1,169 @@
+RE-AUDIT DIRECTIVE — READ CAREFULLY
+
+We need to audit everything again, end-to-end. There are still blocking failures.
+
+1️⃣ ReadChat  — STILL BROKEN
+
+I still cannot talk to the AI chat.
+
+The chat is called ReadChat 
+
+I should be able to:
+
+Ask normal CRM questions
+
+Have a natural back-and-forth conversation
+
+Get answers based on existing CRM data
+
+Examples that MUST work:
+
+“How many contacts named Joe exist?”
+
+“What is Joe Acosta’s client ID?”
+
+“What fields do we have for this contact?”
+
+If information is missing, the AI should:
+
+Ask for clarification
+
+Not fail
+
+Not say it has no access
+
+👉 This is READ-ONLY conversational AI, not ActionAI.
+If this is not working, explain exactly why, not “it should work”.
+
+2️⃣ Ledger — IMPORTANT CLARIFICATION (THIS WAS DONE WRONG)
+
+Let me be 100% clear:
+
+❌ READ QUERIES MUST NOT CREATE LEDGER ENTRIES
+
+Asking:
+
+“How many Joes are there?”
+
+“What’s in the CRM?”
+
+“What does the ledger show?”
+
+SHOULD NEVER WRITE TO THE LEDGER
+
+A ledger entry was created for a read/query question.
+That is wrong.
+
+✅ Ledger entries are ONLY for:
+
+Intake received
+
+AI proposal created
+
+Approval / rejection
+
+Human execution
+
+Dispatch / execution results
+
+Retries / failures
+
+📌 The ledger is for actions, not questions.
+
+Fix this if it’s still happening and confirm:
+
+Which code path caused the ledger write
+
+Why it was triggered
+
+That it is now prevented
+
+3️⃣ Ledger Status Update (Acknowledgement)
+
+Yes — the ledger is now showing information.
+That part is acknowledged.
+
+However:
+
+ReadChat queries must not touch the ledger
+
+ActionAI proposals must
+
+Approvals must
+
+Executions must
+
+No cross-contamination.
+
+4️⃣ ActionAI Console — Needs Full Re-Audit
+
+I haven’t even gotten far enough to trust ActionAI yet.
+
+You need to re-audit:
+
+Proposal creation
+
+Review Queue visibility
+
+Approval flow
+
+Ledger writes on proposal + validation
+
+Visibility in UI
+
+Do not assume this works because code exists.
+
+5️⃣ Required Deliverable From You
+
+Come back with a clear audit report, not assumptions:
+
+A. ReadChat
+
+Is it wired?
+
+What endpoint does it use?
+
+Why I currently can’t converse with it
+
+What data it can read
+
+What data it cannot read (if any)
+
+B. Ledger Rules
+
+Confirm read queries do NOT write ledger entries
+
+Show where that was fixed (or explain why it happened)
+
+C. End-to-End Test (TEST-LABELED)
+
+Run one full TEST item:
+
+Intake → Proposal → Approval → Ledger → UI visibility
+
+Every step visible
+
+Clearly marked TEST
+
+6️⃣ Absolute Rule Going Forward
+
+If:
+
+I cannot see it in the UI
+
+Or it writes to the ledger when it shouldn’t
+
+Or ReadChat cannot answer basic CRM questions
+
+Then it is not working, regardless of testing mode or internal validation.
+
+Final Reminder
+
+This is not about effort.
+This is about correct system behavior.
+
+ReadChat = read + conversation
+ActionAI = proposals + ledger
+Ledger = actions only
+
+Audit everything again and report back with facts.

@@ -1,0 +1,248 @@
+SMART KLIX CRM – IMPLEMENTATION BLUEPRINT PROMPT
+
+(BASED ON YOUR UI/UX AUDIT REPORT)
+
+You already delivered a very detailed UI and UX audit for Smart Klix CRM.
+Now we are moving to the next phase.
+
+We DO NOT want random changes.
+We want a clear, structured implementation blueprint that turns your audit into a step by step execution plan.
+
+Use everything from your last audit as your source of truth.
+
+Your tasks now:
+
+1. TURN THE AUDIT INTO A PHASED IMPLEMENTATION PLAN
+
+Create a single document called:
+
+SMART_KLIX_UI_IMPLEMENTATION_BLUEPRINT.md
+
+In that document, break the work into clear phases. For each phase, include:
+
+Phase name
+
+Goal of the phase
+
+Exact features and changes included
+
+Which tabs and pages are affected
+
+What should be added, removed, merged, or relocated
+
+Any breaking UX changes that users will notice
+
+Use the phases you already suggested in the audit, but make them concrete and actionable, for example:
+
+Phase 1, Navigation cleanup and tab removal
+
+Phase 2, Contact Detail and Job Detail upgrades
+
+Phase 3, AI and automation visibility in the UI
+
+Phase 4, Workflow and scheduling improvements
+
+Phase 5, Polish, templates, and quality of life
+
+Make sure each phase can be delivered independently without breaking the system.
+
+2. SPECIFY EXACT UI CHANGES PER TAB
+
+For each top level item that will remain in the final nav (Dashboard, Contacts, Jobs, Estimates, Invoices, Calendar, Pipeline, AI, Settings):
+
+For each one, clearly document:
+
+What stays exactly as is
+
+What needs to be added
+
+What needs to be removed
+
+What needs to be moved into a detail page
+
+What buttons or actions must be wired to real functionality
+
+What search and filters must be implemented
+
+Be specific, like:
+
+“Contacts: add bulk actions row with these buttons …”
+
+“Jobs: add toggle between table and Kanban view …”
+
+“Calendar: enable drag and drop to move appointments …”
+
+No vague comments. Make it implementation ready.
+
+3. CONTACT DETAIL PAGE AND JOB DETAIL PAGE – FINAL SPEC
+
+You already outlined what these should become. Now we want a final, dev ready spec.
+
+For each of these two pages, create a section:
+
+ContactDetailPageSpec
+
+JobDetailPageSpec
+
+For each one list:
+
+Sections and layout from top to bottom
+
+Tabs and what each tab shows
+
+What is editable inline
+
+What actions appear as buttons
+
+Where notes live
+
+Where files live and how they are uploaded
+
+Where appointments are shown and scheduled
+
+Where AI suggestions appear
+
+What timelines are displayed (activity, communication, status changes)
+
+These two pages will become the “command centers” of the CRM, so this spec must be crystal clear.
+
+4. TABS TO REMOVE, MERGE, OR RELOCATE
+
+You already identified problem tabs. Now we want a final decision table that the dev can follow without thinking.
+
+Produce a table that lists every current tab:
+
+Current name
+
+Keep as is / Keep but change / Remove / Move under Settings
+
+New location or new behavior
+
+One line reason
+
+For example:
+
+Files: Remove as standalone tab, files move into Contact and Job detail pages only
+
+Notes: Remove as standalone tab, notes only live in Contact and Job detail pages
+
+AI Assist Queue: Merge into Master Architect hub
+
+Metrics: Remove or rebuild as proper Reports later, do not ship current mock version
+
+AI Memory: Move under Settings, AI Configuration, admin only
+
+Audit Log: Move under Settings, System
+
+User Management: Move under Settings, User Management
+
+This table is what the dev will follow to clean up the navigation.
+
+5. MASTER ARCHITECT HUB AND AI CONTROL CENTER
+
+We are building Smart Klix so that the “Master Architect” is the AI brain that lives inside the CRM and reviews or approves any AI driven or automation driven actions.
+
+You already touched this in previous prompts. Now we want you to define clearly:
+
+Where in the UI the Master Architect hub lives
+
+Who can see it (admin only)
+
+What sections it has inside (pending tasks, history, logs, configuration)
+
+How queued actions are displayed, including:
+
+original prompt
+
+context (contact, job)
+
+proposed action
+
+status (pending, approved, rejected, executed, failed)
+
+How human users interact with it (approve, reject, edit, resubmit)
+
+This should be treated like the “AI Control Center” for the entire system.
+
+6. API FIRST AND INTEGRATION LANGUAGE
+
+Important requirement to include in this blueprint:
+
+Smart Klix CRM must be API first and integration friendly.
+
+Document how the front end and back end should be structured so that:
+
+All core actions the UI needs are exposed as clean JSON REST APIs
+
+These APIs follow common standards that other tools can talk to easily
+
+For example:
+
+JSON over HTTPS
+
+Clear resource based endpoints like /api/contacts, /api/jobs, /api/appointments, /api/notes, /api/files
+
+Use standard HTTP verbs (GET, POST, PATCH)
+
+Use consistent naming for fields across UI, API, and N8N workflows
+
+In the blueprint, include:
+
+A short section called APIAndIntegrationStrategy
+
+A list of the key resources and endpoints that MUST exist
+
+A note that these same APIs should be used by:
+
+the web UI
+
+N8N workflows
+
+any future external integrations
+
+The goal is that Smart Klix CRM “speaks the same language” as other modern apps and automation tools, using normal JSON REST APIs so N8N, other CRMs, and other services can talk to it easily.
+
+Do not produce OpenAPI files yet. Just describe the structure and expectations clearly.
+
+7. IMPLEMENTATION ORDER AND RISK
+
+Finally, we want a realistic order of implementation, with risk notes.
+
+For each phase, include:
+
+Dependencies
+
+What could break if done wrong
+
+What should be tested after each phase
+
+Any migration concerns for data or users
+
+Focus especially on:
+
+Navigation changes
+
+Moving Notes and Files into detail pages
+
+New actions and buttons that must be wired to APIs
+
+Anything that touches existing data
+
+IMPORTANT
+
+This blueprint is documentation only.
+Do NOT write code.
+Do NOT change the database.
+Do NOT refactor anything yet.
+
+We want a clean, developer usable blueprint that we can hand to an engineer so they know exactly:
+
+what to build
+
+where to build it
+
+in what order
+
+and how to keep it API friendly for automations and integrations.
+
+When you are done, output only the contents of SMART_KLIX_UI_IMPLEMENTATION_BLUEPRINT.md.

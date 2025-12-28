@@ -1,0 +1,307 @@
+Right now we have two massive blockers:
+
+The chat system is NOT wired to anything.
+You literally cannot send a message because the frontend chat box is not connected to any backend endpoint, and the backend /api/chat logic is not connected to the Master Architect or the Assist Queue.
+
+Neo8 integration is NOT connected yet
+Because the CRM is not ready to receive automations or send tasks back.
+
+So the next step is very simple:
+
+We tell the developer: before connecting Neo8, all internal systems must be wired and testable end to end.
+
+Meaning:
+
+Chat widget → CRM endpoint → Master Architect → Assist Queue → Response
+
+Internal AI chat (Intelligence Bot) → /api/chat → Master Architect → Response
+
+N8N endpoints → CRM → logs → no errors
+
+CRM outbound events → N8N → callback → CRM
+
+ALL must work without Neo8 first
+
+THEN Neo8 can plug in
+
+So here is the next prompt you send him.
+This is exactly what you need:
+
+SMART KLIX CRM — PRE-NEO8 FULL CONNECTION & READINESS PROMPT
+
+Copy this and send it as-is.
+
+⚠️ BEFORE WE CONNECT N8N/NEO8, ALL INTERNAL CRM SYSTEMS MUST BE FULLY WIRED & FUNCTIONAL
+
+We cannot integrate Neo8 or push any automation flows until the internal Smart Klix CRM is fully connected and working end-to-end.
+Right now we have several broken pipelines:
+
+The chat page does not send messages
+
+The chat endpoint does not connect to the Master Architect
+
+The Master Architect does not receive tasks
+
+The Assist Queue is not connected
+
+The internal AI agent pipeline is not connected
+
+The internal /api/chat flow is incomplete
+
+The chat widget is missing
+
+The Master Architect intake is missing
+
+Internal automations are not reporting back into the hub
+
+Neo8 events would fail because the CRM is not ready
+
+Your job is to complete ALL of the following internal connections BEFORE Neo8 is plugged in.
+
+PHASE 1 — FIX THE CHAT SYSTEM (CRITICAL)
+The chat page must be fully functional:
+
+Chat sidebar → Chat input → Chat backend → Master Architect → Response
+
+Chat must display incoming messages
+
+Chat must send outgoing messages
+
+Chat must load message history
+
+Chat must support modes (Draft, Assist, Auto)
+
+Chat cannot remain disconnected.
+
+Required connections:
+
+Frontend:
+
+Chat input must POST to /api/chat
+
+Response must update the UI
+
+Chat must render a full message list
+
+Backend:
+
+/api/chat must:
+
+validate input
+
+fetch memory (if implemented)
+
+send message to Master Architect
+
+generate an action plan
+
+return a proper response object
+
+Master Architect:
+
+Must receive messages
+
+Must create tasks for Assist Queue
+
+Must analyze the prompt
+
+Must be the single brain of the system
+
+No skipping. No leaving placeholders.
+
+PHASE 2 — WIRE INTERNAL AUTOMATION PIPELINE
+
+These parts must work before Neo8 enters:
+
+The internal action schema
+
+The task creation system
+
+The Assist Queue
+
+The task acceptance flow
+
+The tool execution system
+
+Requirements:
+
+Master Architect must be able to create actions
+
+Assist Queue must show pending actions
+
+Approve/Reject must update task state
+
+AI must receive final result
+
+Logs must be written into audit log
+
+Internal errors must be captured
+
+This is REQUIRED before external automations flow in.
+
+PHASE 3 — VERIFY ALL INTERNAL API ENDPOINTS WORK
+
+You must test all endpoints manually:
+
+Contacts
+
+list
+
+create
+
+update
+
+delete
+
+detail view
+
+Jobs
+
+create job
+
+update job status
+
+job detail
+
+job list
+
+Estimates
+
+list
+
+detail
+
+create/edit
+
+status changes
+
+Invoices
+
+list
+
+detail
+
+create/edit
+
+status changes
+
+Files
+
+upload
+
+attach to job/contact
+
+fetch
+
+delete
+
+Notes
+
+create
+
+list
+
+edit
+
+delete
+
+If any endpoint is broken or dummy, you must fix it.
+
+PHASE 4 — PREPARE N8N ENTRY POINTS
+
+Only AFTER the CRM’s internal pipelines work:
+
+CRM → N8N outbound events
+
+Test:
+
+send_sms
+
+send_email
+
+job_updated
+
+missed_call
+
+new_lead
+
+N8N → CRM callbacks
+
+Test:
+
+/api/events/update
+
+/api/contacts/create
+
+/api/leads/create
+
+all secured with Bearer token
+
+All must be tested using local mock payloads.
+
+PHASE 5 — PREPARE CHAT WIDGET
+
+You must prepare a complete chat widget integration package, including:
+
+Full page inside the CRM for widget management
+
+A configuration section
+
+A snippet generator
+
+The public embed script
+
+The correct API endpoints
+
+All data formats
+
+Full instructions for developers to embed widget code
+
+Widget → CRM → Master Architect pipeline
+
+Widget error handling
+
+Widget identity/session logic
+
+Even if the widget is not fully implemented yet, the CRM must be ready for it.
+
+PHASE 6 — MASTER ARCHITECT AS THE CENTRAL HUB
+
+You must ensure that:
+
+ALL AI-related activity reports directly to the Master Architect
+
+This includes:
+
+Chat assistant
+
+Chat widget
+
+AI tools
+
+Automation flows
+
+System suggestions
+
+Task creation
+
+Task completion
+
+Task errors
+
+Learning and memory integration
+
+Master Architect must NEVER be hidden, merged, or split.
+He is the central brain and command center.
+
+Your Deliverables:
+1. Full internal connection audit
+2. List of broken/missing connections
+3. Fixes for chat system
+4. Fixes for AI task workflow
+5. Fixes for Assist Queue
+6. Fixes for Master Architect routing
+7. API endpoint functionality verification
+8. N8N readiness checklist
+9. Chat widget integration prep
+10. Confirmation the CRM is fully functional BEFORE Neo8 connects

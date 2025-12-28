@@ -1,0 +1,103 @@
+CRM Developer Prompt
+
+Subject: Phone Number Input, Country Handling, and Messaging Channel Readiness
+
+We are locking how phone numbers and messaging channels are handled in the CRM UI to support SMS and WhatsApp correctly across countries.
+
+1. Phone Number Input (REQUIRED)
+
+All phone number inputs in the CRM (contact create, edit, import, AI-created leads, manual entry) must:
+
+Include a country selector (flag + country name)
+
+Auto-apply the country calling code
+
+Store the phone number only in E.164 format
+
+Example:
+Country: Mexico
+User input: 55 1234 5678
+Stored value: +525512345678
+
+No raw or local formats are allowed to be stored.
+
+2. Validation Rules
+
+Before a phone number can be saved or used for outreach:
+
+Country must be selected
+
+Phone must be valid for that country
+
+Final stored value must match E.164 (+ + digits only)
+
+If invalid, block save/send and surface a UI error.
+
+3. Messaging Channel Decision (CRM-Owned)
+
+The CRM must decide which channel is allowed before calling Neo8.
+
+For each outreach action, CRM must explicitly choose:
+
+channel: "whatsapp" or
+
+channel: "sms"
+
+This decision is based on:
+
+Destination country
+
+Business rules (LATAM default WhatsApp, SMS restricted where needed)
+
+Contact preferences (if present)
+
+Neo8 will NOT guess or switch channels.
+
+4. Payload Contract to Neo8 (Locked)
+
+When CRM triggers outreach, it sends:
+
+to: "+E164_NUMBER"
+from: "+E164_NUMBER"
+channel: "whatsapp" | "sms"
+body: "message text"
+
+
+Numbers must already be normalized.
+Neo8 will only prepend whatsapp: when channel = whatsapp.
+
+5. Inbound Messages
+
+Inbound SMS / WhatsApp messages received via Neo8:
+
+Are logged to CRM
+
+Must match contacts by E.164 phone
+
+No country parsing required on inbound (already normalized)
+
+6. Explicit Non-Responsibilities
+
+Neo8 does NOT:
+
+Parse or validate country
+
+Format phone numbers
+
+Decide SMS vs WhatsApp
+
+Handle carrier or regional rules
+
+All of that lives in CRM.
+
+Acceptance Criteria
+
+All phone numbers stored as E.164
+
+Country selector present in CRM UI
+
+Outreach cannot fire without valid country + number
+
+CRM explicitly chooses SMS vs WhatsApp
+
+Neo8 receives clean, final payloads only

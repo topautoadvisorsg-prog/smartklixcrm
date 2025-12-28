@@ -1,0 +1,104 @@
+Yes, go ahead and save your audit report to
+
+docs/smartklix_ai_and_ui_audit.md
+
+I agree with your key findings.
+
+Now I want you to move out of Plan mode and into actual implementation using clean code, strict TypeScript, and proper documentation of what you touch and where it lives.
+
+Please do the following, in this order:
+
+Route all widget chat through Master Architect
+
+PublicChatService must no longer call OpenAI directly
+
+The public widget should use the same Master Architect pipeline as CRM Agent Chat and ChatGPT Actions
+
+Make sure tools, model settings, and audit logging are applied the same way across all channels
+
+Keep Master Architect as its own tab
+
+Keep the page as a first class tab in the AI section
+
+If you want to add “Approval Hub” inside the page as a description that is fine
+
+Do not hide this hub, this is the center of truth for everything the AI executes
+
+Merge ActionGPT Config and GPT Actions Tools into one clear area
+
+One main section called “ChatGPT Actions” inside the AI and Automation group
+
+Inside that area, use tabs like
+
+Config, base URL, auth token, schema
+
+Tools, list of tools, permissions
+
+Logs, execution history
+
+The goal is that a builder for n8n and a builder in the ChatGPT Actions console can understand everything they need from this single place
+
+Unify tool permissions
+
+There must be a single source of truth for tool permissions and allowed modes
+
+Master Architect config should be that authority
+
+ActionGPT, CRM Chat, AI Receptionist and the widget should all respect the same tool permission model and not re invent it in three different places
+
+Add webhook signature verification for n8n and any other incoming automations
+
+All n8n callbacks must be verified, not trusted blindly
+
+Add the verification layer, keep it clean and reusable
+
+Log signature failures in a way that is visible later in a monitoring view
+
+Respect the single brain architecture across all channels
+
+CRM Agent Chat
+
+Public widget chat
+
+ChatGPT Actions
+
+Future AI Receptionist
+All of these must route through Master Architect and share the same core execution pipeline with modes, Draft, Assist, Auto, approvals and logging
+
+Clean code and documentation pass on what you touch
+
+No dead code, no unused imports, no commented junk left behind
+
+Follow clear naming, one responsibility per module
+
+For any new config areas or important flows, add short docs under docs/ that explain
+
+What the page or module does
+
+How channels connect to Master Architect
+
+Where n8n and Twilio will plug in later
+
+Short UX passes where it is cheap
+
+Apply your own recommendations from the audit where they are low effort and high value
+
+Example, better labels for AI tabs, clearer descriptions for ActionGPT, and a simple channel filter in approval views
+
+Important
+
+This phase is implementation, not another high level audit
+
+If you see something in your own audit that you strongly disagree with now that you are in the code, say it and propose a better approach
+
+If any part of this plan conflicts with the current architecture in a serious way, call it out before changing it
+
+Once you are done with this batch, I want a brief written summary in markdown with
+
+What you changed
+
+Which tabs or pages were touched
+
+Any technical decisions you made that I should know about
+
+Then we will do another pass focused on the AI Receptionist page and Twilio specifics, once this core is solid.

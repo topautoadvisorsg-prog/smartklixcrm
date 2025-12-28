@@ -1,0 +1,135 @@
+Correct Authority Boundary (Lock This In)
+❌ DOES NOT BELONG IN AI Voice Tab
+
+These live exclusively on the AI Voice Server (economic / premium engines):
+
+Assistant personality / behavior
+
+Language selection (e.g. “Natural English”)
+
+Call handling logic
+
+Retry logic
+
+Processing mode
+
+AI model selection
+
+Speech recognition settings
+
+Tool permissions
+
+Advanced AI settings
+
+“How should the assistant behave”
+
+Any form of prompt engineering UI
+
+Why?
+Because:
+
+These are engine-level concerns
+
+They must be centrally controlled
+
+They must be versioned, tested, and deployed server-side
+
+They must NOT vary per dispatch unless explicitly allowed by the engine
+
+If you allow these in the CRM UI, you:
+
+Break consistency
+
+Risk unauthorized behavior changes
+
+Create config drift
+
+Turn the CRM into an AI lab (bad)
+
+✅ What the AI Voice Tab IS Allowed to Do
+1. Dispatch (This Part Is Good — Keep It)
+
+The Dispatch sub-tab is correct.
+
+Allowed fields:
+
+Contact selection (who to call)
+
+Voice intent / mission (enum or constrained input)
+
+Context notes (non-instructional, factual context only)
+
+Engine routing: Economic vs Premium (required)
+
+Authorization checkbox
+
+Dispatch button
+
+That’s it.
+
+Think of this as:
+
+“Send this mission to that engine for this contact”
+
+2. Observability / Logs (Read-Only)
+
+Allowed:
+
+Call status
+
+Timestamps
+
+Outcome summary
+
+Transcript / summary (if returned)
+
+Error codes (if failed)
+
+Ledger references
+
+Not allowed:
+
+Editing behavior
+
+Retrying with modified AI logic
+
+Changing model settings post-dispatch
+
+🔒 Core Rule (This Is the One-Liner)
+
+The AI Voice tab issues instructions.
+It does not define intelligence.
+
+If it defines intelligence → it does not belong here.
+
+How This Should Be Explained to Him (You Can Copy This)
+
+You can tell him something like:
+
+We are intentionally not exposing assistant setup, behavior tuning, processing modes, or model configuration in the AI Voice tab.
+
+All intelligence, behavior, and handling logic lives on the AI Voice Server (economic / premium engines).
+
+The CRM UI is a dispatch and audit surface only.
+
+If a field changes how the AI thinks, speaks, reasons, retries, or processes audio — it does not belong in this tab.
+
+Remove:
+
+Assistant setup
+
+Behavior configuration
+
+Language/model settings
+
+Advanced processing options
+
+Keep:
+
+Dispatch inputs
+
+Engine routing
+
+Authorization
+
+Logs and outcomes

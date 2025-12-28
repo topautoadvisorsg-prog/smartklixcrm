@@ -1,0 +1,198 @@
+RCHITECTURAL DECISION — FINAL, NON-NEGOTIABLE
+✅ OPTION A IS CORRECT — WITH HARD BOUNDARIES
+
+BUT it must be implemented with explicit classification, not vibes.
+
+🧠 THE ACTUAL RULE (WRITE THIS INTO THE ARCH DOC)
+1️⃣ ACTION CLASSIFICATION (MANDATORY)
+
+Every action MUST be classified as ONE of these two types:
+
+🟢 TYPE 1 — CRM-INTERNAL ACTIONS (DIRECT EXECUTION ALLOWED)
+
+These are pure CRM state mutations.
+
+Examples:
+
+create_contact
+
+update_contact
+
+create_job
+
+update_job
+
+add_note
+
+tag_entity
+
+assign_owner
+
+Rules:
+
+✅ Executed directly by CRM
+
+❌ NEVER sent to Neo-8
+
+✅ Ledger entries ARE written
+
+❌ No external providers
+
+❌ No retries / callbacks
+
+Think of these as database transactions, not automations.
+
+🔵 TYPE 2 — EXTERNAL / PROVIDER ACTIONS (NEO-8 ONLY)
+
+Anything that touches the outside world.
+
+Examples:
+
+send_email
+
+send_whatsapp
+
+send_sms
+
+google_docs.create
+
+google_docs.update
+
+google_sheets.append
+
+google_calendar.create
+
+Any webhook / API / side-effect outside CRM
+
+Rules (ABSOLUTE):
+
+❌ CRM NEVER executes these
+
+✅ CRM ONLY dispatches to Neo-8
+
+✅ Neo-8 executes
+
+✅ Neo-8 retries / handles errors
+
+✅ Neo-8 callbacks write final ledger state
+
+❌ No alternate execution path
+
+🚨 WHAT IS CURRENTLY BROKEN (YOU CAUGHT IT CORRECTLY)
+❌ Review Queue Approval Endpoint
+
+/api/assist-queue/:id/approve
+
+Current behavior (WRONG):
+
+Calls executeAITool directly
+
+Executes provider tools inside CRM
+
+This is a CRITICAL VIOLATION.
+
+✅ REQUIRED FIX (NO DISCUSSION)
+When approval happens:
+OLD (WRONG)
+approve →
+  executeAITool(tool)
+
+NEW (CORRECT)
+approve →
+  classify action
+    ├─ if INTERNAL → execute locally
+    └─ if EXTERNAL → dispatchNeo8Event
+
+dispatchNeo8Event MUST:
+
+POST webhook to Neo-8
+
+Include:
+
+assist_queue_id
+
+action_type
+
+payload
+
+trace_id
+
+Write ledger event:
+
+EXECUTION_DISPATCHED
+
+📒 LEDGER RULES (CONFIRMED)
+For INTERNAL actions:
+
+AI_PROPOSAL_CREATED
+
+AI_VALIDATION_RECORDED
+
+EXECUTED_INTERNAL
+
+For EXTERNAL actions:
+
+AI_PROPOSAL_CREATED
+
+AI_VALIDATION_RECORDED
+
+EXECUTION_DISPATCHED
+
+(callback)
+
+EXECUTED / FAILED / DELIVERED
+
+🟡 ABOUT auditLog FOR READ_CHAT (THIS IS IMPORTANT)
+
+This is NOT a violation IF AND ONLY IF:
+
+auditLog is:
+
+Security / observability only
+
+NOT user-facing
+
+NOT part of automation_ledger
+
+NOT interpreted as an “action”
+
+Write this rule explicitly:
+
+automation_ledger = business actions
+auditLog = system telemetry
+
+If auditLog ever appears in UI or metrics → that’s a bug.
+
+🧾 WHAT I EXPECT YOU TO DO NEXT (IN ORDER)
+
+1️⃣ Refactor Review Queue approval:
+
+Remove executeAITool for external tools
+
+Enforce action classification
+
+2️⃣ Add explicit enum:
+
+ActionExecutionType = INTERNAL | EXTERNAL
+
+
+3️⃣ Guardrail:
+
+If EXTERNAL tool is called without Neo-8 → throw hard error
+
+4️⃣ Update docs:
+
+One table listing which actions go where
+
+No ambiguity
+
+5️⃣ Re-run governance audit
+
+Review Queue = ✅ compliant
+
+🟢 FINAL ANSWER (SO THERE IS NO CONFUSION)
+
+Option A is approved.
+Internal CRM mutations execute directly.
+ALL external/provider actions MUST go through Neo-8.
+No exceptions. No shortcuts. No “temporary” bypasses.

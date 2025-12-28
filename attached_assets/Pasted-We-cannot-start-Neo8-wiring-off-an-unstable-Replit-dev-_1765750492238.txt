@@ -1,0 +1,67 @@
+We cannot start Neo8 wiring off an unstable Replit dev URL or a reused webhook secret.
+
+Deliver these two items now so wiring can start today:
+
+Stable STAGING CRM_BASE_URL
+Requirement: does not change, does not sleep during wiring and testing.
+If Replit can sleep, give me a stable URL, for example a custom domain, a reserved deployment URL, or anything you can guarantee stays up.
+
+Dedicated N8N_INTERNAL_TOKEN
+Requirement: new value, not reused from N8N_WEBHOOK_SECRET.
+Auth contract stays: Authorization: Bearer {N8N_INTERNAL_TOKEN}
+Return 401 on missing or invalid token.
+
+After you apply requireInternalToken to all Neo8 facing endpoints, confirm which endpoints are protected and confirm 401 behavior is working.
+
+What to send the Neo8 builder right now
+
+Copy, paste, send this:
+
+We are wiring as soon as CRM provides STAGING CRM_BASE_URL and a dedicated N8N_INTERNAL_TOKEN.
+
+Prepare Neo8 with two env vars, values pending:
+CRM_BASE_URL
+N8N_INTERNAL_TOKEN
+
+Confirm every HTTP Request node that calls CRM uses:
+Authorization: Bearer {{$env.N8N_INTERNAL_TOKEN}}
+URL = {{$env.CRM_BASE_URL}} plus path
+No hardcoded tokens, no hardcoded CRM domains
+
+Do not enable live triggers yet, only prepare credentials and be ready to run Execute Node tests.
+
+Baby step checklist for you, in order
+
+Ask CRM dev for the stable staging URL and a dedicated token using the message above.
+
+In Neo8, open Environment Variables and create these keys now, leave values blank:
+CRM_BASE_URL
+N8N_INTERNAL_TOKEN
+
+In Neo8, prepare credentials in the Credentials manager (do not test live triggers yet):
+Twilio, OpenAI, Redis, Stripe, SendGrid, Google OAuth2.
+
+Once CRM dev gives you the staging URL and token, you paste them into Neo8 env vars, then we start wiring flow by flow.
+
+Where to find the exact info he is talking about
+
+Use these docs, open them and follow the exact sections.
+
+n8n Environment variables
+https://docs.n8n.io/hosting/configuration/environment-variables/
+
+n8n Credentials management
+https://docs.n8n.io/credentials/
+
+Replit Deployments, for stable URLs (not dev preview)
+https://docs.replit.com/hosting/deployments
+
+Twilio WhatsApp webhooks and setup
+https://www.twilio.com/docs/whatsapp
+
+Twilio Voice webhooks, StatusCallback, TwiML
+https://www.twilio.com/docs/voice
+
+One decision you need to make right now
+
+Staging URL must be stable. If his CRM is currently only a Replit dev URL that can sleep, you need him to deploy it to something stable first, even if it is still “staging.”

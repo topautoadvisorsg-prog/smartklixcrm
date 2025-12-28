@@ -1,0 +1,37 @@
+Invalid character in header content ["authorization"]
+
+n8n AI
+Error details
+
+ From HTTP Request
+Error code
+
+ERR_INVALID_CHAR
+
+Request
+
+{ "body": { "contactId": "=7138b680-acc8-474d-a513-c042ca4d9bc4", "reason": "", "": "" }, "headers": { "authorization": "**hidden**", "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7" }, "method": "GET", "uri": "https://6ce88bbf-26a4-47c4-abb7-7ce94909d3ba-00-2kgw7q91cwdj4.kirk.replit.dev/api/leads/create", "gzip": true, "rejectUnauthorized": true, "followRedirect": true, "resolveWithFullResponse": true, "followAllRedirects": true, "timeout": 300000, "encoding": null, "json": false, "useStream": true }
+ Other info
+Item Index
+
+0
+
+Node type
+
+n8n-nodes-base.httpRequest
+
+Node version
+
+4.3 (Latest)
+
+n8n version
+
+1.119.2 (Cloud)
+
+Time
+
+11/16/2025, 11:06:33 AM
+
+Stack trace
+
+NodeApiError: Invalid character in header content ["authorization"] at ExecuteContext.execute (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-nodes-base@file+packages+nodes-base_@aws-sdk+credential-providers@3.808.0_asn1.js@5_afd197edb2c1f848eae21a96a97fab23/node_modules/n8n-nodes-base/nodes/HttpRequest/V3/HttpRequestV3.node.ts:858:16) at WorkflowExecute.executeNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1093:8) at WorkflowExecute.runNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1274:11) at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1708:27 at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5

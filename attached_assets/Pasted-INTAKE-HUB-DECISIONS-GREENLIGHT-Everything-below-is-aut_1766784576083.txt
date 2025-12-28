@@ -1,0 +1,179 @@
+INTAKE HUB — DECISIONS & GREENLIGHT
+
+Everything below is authoritative. No guessing after this.
+
+1️⃣ Rename or Replace IntakeBuilder?
+
+Decision: REPLACE UI, KEEP FILE (for now)
+
+✅ Keep client/src/pages/IntakeBuilder.tsx
+
+✅ Refactor its UI completely to match the Intake Hub control-room layout
+
+❌ Do NOT delete the file
+
+❌ Do NOT introduce a second Intake page yet
+
+❌ Do NOT rename to Intake.tsx in this phase
+
+Why:
+There may already be routing, permissions, and references tied to IntakeBuilder.
+We are not breaking existing plumbing during UI alignment.
+
+📌 README note required:
+Document that IntakeBuilder is now the Intake Hub (triage + staging) and not a form builder UI anymore.
+
+2️⃣ “Verify & Commit” Backend — What Does It Hit?
+
+Decision: STUB + LEDGER EVENT (NO NEW BACKEND LOGIC)
+
+✅ Frontend action exists
+
+✅ Button triggers:
+
+INTAKE_COMMITTED ledger event
+
+Neo8 / ActionAI handoff
+
+❌ Do NOT invent new REST endpoints
+
+❌ Do NOT directly mutate CRM entities
+
+How to implement NOW:
+
+UI button calls existing intake update endpoint (or mock handler)
+
+Emit clearly named action:
+
+commitIntakeSubmission(submissionId)
+
+
+Internally:
+
+Log INTAKE_COMMITTED
+
+Hand off payload to ActionAI / Neo8
+
+If backend endpoint does not yet exist:
+
+Stub the handler
+
+Disable button only if absolutely required
+
+Clearly annotate in README: “Backend commit handled by ActionAI pipeline”
+
+Why:
+Intake Hub stages, it does not execute.
+Execution begins after this tab.
+
+3️⃣ Active Intake (Outbound) — What Is It?
+
+Decision: SIMPLE OUTBOUND REQUEST PANEL (NO COMPLEXITY)
+
+Active Intake = Request data, not receive it.
+
+What it SHOULD show:
+
+Minimal outbound form:
+
+Recipient (Contact / Email / Phone)
+
+Intake Type (Lead Info, Job Info, Qualification)
+
+Channel (Email / WhatsApp / Link)
+
+CTA: “Send Intake Request”
+
+What it SHOULD NOT be:
+
+❌ Not a form builder
+
+❌ Not automation configuration
+
+❌ Not a campaign tool
+
+Flow:
+
+Operator → Active Intake → Neo8 → External User
+Response → Intake Hub (Triage Queue)
+
+
+📌 If time-constrained:
+
+You may ship Active Intake as a placeholder panel
+
+Clearly labeled: “Outbound intake requests (v1)”
+
+4️⃣ Neo8 — Inbound Endpoint Confirmation
+
+Decision: YES, SINGLE ENDPOINT
+
+✅ /webhook/lead-intake is the single inbound endpoint
+
+✅ All sources (Widget, Typeform, Zapier, etc.) flow through it
+
+❌ No per-source endpoints
+
+Neo8 responsibilities:
+
+Normalize inbound payloads
+
+Attach source, timestamp, trace_id
+
+Forward into Intake Hub staging tables
+
+5️⃣ Automation Ledger Events (LOCKED)
+
+You were correct. These are mandatory.
+
+Event	When
+INTAKE_RECEIVED	Raw payload lands
+INTAKE_COMMITTED	Operator clicks Verify & Commit
+INTAKE_REJECTED	Operator clicks Reject
+
+Intake Hub writes these
+
+Intake Hub does not process outcomes
+
+6️⃣ UI / UX AUTHORIZATION
+
+You are fully cleared to implement:
+
+3-column fixed grid layout
+
+Triage Queue (left)
+
+Terminal-style JSON viewer (middle, read-only)
+
+Normalized editable form (right)
+
+Dedupe amber warning banner
+
+Header toggle: Triage / Active Intake
+
+Source Configuration popover (UI only unless wired already)
+
+Accessibility note (approved):
+
+You MAY increase text size slightly for readability
+
+Do NOT reduce information density
+
+7️⃣ What You MUST NOT Do
+
+Just like before:
+
+❌ No backend schema changes
+❌ No new automation logic
+❌ No ActionAI decisions here
+❌ No skipping ledger events
+❌ No silent behavior changes
+
+✅ FINAL STATUS
+
+Intake Hub: UNBLOCKED — PROCEED
+
+You now have zero blocking questions.
+
+👉 Implement Intake Hub UI + README updates.
+👉 When done, report back with:

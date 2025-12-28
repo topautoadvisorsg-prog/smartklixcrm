@@ -1,0 +1,196 @@
+UI/UX & Documentation Audit — Review-Only Phase
+
+You are entering Audit Mode.
+
+This is a read-only review.
+❌ Do NOT fix anything
+❌ Do NOT refactor
+❌ Do NOT change code
+❌ Do NOT update READMEs
+
+Your task is to inspect, verify, and report only.
+
+1️⃣ Audit Scope
+
+You must audit everything completed so far, including:
+
+A. Navigation & Tabs
+
+Verify and report on:
+
+Final sidebar tab names
+
+Tab order
+
+Naming consistency between:
+
+Sidebar
+
+Internal routes
+
+Documentation
+
+Confirm:
+
+No deprecated tabs remain
+
+No hallucinated or extra tabs exist
+
+All approved tabs are present
+
+👉 Report any mismatch explicitly.
+
+B. README Documentation (Per Tab)
+
+For each tab worked on, verify:
+
+README exists
+
+README lives in the correct folder
+
+README includes:
+
+Purpose
+
+UI/UX behavior
+
+Relevant backend connections (including Neo8 where applicable)
+
+README does not:
+
+Redefine backend logic
+
+Invent new features
+
+Contradict product architecture
+
+Also verify:
+
+Main product README still exists
+
+Main README reflects current structure (high-level only)
+
+👉 Report missing, incomplete, or inaccurate documentation.
+
+C. UI Layout & Visual Structure (Code Review)
+
+Inspect the frontend layout architecture, not business logic.
+
+Report on:
+
+Layout hierarchy (containers, sections, panels)
+
+Spacing and visual rhythm
+
+Component composition
+
+Readability and scan flow
+
+Consistency across tabs
+
+Verify that:
+
+Mock-up layout guidance was respected
+
+No visual clutter was introduced
+
+Advanced functionality follows progressive disclosure
+
+Nothing feels “everything-on-one-screen”
+
+👉 If something looks implemented differently than intended, describe it, do not fix it.
+
+D. Design Constraints Compliance
+
+Confirm explicitly that:
+
+Color palette was NOT changed
+
+Theme tokens were NOT modified
+
+Typography/font was NOT changed
+
+Global styles remain intact
+
+👉 If anything deviates, list it clearly.
+
+E. Backend & Automation Awareness (Non-Implementation Check)
+
+You are NOT changing backend logic, but you must confirm:
+
+UI elements that rely on automation are clearly mapped conceptually
+
+Neo8 remains the documented automation layer
+
+No UI implies logic that does not exist
+
+👉 Report any UI that suggests unsupported backend behavior.
+
+2️⃣ Required Audit Report Format
+
+Your response must follow this structure exactly:
+
+✅ Summary
+
+Overall status (Pass / Minor Issues / Major Issues)
+
+One-paragraph high-level assessment
+
+📌 Findings by Category
+1. Navigation & Tabs
+
+✔ What is correct
+
+❌ What is incorrect or unclear
+
+2. READMEs
+
+✔ Tabs with complete READMEs
+
+❌ Missing or weak documentation
+
+3. UI Layout & UX
+
+✔ Strong layout decisions
+
+❌ Layout, flow, or hierarchy concerns
+
+4. Design Constraint Violations
+
+List only if any exist
+
+Otherwise state: “No violations found”
+
+5. Backend / Automation Alignment
+
+✔ What aligns correctly
+
+❌ Any misleading or risky UI implications
+
+⚠️ Risks & Recommendations (No Fixes)
+
+List potential issues if left unresolved
+
+No solutions yet — observation only
+
+⛔ Items Requiring Follow-Up
+
+A clear bullet list of:
+
+What must be addressed next
+
+What requires clarification before fixing
+
+3️⃣ Hard Rules
+
+This is reporting only
+
+Do not propose code
+
+Do not apply fixes
+
+Do not “quick clean” anything
+
+Stop after the report
+
+Once the audit is reviewed, you will receive a separate execution prompt with fixes.

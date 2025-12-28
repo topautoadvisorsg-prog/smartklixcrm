@@ -1,0 +1,119 @@
+Yes, I agree with the overall structure, but there are a few hard contradictions and a few risky assumptions in what you pasted that you should fix before you wire credentials, because they will recreate “nothing happens” and “wrong endpoint” issues.
+
+The big problem you must fix right now
+Call End Processing, you still have an intake routing contract violation
+
+In your section “3️⃣ Call End Processing”, you list this under CRM Callback and Logging:
+
+Endpoint: /api/activity-log/write (CRM), /webhook/intake/ai-receptionist
+
+That is not aligned with your locked execution model, and it contradicts what your inventory report said was corrected.
+
+Correct rule:
+
+Call end must write lead intake directly to CRM, for example POST /api/leads/intake
+
+It must not post to any n8n webhook like /webhook/intake/ai-receptionist
+
+So update your document in two places:
+
+In the node list, rename “Send to Lead Intake Flow” to “Write Lead to CRM Intake Endpoint”
+
+In the CRM Callback section, replace /webhook/intake/ai-receptionist with /api/leads/intake and use your CRM base URL
+
+Also, your “Idempotency: CallSid as unique identifier” is correct, keep that.
+
+The second big issue, auth headers are being assumed, not confirmed
+
+Your breakdown repeatedly marks HTTP Request nodes as “✅ Ready” with “Auth header” listed, but earlier audits showed multiple CRM logging nodes missing Authorization headers.
+
+Do not assume they are open.
+
+You need one explicit answer from the CRM developer, and then you apply it everywhere consistently:
+
+Which CRM endpoints require auth
+
+The exact header name and format
+
+Whether Neo8 uses the same token for all tenants or tenant scoped token
+
+Until that is confirmed and implemented, you cannot say “✅ Ready” for any CRM logging node.
+
+Third issue, your Payment Event Processing wording is internally inconsistent
+
+You wrote:
+
+“From Stripe: { event_type, id, payment_intent, charge }”
+But you also wrote earlier that the trigger is “CRM Payment Event Webhook, CRM initiated, not Stripe webhook”.
+
+Pick one and lock it in the doc.
+
+If the contract is “CRM calls Neo8 with payment event payload”, then change the wording to:
+
+“From CRM: payment event payload shaped like Stripe events, event_type, id, payment_intent, charge”
+
+If Stripe is ever calling Neo8 directly, then signature verification becomes a required section, and right now it is missing.
+
+Fourth issue, idempotency keys in Outreach are weak
+
+You wrote:
+
+“Idempotency: contactId + actionType + timestamp.”
+
+That is not safe, because timestamp changes each run, so it will not prevent duplicates.
+
+Correct approach under your model:
+
+Use a CRM generated actionId, taskId, or queueItemId in the payload
+
+Neo8 executes once, logs back with that same id
+
+CRM enforces de dupe by actionId
+
+So update your Outreach required payload to include one of:
+
+actionId, taskId, queueItemId, or assistQueueId
+
+If you do not have that yet, this is the exact question to ask the CRM developer:
+
+What stable unique id will be included on every dispatched action so both sides can de dupe, actionId or queueItemId.
+
+Fifth issue, you are still mixing “manual trigger” language
+
+Your outreach trigger is not “manual” in Neo8 terms, it is CRM intent based. That is fine, but your doc should consistently say:
+
+Triggered by CRM action, button click or stage change, and includes defined payload contract
+
+What I would change in your document, line by line
+
+Call End Processing
+
+Replace any mention of /webhook/intake/ai-receptionist with POST /api/leads/intake
+
+Confirm “Send to Lead Intake Flow” node points to CRM base URL plus /api/leads/intake
+
+Add a Global section: CRM Auth Contract
+
+Header name
+
+Header value format
+
+Applies to all endpoints or specific endpoints
+
+Update Outreach payload schema
+
+Add actionId or queueItemId
+
+Replace timestamp idempotency with actionId idempotency
+
+Update Payment Event wording
+
+Source is CRM, payload is Stripe shaped, unless Stripe truly calls Neo8 directly
+
+Two CRM developer questions that unblock the wiring phase
+
+Ask these exactly:
+
+For every CRM endpoint Neo8 calls, what exact auth header is required, header name and full format, and is it tenant scoped.
+
+What stable unique id will be included on every dispatched action payload, actionId, taskId, or queueItemId, so we can enforce idempotency and stop duplicates.

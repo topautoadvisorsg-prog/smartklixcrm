@@ -1,0 +1,196 @@
+Got it. Here is **exactly** what you asked for:
+**one clean, human-readable prompt** for the **Neo8 Builder** to build the **BASIC AI RECEPTIONIST FLOW**, plus a **short summary of the logic** so there is zero confusion.
+
+No tech-overkill. No assumptions. No extra bullshit.
+
+---
+
+# 🔹 NEO8 BUILDER PROMPT
+
+## WORKFLOW #3A — BASIC AI RECEPTIONIST FLOW (ECONOMIC)
+
+### Flow Name
+
+**AI Receptionist – Basic**
+
+---
+
+## Purpose (Read This First)
+
+This workflow is a **basic, cost-efficient AI phone receptionist**.
+
+Its ONLY job is to:
+
+* Answer inbound phone calls
+* Collect lead information
+* Provide very high-level service info
+* Log everything
+* Hand off to humans
+
+This flow **does NOT sell, qualify, score, or decide anything**.
+All decisions are made by humans after the call.
+
+---
+
+## How This Flow Is Triggered
+
+* Incoming phone call to the **main business phone number**
+* Neo8 receives the call webhook
+* Neo8 checks the CRM setting:
+
+  * If `ai_receptionist_mode = basic`
+  * Route the call to **THIS workflow**
+
+(There is a separate workflow for Premium — do NOT mix them.)
+
+---
+
+## Voice / AI Requirements
+
+* Use **economic voice + speech-to-text** (Whisper or equivalent)
+* Keep responses **short, scripted, and controlled**
+* No long conversations
+* No improvising
+
+---
+
+## AI BEHAVIOR RULES (VERY IMPORTANT)
+
+The AI receptionist MUST:
+
+### ✅ Always
+
+* Greet the caller politely
+* Speak clearly and professionally
+* Ask one question at a time
+* Keep answers short
+* Stay neutral and helpful
+
+### ❌ Never
+
+* Never sell
+* Never promise pricing
+* Never book confirmed appointments
+* Never make decisions
+* Never qualify or disqualify leads
+* Never update CRM status beyond logging
+
+---
+
+## Call Flow Logic (High-Level)
+
+### 1️⃣ Greeting
+
+Example:
+
+> “Hi, thank you for calling [Company Name]. I’m the AI receptionist. I can help take your information and pass it to our team.”
+
+---
+
+### 2️⃣ Collect Lead Information
+
+Ask for and capture:
+
+* Full name
+* Phone number
+* Email address (if available)
+* Brief reason for calling
+
+If the caller refuses → still proceed politely.
+
+---
+
+### 3️⃣ Provide Basic Information (If Asked)
+
+Allowed responses:
+
+* General description of services
+* Broad price ranges ONLY (no guarantees)
+* Business hours
+* Next steps (“A team member will follow up”)
+
+If question is too complex:
+
+> “I’ll make sure our team reviews this and follows up with you.”
+
+---
+
+### 4️⃣ Tentative Scheduling (Optional, Never Confirmed)
+
+If the caller asks to schedule:
+
+* Ask for preferred day/time
+* Clearly say:
+
+> “This is a tentative request and requires human confirmation.”
+
+Mark all scheduling as **Pending Human Confirmation**.
+
+---
+
+### 5️⃣ End Call
+
+Example:
+
+> “Thanks for calling. Our team will review this and reach out shortly. Have a great day.”
+
+---
+
+## What Happens After the Call
+
+The workflow must:
+
+* Send full call data + transcript to the CRM
+* Log the interaction as:
+
+  * `ai_receptionist_call`
+* Store:
+
+  * Caller info
+  * Summary
+  * Any tentative scheduling notes
+
+No follow-ups are sent automatically from this flow.
+
+---
+
+## Integrations (Mention Only, No Setup Here)
+
+* Phone / Voice provider (e.g. Twilio)
+* CRM API (log only)
+* AI model (basic / economic tier)
+
+All credentials live **inside Neo8**, not the CRM.
+
+---
+
+## What This Flow Does NOT Do
+
+* No lead scoring
+* No tagging logic
+* No follow-up automation
+* No email or SMS sending
+* No pipeline movement
+* No decisions
+
+This flow **only captures and logs information**.
+
+---
+
+## Summary for Builder (Read Carefully)
+
+* One phone number
+* CRM decides Basic vs Premium
+* This is the **Basic** version
+* Simple script-style AI
+* Capture info → log → hand off to humans
+* Keep it clean and lightweight
+
+---
+
+If you want, next step after this is:
+
+* **Premium AI Receptionist Prompt**
+* Or review how CRM toggles Basic vs Premium
+
+This prompt is ready to copy/paste to the Neo8 Builder.

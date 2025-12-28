@@ -1,0 +1,131 @@
+CONTACTS TAB — DECISIONS & GREENLIGHT
+1️⃣ AI Signals (Warmth / Churn / Sentiment)
+
+Decision: A — KEEP AS PLACEHOLDERS
+
+✅ Keep Warmth Score, Churn Risk, Sentiment Trend visible
+
+✅ Mark clearly in code + README as:
+
+AI-derived (pending backend integration)
+
+❌ Do NOT remove them
+
+❌ Do NOT invent new APIs
+
+❌ Do NOT change logic ownership
+
+Why:
+These are core relationship signals in the product philosophy. Removing them would be a regression. They stay as UI placeholders until Discovery AI endpoints exist.
+
+Implementation rule:
+
+No Math.random() scattered inline
+
+Centralize placeholders in a clearly named selector or mock util
+
+Comment loudly that they are temporary
+
+2️⃣ Job History Data Source
+
+Decision: QUERY /api/jobs?contactId=X (client-side filter if needed)
+
+✅ Use existing jobs endpoint
+
+✅ Filter by contactId
+
+❌ Do NOT add new backend endpoints
+
+❌ Do NOT denormalize into Contacts
+
+Why:
+Contacts is a viewer, not an owner. Jobs own job history.
+
+3️⃣ Layout Approach (Critical)
+
+Decision: A — MATCH MOCKUP EXACTLY
+
+✅ Full 3-column grid
+
+✅ Sidebar always visible
+
+✅ No slide-in panel
+
+❌ Do NOT keep the collapsible panel pattern
+
+Why:
+This tab is a Context Surface, not a task surface.
+The panel pattern hides relationship depth and contradicts the README + mockup.
+
+Responsive rule (important):
+
+Desktop: full 3-column grid
+
+Tablet/Mobile: progressive disclosure (columns collapse into sections)
+
+No data removed, only reorganized
+
+4️⃣ Neo8 / Automation — CONFIRMATIONS
+Endpoints
+
+✅ /webhook/lead-intake is correct for Send Intake Request
+
+✅ It must accept contactId
+
+❌ Contacts does NOT process the response
+
+Flow stays exactly as you described:
+
+Contacts → Neo8 (lead-intake)
+Neo8 → Intake Hub
+Intake Hub → ActionAI → Contact Record
+
+Quick Actions (SMS / Email)
+
+✅ Outbound only
+
+✅ Neo8-owned
+
+❌ No ledger writes from Contacts
+
+5️⃣ What You Are AUTHORIZED To IMPLEMENT NOW
+
+You are cleared to implement everything below without further approval:
+
+3-column grid layout (match mockup)
+
+Semi-circle warmth gauge
+
+Sentiment sparkline (placeholder data)
+
+Last interaction card
+
+Job history list with “Jump to Job”
+
+Title + Address fields
+
+README update to reflect:
+
+Read-only vs editable split
+
+Placeholder AI signals
+
+Neo8 touchpoints
+
+6️⃣ What You Are NOT Allowed To Do
+
+Just to be crystal clear:
+
+❌ No backend schema changes
+❌ No new endpoints
+❌ No AI logic invention
+❌ No automation redesign
+❌ No UX simplification that removes signals
+
+✅ FINAL STATUS
+
+Contacts Tab: UNBLOCKED
+You have answers to every blocking question.
+
+👉 Proceed to implementation.
+When done, report back with:

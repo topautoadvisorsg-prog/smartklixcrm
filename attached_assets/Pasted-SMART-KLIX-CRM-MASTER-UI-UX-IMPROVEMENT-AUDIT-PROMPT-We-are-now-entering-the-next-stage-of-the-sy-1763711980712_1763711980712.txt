@@ -1,0 +1,220 @@
+SMART KLIX CRM — MASTER UI/UX IMPROVEMENT AUDIT PROMPT
+
+We are now entering the next stage of the system build.
+
+We DO NOT want you to modify or implement anything yet.
+
+Right now we want a full professional audit and advisory report focused ONLY on:
+
+reviewing the entire UI
+
+identifying UX flaws
+
+identifying missing components
+
+finding redundancies
+
+recommending improvements
+
+proposing where and how to implement new UI features
+
+proposing better layout, navigation, and interface structure
+
+Your goal is to tell us everything that should be improved BEFORE we begin wiring automation, workflows, and AI integrations.
+
+Make this review extremely honest, strict, and complete. Do NOT hold back.
+
+YOUR AUDIT MUST COVER THESE AREAS:
+1. FULL UI REVIEW
+
+Go through the CRM one tab at a time and document:
+
+what works
+
+what is broken
+
+what is missing
+
+what is confusing
+
+what is redundant
+
+what violates good UX
+
+what needs to be redesigned
+
+Be brutally honest. If a tab shouldn’t exist or needs to be rebuilt, say it.
+
+2. USER EXPERIENCE & FLOW
+
+For each tab/section:
+
+Analyze the workflow
+
+Identify where users get lost
+
+Identify where data is disconnected
+
+Mention any tabs that need to be merged
+
+Mention any tabs that need to be removed
+
+Mention any tabs that need sub-pages or detail views
+
+Your job is to make the entire CRM feel clean, simple, logical, and powerful.
+
+3. CONTACT & JOB DETAIL PAGES
+
+These must exist in any real CRM.
+
+Tell us EXACTLY what should be included in:
+
+Contact Detail Page
+
+Job Detail Page
+
+Explain how these pages should interact with:
+
+Files
+
+Notes
+
+Appointments
+
+Activity Log
+
+Estimates
+
+Invoices
+
+AI Assist Queue
+
+Master Architect hub
+
+This is where most CRMs fail, so give us specifics.
+
+4. REDUNDANT/MESSY TABS
+
+Specifically audit:
+
+Files Tab
+
+Notes Tab
+
+Metrics Tab
+
+User Management Tab
+
+Settings Tab
+
+Tell us:
+
+which should stay
+
+which should be merged
+
+which should be removed
+
+what should be redesigned
+
+Do NOT sugarcoat this.
+
+5. UI IMPROVEMENT RECOMMENDATIONS
+
+For each tab, give:
+
+suggested redesigns
+
+missing components
+
+missing buttons
+
+missing detail pages
+
+needed filtering/search
+
+needed modals/forms
+
+ways to simplify or improve clarity
+
+6. ARCHITECTURAL UI ADVICE
+
+Provide recommendations on:
+
+how the UI should scale as we add more features
+
+how to organize the sidebar cleanly
+
+how to avoid UI clutter
+
+how to make the interface intuitive for real businesses
+
+7. WHERE TO IMPLEMENT FUTURE FEATURES
+
+Give us specific recommendations on where and how to implement:
+
+Master Architect hub
+
+centralized review queue
+
+N8N integration status panel
+
+SMS/Email history
+
+timeline events
+
+AI recommendations area
+
+automation logs
+
+appointment scheduler
+
+Give clear proposed placement for each.
+
+8. DESIGN SYSTEM + BRANDING
+
+We are rebranding to Smart Klix CRM, with a provided logo and color palette.
+
+Give us recommendations on:
+
+consistent color usage
+
+buttons
+
+form elements
+
+card styles
+
+typography
+
+spacing
+
+dark mode consistency
+
+Your job is to make the CRM visually consistent and premium.
+
+9. PRIORITY ROADMAP
+
+Give us a prioritized plan of attack:
+
+what should be fixed FIRST
+
+what should be fixed NEXT
+
+what can wait
+
+what is optional
+
+Make this crystal clear.
+
+IMPORTANT
+
+This is JUST AN AUDIT.
+
+Do NOT implement anything.
+Do NOT modify UI or backend.
+Do NOT restructure code yet.
+
+We want a full advisory report FIRST, then we will approve the blueprint before implementation.
+
+Tell me when the full audit is ready.

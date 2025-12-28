@@ -1,0 +1,129 @@
+Good, this is exactly the kind of list we want, it is just missing a couple of important pieces.
+
+Here is how I would change it, so you can paste this back as your answer to that “What would you like to change” question:
+
+Use this updated task list and keep the order:
+
+Confirm single brain routing
+
+Check system directs all AI chat through Master Architect
+
+Confirm ChatGPT Actions also route through Master Architect
+
+Fix any bypasses where tools are called directly
+
+Create AI Receptionist settings storage
+
+Add database schema for receptionist config
+
+Support per channel tool permissions and voice settings
+
+Build AI Receptionist config page UI
+
+a. Basic behavior settings
+
+Enable AI Receptionist toggle
+
+Inbound only vs inbound plus outbound follow ups
+
+Short role description text
+
+b. Voice and model settings
+
+Voice model name
+
+Language preference
+
+Max call duration
+
+c. Tool permissions settings
+
+Per tool toggles for create_contact, create_lead or job, add_note, schedule_appointment
+
+Optional requires approval flags, respecting existing checkmark approval system
+
+d. Call handling logic settings
+
+When to use AI receptionist, no answer timeout, outside business hours
+
+Required captured fields, name, phone, reason, best time to call back
+
+Handoff rules text for human agent taking over
+
+e. Logging and CRM integration settings
+
+Config for what to store, call record, linked contact or job, structured summary
+
+Toggle full transcript vs summary only
+
+f. Future n8n notes section
+
+Read only section that documents expected events and payloads for n8n
+
+No flows yet, just clear text for the n8n builder
+
+Wire receptionist into navigation
+
+Add AI Receptionist page to AI or Automation section in sidebar
+
+Ensure route is protected and fits existing layout and theme
+
+Fix CRM Chat tool execution end to end
+
+Make chat able to actually execute tools via Master Architect
+
+Confirm create_contact, create_lead or job, add_note, update_job_status work from chat
+
+Make sure Draft, Assist and Auto modes behave correctly and match the existing approval system
+
+Improve error handling in chat
+
+Add clear user friendly error messages when a tool call fails
+
+Never show raw stack traces or internal error objects in the UI
+
+Clean code and structure
+
+Remove dead and commented code in the parts you touch
+
+Remove unused imports
+
+Improve naming and file structure where it is obviously messy
+
+Keep TypeScript strict and keep everything consistent
+
+Targeted UX improvements
+
+Small high impact UX fixes on these pages only, do not over scope
+
+CRM Chat page
+
+Master Architect hub
+
+ActionGPT config page
+
+New AI Receptionist page
+
+Make labels clearer, align layouts, and make it obvious how each page ties into AI and automation
+
+Add minimal developer documentation
+
+Short README or docs section for
+
+How the single brain architecture works
+
+How AI Receptionist config is stored and read
+
+How CRM Chat reaches Master Architect and executes tools
+
+Final testing and report
+
+Test CRM Chat, Master Architect hub, ActionGPT config, AI Receptionist page
+
+Confirm basic flows work and no obvious crashes
+
+Provide a short report listing
+
+What was implemented
+
+Any known limitations or recommended next steps

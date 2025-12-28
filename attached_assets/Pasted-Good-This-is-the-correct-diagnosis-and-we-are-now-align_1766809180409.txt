@@ -1,0 +1,138 @@
+Good. This is the correct diagnosis, and we are now aligned.
+
+You’ve confirmed what we suspected:
+the system is visually present but functionally disconnected.
+That is the only thing we are fixing now.
+
+There will be:
+
+❌ No new tabs
+
+❌ No redesign
+
+❌ No extra features
+
+❌ No mock-only state
+
+Only wiring, persistence, and proof of execution.
+
+🔴 LOCKED ROOT CAUSE (ACKNOWLEDGED)
+
+You have confirmed all of the following are true:
+
+Frontend is calling endpoints that do not exist (404s)
+
+AI chat is not wired to a real backend
+
+Action Console does not draft proposals
+
+Review Queue never receives proposals
+
+AI Settings do not affect runtime behavior
+
+Company instructions are not read by the AI
+
+“Done” meant UI-only, not system behavior
+
+This is now documented and accepted.
+
+🛠️ EXECUTION-ONLY FIX CHECKLIST (IN ORDER)
+1️⃣ AI CHAT MUST WORK (FOUNDATION)
+
+You will wire the frontend to a real, existing backend endpoint.
+
+Requirements
+
+Natural conversation works (“hi”, “what’s my company name?”)
+
+CRM data is readable
+
+No 404s
+
+No mock responses
+
+Conversation state persists per session
+
+If this is not working, nothing else proceeds.
+
+2️⃣ MEMORY & RECALL MUST WORK
+
+Within the same session:
+
+User says: “My name is JoeJoeJoe23”
+
+AI must return: “JoeJoeJoe23”
+
+No tools. No hacks. No fake memory.
+
+3️⃣ ACTION DRAFTING MUST ENTER REVIEW QUEUE
+
+From the Action Console:
+
+User requests an action
+
+AI drafts a proposal
+
+Proposal is written to the assist queue
+
+Ledger entry is written
+
+NOTHING executes
+
+This must be visible in the Review Queue UI.
+
+4️⃣ AI SETTINGS MUST AFFECT BEHAVIOR
+
+The AI must:
+
+Read company instructions from the database
+
+Respect per-entity instructions
+
+Reflect changes immediately (or with clear reload rules)
+
+If I change instructions and the AI ignores them → the page is fake.
+
+5️⃣ API KEYS (MANDATORY SETUP)
+
+Use Riplet AI’s OpenAI keys for testing
+
+Keys must be named and scoped by purpose (chat, action, widget, etc.)
+
+No personal keys
+
+No silent fallbacks
+
+🧪 REQUIRED LIVE VERIFICATION
+
+When you say “fixed,” you must be able to live demo:
+
+Natural chat works
+
+CRM data is returned
+
+Memory recall works
+
+Action drafting appears in Review Queue
+
+AI Settings change behavior
+
+If any one of these fails, the task is not complete.
+
+🧾 FINAL OUTPUT REQUIRED
+
+Before we approve anything, you will provide:
+
+List of endpoints wired (frontend → backend)
+
+What data each one reads/writes
+
+Where proposals are persisted
+
+Where AI instructions are read from
+
+Confirmation that no mock state remains
+
+Once this is complete, we move forward.
+
+Until then, we are in stabilization mode only.

@@ -1,0 +1,183 @@
+PROMPT FOR CRM DEVELOPER — WHATSAPP INTEGRATION (CONTRACT + OWNERSHIP)
+Context (Already Agreed Architecture)
+
+CRM is the system of record
+
+CRM owns intent, approvals, retries, escalation, memory
+
+Neo8 is execution-only
+
+Twilio is the WhatsApp transport
+
+No AI, no business logic, no retry logic in Neo8
+
+This prompt is to lock the CRM-side contracts before anything is built in Neo8.
+
+WhatsApp Integration Model (FACTUAL, NON-HALLUCINATED)
+
+WhatsApp via Twilio works as:
+
+Outbound: You send messages using Twilio’s WhatsApp API
+
+Inbound: Twilio sends message webhooks back to your server
+
+There is no polling, no PubSub, no Google-style triggers here.
+Everything is webhook-based and deterministic.
+
+1. WhatsApp Outbound (CRM → Neo8 → Twilio)
+CRM Responsibilities
+
+CRM must be the only place that decides:
+
+When a WhatsApp message is sent
+
+What content is sent
+
+Whether approval is required
+
+Whether retries happen
+
+CRM → Neo8 Contract (Must Be Locked)
+
+CRM will call one Neo8 webhook for outbound WhatsApp.
+
+Required payload (example, not optional fields):
+
+{
+  "action": "send_whatsapp",
+  "contactId": "string",
+  "to": "+15551234567",
+  "message": "string",
+  "templateId": "optional",
+  "conversationId": "optional",
+  "metadata": {}
+}
+
+
+CRM must define:
+
+When this is triggered (button, automation, approval)
+
+Whether templates or free text are allowed
+
+Whether this is human-initiated or system-initiated
+
+Neo8 will not infer or modify anything.
+
+Neo8 Responsibility (For Your Awareness)
+
+Receive payload
+
+Call Twilio WhatsApp API
+
+Return execution result to CRM
+
+2. WhatsApp Inbound (Twilio → Neo8 → CRM)
+Twilio Reality (Important)
+
+Twilio sends inbound WhatsApp messages to one webhook URL you configure.
+
+Twilio payload includes:
+
+From (user number)
+
+To (your WhatsApp number)
+
+Body (message text)
+
+MessageSid
+
+Timestamp
+
+Media (if any)
+
+CRM Ownership
+
+CRM owns:
+
+Conversation threading
+
+Message storage
+
+Intent detection
+
+Re-triggering workflows
+
+Any AI processing
+
+Required Contract
+
+Neo8 must forward inbound messages unchanged to CRM.
+
+Example forwarded payload:
+
+{
+  "channel": "whatsapp",
+  "from": "+15551234567",
+  "to": "whatsapp:+14155238886",
+  "body": "message text",
+  "messageSid": "SMxxxx",
+  "timestamp": "ISO",
+  "rawPayload": {}
+}
+
+
+CRM decides what happens next.
+Neo8 exits immediately.
+
+Explicit NON-Responsibilities (Locked)
+
+CRM confirms Neo8 will NOT:
+
+Auto-reply to WhatsApp
+
+Interpret message meaning
+
+Decide follow-ups
+
+Manage retries
+
+Store conversation history
+
+Apply AI
+
+Decisions CRM Must Lock Before Build
+
+Please confirm:
+
+Outbound
+
+What CRM action triggers WhatsApp?
+
+Is approval required before send?
+
+Are templates enforced or optional?
+
+Inbound
+
+Single inbound endpoint for all WhatsApp messages?
+
+How CRM maps phone number → contact?
+
+Whether inbound can re-trigger outreach or only logs
+
+Logging
+
+auditLog schema for WhatsApp send + receive
+
+Linkage to contactId / conversationId
+
+Outcome
+
+Once this contract is locked:
+
+CRM developer confirms payload schemas
+
+Neo8 builder implements execution nodes exactly
+
+No rewrites, no guesswork, no re-architecture
+
+Status
+
+This is not new functionality.
+This is formalizing transport contracts so execution can be wired safely.

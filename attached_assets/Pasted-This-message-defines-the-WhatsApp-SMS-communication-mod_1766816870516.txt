@@ -1,0 +1,195 @@
+This message defines the WhatsApp + SMS communication model.
+This is authoritative. Do not reinterpret.
+
+---
+
+## 1) CLIENT ID — ROOT OF THE ENTIRE SYSTEM (NON-NEGOTIABLE)
+
+**Nothing exists without a Client ID.**
+
+If there is:
+
+* ❌ No Client ID
+  Then there is:
+* ❌ No Lead
+* ❌ No Outreach
+* ❌ No ActionAI proposal
+* ❌ No Ledger entry
+* ❌ No Messaging (SMS / WhatsApp / Email)
+
+Client ID is the **primary gate** for:
+
+* CRM records
+* Messaging
+* Ledger writes
+* ActionAI actions
+
+If a message attempt is made without a valid Client ID → **hard stop**.
+
+---
+
+## 2) CLIENT ID FORMAT (LOCK THIS IN)
+
+We are intentionally keeping Client IDs simple.
+
+**Format:**
+
+```
+<first_name>_<4-digit-random>
+```
+
+**Examples:**
+
+* joe_4837
+* maria_9021
+* alex_1174
+
+Rules:
+
+* First name only (lowercase or normalized)
+* One underscore `_`
+* Four random digits
+* No UUIDs
+* No long hashes
+* No 8–16 digit nonsense
+
+This ID is:
+
+* Human-readable
+* Stable
+* Used everywhere (CRM, messaging, ledger, Neo8)
+
+---
+
+## 3) WHATSAPP & SMS — PURPOSE
+
+This is **NOT chat**
+This is **NOT real-time conversation**
+
+This is:
+
+* Outbound outreach
+* Follow-ups
+* Transactional or semi-personal messaging
+* Logged, reviewable, auditable actions
+
+---
+
+## 4) ACTIONAI AUTHORITY (WHATSAPP / SMS)
+
+ActionAI **CAN**:
+
+* Draft SMS / WhatsApp messages
+* Propose outreach tied to a valid Client ID
+* Ask clarifying questions *before drafting* if required data is missing
+
+ActionAI **CANNOT**:
+
+* Send messages directly
+* Bypass review
+* Message without a Client ID
+
+All ActionAI-generated messages must:
+
+1. Be tied to a valid Client ID
+2. Enter the Review Queue
+3. Be approved by a human
+4. Be dispatched via Neo8
+5. Be written to the ledger
+
+---
+
+## 5) HUMAN AUTHORITY
+
+Humans:
+
+* Can approve ActionAI-drafted messages
+* Can manually draft messages (still requires Client ID)
+* Can authorize dispatch
+
+Humans still **do not** bypass:
+
+* Neo8
+* Ledger logging
+
+---
+
+## 6) DISPATCH FLOW (REQUIRED)
+
+**No direct sends from CRM. Ever.**
+
+Flow:
+
+```
+CRM UI
+→ Review Queue
+→ Authorization
+→ Neo8
+→ Provider (WhatsApp / SMS)
+→ Ledger Write
+```
+
+---
+
+## 7) LEDGER RULES (REMINDER)
+
+Ledger entries are for **actions only**.
+
+WRITE ledger entries for:
+
+* SMS_DISPATCH_AUTHORIZED
+* SMS_SENT
+* SMS_DELIVERED
+* SMS_FAILED
+* WHATSAPP_DISPATCH_AUTHORIZED
+* WHATSAPP_SENT
+* WHATSAPP_DELIVERED
+* WHATSAPP_FAILED
+
+DO NOT write ledger entries for:
+
+* Viewing a message
+* Drafting text
+* Asking questions
+* Reading conversations
+
+No Client ID = No Ledger entry.
+
+---
+
+## 8) UI EXPECTATIONS (HIGH-LEVEL)
+
+WhatsApp / SMS UI should:
+
+* Require Client ID selection before composing
+* Clearly show Client ID context
+* Show status badges (draft / pending / sent / failed)
+* Indicate “ActionAI Draft” vs “Human Draft”
+* Block send if Client ID is missing
+
+This is **not a chat UI**.
+This is a **review + dispatch interface**.
+
+---
+
+## 9) BEFORE YOU PROCEED
+
+Confirm back:
+
+1. You understand Client ID is mandatory and primary
+2. You understand ActionAI cannot send directly
+3. You understand ledger writes are action-only
+4. You accept the Client ID format exactly as defined
+
+No assumptions. No shortcuts.
+
+---
+
+If you want next, I can:
+
+* Write the **README section for WhatsApp/SMS**
+* Define the **DB schema for messages tied to Client ID**
+* Create a **shared validation checklist** so this never breaks again
+* Draft the **ActionAI system prompt** that enforces this behavior at runtime
+
+Just tell me what’s next.

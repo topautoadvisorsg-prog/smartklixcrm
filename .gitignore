@@ -1,0 +1,19 @@
+﻿# Local / environment
+.env
+.env.*
+.local/
+.replit
+
+# Dependencies / build
+node_modules/
+dist/
+build/
+coverage/
+
+# Logs / OS
+*.log
+.DS_Store
+
+# IDE
+.idea/
+.vscode/

@@ -1,0 +1,213 @@
+CRM UI / UX + Integration Prompt (Send to CRM Developer)
+Objective
+
+We are pausing automation work and focusing only on CRM UI/UX improvements and integration shells.
+No Neo8 workflows are part of this task.
+
+The goal is to:
+
+Clean up the UI
+
+Improve usability
+
+Prepare the CRM visually and structurally for future integrations
+
+Match modern SaaS standards (HubSpot / Webflow / HighLevel–style UX)
+
+1️⃣ Marketplace Tab (Zapier-Backed, White-Labeled)
+What this is
+
+Create a Marketplace tab inside the CRM.
+
+This is a white-labeled integration marketplace similar to competitors:
+
+It must NOT mention Zapier by name in the UI
+
+Zapier is an internal implementation detail only
+
+Purpose
+
+Allow users to connect external tools (email, calendars, storage, forms, etc.)
+
+All integrations are handled directly between CRM ↔ Zapier
+
+No Neo8 involvement
+
+UI Requirements
+
+Clean grid or card-based layout
+
+Each card represents an integration category or popular app
+
+Status indicators:
+
+Connected
+
+Not connected
+
+“Connect” / “Manage” CTA buttons
+
+Initial Integration Scope (UI Only)
+
+Show placeholders for top, common integrations, such as:
+
+Email platforms
+
+Calendars
+
+File storage
+
+Webhooks
+
+CRMs / external tools
+
+⚠️ This is UI + API readiness only
+Actual automation logic is NOT part of this task.
+
+2️⃣ Funnel Tab (HighLevel API – Direct)
+What stays
+
+Create a Funnel tab in the CRM UI.
+
+This tab connects directly to HighLevel via API
+
+No Neo8
+
+No internal funnel builder
+
+Responsibilities
+
+Display funnel data coming from HighLevel
+
+Trigger HighLevel actions (create, update, view funnels)
+
+Show funnel status and metadata
+
+UI Requirements
+
+Simple, clean layout
+
+No over-engineering
+
+Designed so HighLevel does the heavy lifting
+
+This tab is an integration surface, not a funnel editor.
+
+3️⃣ Social Media Planner Tab (Placeholder Only)
+Important
+
+This tab is UI-only for now.
+
+No backend logic
+
+No automation
+
+No workflows
+
+No API decision yet
+
+Requirements
+
+Create a tab labeled: Social Media Planner
+
+Show:
+
+“Coming Soon” / “In Progress” messaging
+
+Clean layout consistent with the rest of the CRM
+
+This prepares the UI for a future API decision
+
+4️⃣ Global UI / UX Overhaul (High Priority)
+Scope
+
+Review every existing tab and screen and improve:
+
+Layout
+
+Spacing
+
+Readability
+
+Hierarchy
+
+Consistency
+
+Key UX Principles
+
+Reduce “techy” feel
+
+More guided, intuitive layouts
+
+Clear CTAs
+
+Better defaults
+
+Less exposed configuration unless needed
+
+Think:
+
+HubSpot onboarding
+
+Webflow clarity
+
+HighLevel polish
+
+5️⃣ Color System & Visual Consistency
+Requirements
+
+Define a consistent color system:
+
+Primary
+
+Secondary
+
+Neutral
+
+Success / Warning / Error
+
+Apply it globally
+
+Remove random or inconsistent colors
+
+Improve contrast and accessibility
+
+6️⃣ Dashboard Improvements
+Requirements
+
+Dashboard widgets should feel modular
+
+Cleaner reporting visuals
+
+Better spacing and grouping
+
+Focus on clarity, not density
+
+No new reports required — improve presentation only.
+
+7️⃣ Explicit Exclusions (Do NOT Work On)
+
+❌ No Neo8 workflows
+❌ No AI voice agent logic or screens
+❌ No social media automation
+❌ No funnel builder
+❌ No marketing campaigns
+❌ No assumptions about new features
+
+Stick strictly to UI/UX + integration shells.
+
+Deliverables
+
+Updated CRM UI/UX across all tabs
+
+Marketplace tab (Zapier-backed, white-labeled)
+
+Funnel tab (HighLevel API integration surface)
+
+Social Media Planner tab (UI placeholder)
+
+Clean, modern, SaaS-level visual system
+
+Guiding Principle
+
+This CRM should feel enterprise-clean, modular, and future-proof, without exposing technical complexity to the user.

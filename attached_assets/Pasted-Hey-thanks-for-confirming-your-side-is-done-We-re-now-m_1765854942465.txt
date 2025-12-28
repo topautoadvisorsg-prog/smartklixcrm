@@ -1,0 +1,153 @@
+Hey — thanks for confirming your side is “done.”
+
+We’re now moving into final architecture alignment + readiness review before wiring the AI Receptionist Server (Premium) and locking the flows.
+
+Please switch to builder / system-review mode and do the following:
+
+1️⃣ High-Level Goal (Context)
+
+We are introducing an AI Receptionist with two execution modes:
+
+Economic Version
+
+Standard pipeline (STT → LLM → TTS)
+
+Can operate directly via CRM + Neo8
+
+No external server
+
+Premium Version
+
+Uses OpenAI’s combined / real-time model path
+
+Requires a dedicated AI Receptionist Server
+
+Lower latency, same logic, same outputs
+
+⚠️ Important:
+Premium is not more intelligent — only faster execution.
+Behavioral instructions do NOT live in the CRM for Premium.
+
+2️⃣ What You Need to Review / Confirm
+
+Please audit the CRM and confirm it is fully ready to integrate with the AI Receptionist Server.
+
+Specifically verify:
+
+A. CRM → AI Receptionist Server Readiness
+
+CRM can send triggers / commands to an external server
+
+Payloads can include:
+
+Call start / call schedule events
+
+Contact identifiers
+
+Any required metadata (appointment IDs, context IDs, etc.)
+
+CRM can receive summaries / extracted data back from the server and store them
+
+B. Toggle / Enable–Disable Logic
+
+We need a clear toggle mechanism such that:
+
+Only one version is active at a time
+
+Economic ON → Premium OFF
+
+Premium ON → Economic OFF
+
+CRM is the source of truth for this toggle
+
+Please confirm:
+
+Where this toggle lives
+
+How it propagates to execution logic
+
+That no double-execution can occur
+
+C. Behavioral Instructions Separation (Critical)
+
+Economic version may reference CRM-stored instructions
+
+Premium version instructions DO NOT live in the CRM
+
+They live on the AI Receptionist Server
+
+CRM should only reference:
+
+Which mode is active
+
+What action to trigger
+
+Where to receive results
+
+Please confirm there is no mixing of behavior logic between modes.
+
+3️⃣ Events & Notifications (Design Review)
+
+Please review and confirm support for events such as:
+
+Call scheduled
+
+Call answered / missed
+
+Call completed
+
+Summary received
+
+Appointment updated / requested
+
+If you see a better event contract or naming scheme, propose it.
+
+4️⃣ Data Contract Audit
+
+Please review and confirm:
+
+Payload structure is stable, explicit, and versionable
+
+No hard assumptions about execution engine
+
+AI Receptionist Server can be swapped without CRM refactor
+
+If improvements are needed, suggest them.
+
+5️⃣ Suggestions Welcome (Strongly Encouraged)
+
+If you believe:
+
+A different payload shape is better
+
+A different trigger pattern is safer
+
+Certain data should not be sent
+
+Certain data must be included
+
+👉 Please propose it now, before we lock integration.
+
+6️⃣ What NOT to Change (For Now)
+
+Do not refactor AI logic
+
+Do not embed premium behavior into CRM
+
+Do not assume outbound sales logic (this is a receptionist, not a sales agent)
+
+7️⃣ Outcome We Want From You
+
+After this review, please respond with:
+
+✅ Confirmation CRM is ready
+
+📋 Any gaps you found
+
+💡 Any architectural suggestions
+
+⚠️ Any risks we should address before integration
+
+This is the final alignment step before we wire Neo8 and the AI Receptionist Server together.
+
+Thanks — aiming for top-notch, production-clean architecture here.

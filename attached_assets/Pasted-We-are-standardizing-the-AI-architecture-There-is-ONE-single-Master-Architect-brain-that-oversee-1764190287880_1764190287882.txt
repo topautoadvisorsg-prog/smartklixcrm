@@ -1,0 +1,74 @@
+We are standardizing the AI architecture:
+
+There is ONE single Master Architect brain that oversees the whole CRM. We are NOT creating multiple Master Architects per company.
+
+We need you to implement proper multi company support around this single brain.
+
+Requirements:
+
+1) Master Architect always receives a full context object
+Update the Master Architect entry point so every call receives a structured context:
+
+{
+  channel: "crm_chat" | "widget" | "voice_receptionist" | "gpt_action",
+  companyName: string | null,
+  userId: string | null,
+  contactId: string | null,
+  jobId: string | null,
+  intakeId: string | null,
+  conversationId: string | null,
+  rawMessage: string
+}
+
+Company will be distinguished by companyName for now. If we already have companyId, use that internally and still expose companyName in the context.
+
+2) Add per company configuration under Master Architect Settings
+On the Master Architect configuration page, add a new section called “Company Instructions”.
+
+This section must support:
+
+- Dropdown to select company
+- Read only display of company name
+- Rich text field for “Company behavior and instructions”
+- JSON field or structured UI for company specific flags, such as:
+  - Active channels for this company
+  - Default pipeline stage for new leads
+  - Default tags
+  - Any other company specific settings you see fit
+
+This data must be saved and loaded per company, and merged with the global Master Architect settings at runtime.
+
+3) Runtime config merge
+At runtime, when Master Architect is called:
+
+- Load global architect config
+- If companyName is present, load that company’s instructions
+- Merge them so company specific rules override global rules
+- Pass the merged system prompt and tool permissions to OpenAI
+
+4) No extra brains
+Please confirm in code that there is only ONE Master Architect class or service used by:
+- CRM Agent Chat
+- Widget or public chat
+- GPT Actions
+- Voice receptionist (once implemented)
+
+If you find any direct OpenAI calls that bypass the Master Architect, flag them and route them through this single pipeline instead.
+
+5) Clean code and documentation
+Follow strict clean code principles:
+- Strong typing
+- No dead code
+- Clear function names
+- No duplicated logic
+- Small, focused functions
+
+Add documentation:
+- Where company specific instructions are stored
+- How Master Architect loads and merges global + company config
+- Which channels call the Architect and with what context
+
+Before you implement more, review the current code and confirm:
+- You agree this is the correct architecture
+- There are no hidden places that bypass the Master Architect brain
+- You see no conflicts with the existing AI configuration pages

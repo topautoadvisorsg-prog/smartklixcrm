@@ -1,0 +1,245 @@
+SINGLE-TENANT AI CRM – FINAL DEV PROMPT (n8n & Multi-Brain AI)
+
+Core Principle
+
+Single-tenant CRM with multiple AI brains.
+
+Heavy workflows and data-driven sections = full pages.
+
+Popups = only for light actions.
+
+Structure first, polish UX, then integrate with n8n automation engine.
+
+
+
+---
+
+1. Logo Fix
+
+Replace current image logo with icon only.
+
+Render product name as live text.
+
+Must scale properly on mobile and desktop.
+
+
+
+---
+
+2. Page vs Pop-Up Rules
+
+Full pages required for:
+
+Leads, Contacts, Deals (create/edit)
+
+Settings / workflows
+
+AI brain / instruction management
+
+GPT Actions / Automation Brain
+
+
+Popups allowed for:
+
+Quick actions (status change, assign owner, notes)
+
+Filters
+
+Tooltips
+
+Confirmations
+
+
+⚠ No core workflows inside popups.
+
+
+---
+
+3. Contacts & Deals
+
+Contacts page: list view, filters, tags, detailed profile view. “+ Add New Lead” can be a popup, but deep edit = page.
+
+Deals page: pipeline view, deal detail as own page, creation can be popup.
+
+
+
+---
+
+4. Multi-Chat AI Brains (Dedicated Pages)
+
+Each AI brain gets a dedicated page:
+
+1. Website Widget Chat
+
+
+2. Internal CRM Chat
+
+
+3. Master Architect Chat
+
+
+4. GPT System Brain
+
+
+5. Optional n8n Brain for workflows
+
+
+
+Each page allows:
+
+Dedicated chat interface
+
+Instructions injection
+
+Company knowledge injection
+
+Behavior tuning
+
+
+
+---
+
+5. AI Instruction & Knowledge Injection
+
+Each brain page includes:
+
+System instructions
+
+Company context / knowledge base
+
+Behavior rules
+
+FAQ / training data
+
+
+Important: Security rules enforced inside the CRM backend, not in prompts.
+
+
+---
+
+6. GPT Actions / Automation Brain (Dedicated Page)
+
+AI executes jobs and workflows.
+
+Interacts with CRM modules via APIs.
+
+Job Execution Log includes:
+
+Job ID
+
+Action type
+
+Trigger source AI
+
+Related module / contact / deal
+
+Timestamp
+
+
+
+Job Status & Master Architect Approval
+
+No checkmark → Pending / in progress
+
+✅ Single checkmark → Completed by Agent AI
+
+✅✅ Double checkmark → Reviewed + approved by Master Architect AI (locked after approval)
+
+
+Controls on page:
+
+Approve / Reject / Re-run jobs
+
+Add internal notes
+
+Filter by status / module / AI brain / date
+
+
+Key principle: Jobs do not require Master Architect approval to execute, but the option exists for review and governance.
+
+
+---
+
+7. Chat Widget (External)
+
+Must be functional on external websites.
+
+Optimize message sending delay (currently 5–10s).
+
+Keep auto-responses but reduce latency.
+
+Connect securely to CRM backend.
+
+Include heartbeat / debug monitoring in System Watcher.
+
+
+
+---
+
+8. Notifications
+
+Show only business-critical notifications:
+
+AI job failures
+
+Workflow errors
+
+Message failures
+
+Visitor engagement
+
+
+No server metrics or infra data in main UI (handled elsewhere).
+
+
+
+---
+
+9. System Watcher Page
+
+Dedicated page: /admin/system or /system-watcher
+
+Accessible to Dev + Owner only
+
+Sections:
+
+Server / infrastructure
+
+Database connections
+
+AI & Messaging pipeline
+
+Widget health
+
+
+Poll every 10 mins status colors: Green / Yellow / Red
+
+
+
+---
+
+10. n8n Integration
+
+Connect CRM to n8n for automation workflows.
+
+AI-triggered jobs can initiate n8n workflows.
+
+Workflow execution must appear in GPT Actions logs.
+
+n8n handles background automation & external integrations.
+
+
+
+---
+
+11. Build Quality
+
+Clean workflow logic, modular AI brains, scalable structure.
+
+High-detail polish, no clutter.
+
+Final structure locked before n8n integration.
+
+
+
+---

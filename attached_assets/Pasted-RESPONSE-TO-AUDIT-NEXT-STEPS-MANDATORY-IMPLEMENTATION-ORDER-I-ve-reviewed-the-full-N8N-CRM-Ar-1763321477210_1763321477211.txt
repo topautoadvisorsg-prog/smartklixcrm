@@ -1,0 +1,181 @@
+RESPONSE TO AUDIT — NEXT STEPS (MANDATORY IMPLEMENTATION ORDER)
+
+I’ve reviewed the full N8N + CRM Architecture Audit Report.
+This is the exact list of what you need to build next, in order, with no interpretation.
+
+Do NOT reorder or skip steps.
+Deliver updates as each phase is completed.
+
+PHASE 1 — Validate What Already Exists (Immediate)
+
+We need full end-to-end proof for the existing pipeline:
+
+Test #1 – CRM → N8N
+Send a real test payload using dispatchNeo8Event()
+Confirm it hits the webhook AND runs the workflow end to end.
+
+Test #2 – N8N → CRM
+Trigger every inbound N8N→CRM endpoint once:
+
+send_sms
+
+send_email
+
+create_payment_link
+
+new_lead
+
+job_updated
+
+missed_call
+
+Confirm:
+
+Bearer token accepted
+
+API logs success
+
+Audit log entry created
+
+Test #3 – Voice webhook
+Trigger /webhook/voice-call-event with a sample event.
+
+Output Required:
+A single “E2E Test Results” document confirming each direction works.
+
+PHASE 2 — Contact Form → N8N Integration (Priority)
+
+Right now the Contact Form ONLY goes into CRM.
+It MUST also trigger N8N automations.
+
+Implement:
+After successful insertContact → call dispatchNeo8Event("new_lead")
+Payload MUST match the N8N contract exactly (snake_case).
+
+Output required:
+✔ Updated code
+✔ Screenshot of successful N8N execution
+
+PHASE 3 — Chat Widget (Critical Blocker)
+
+Chat widget is missing completely.
+This is the #1 blocker.
+
+Deliver the following:
+
+1. Widget embed script
+Placed on public site.
+
+2. Widget → CRM endpoint
+POST /api/widget-event
+Fields: name, email, phone, message, page_url, timestamp
+
+3. Widget → CRM → N8N
+CRM must dispatchNeo8Event("website_message" or "new_lead") depending on data.
+
+4. Deduplication
+Reuse current phone-based upsert logic.
+
+5. Logging
+Store widget events in CRM.
+
+Output required:
+✔ Widget installed in test environment
+✔ Widget sends events to CRM
+✔ N8N workflow receives widget payloads
+
+PHASE 4 — Memory System (Major Feature)
+
+Completely missing.
+Must be built before AI will behave correctly.
+
+Deliver:
+
+1. Add pgvector to database
+Include migration.
+
+2. Create memory table:
+
+id
+
+tenant_id
+
+embedding vector
+
+text
+
+tags[]
+
+created_at
+
+3. Build summarization pipeline
+When new contact/chat data arrives → summarize → embed → store.
+
+4. Retrieval:
+Top 3 vectors by similarity.
+
+5. Integrate into Master Architect
+Before LLM call → attach:
+
+relevant memory
+
+recent notes
+
+contact/job context
+
+Output required:
+✔ Working memory write
+✔ Working memory retrieval
+✔ Shown in LLM reasoning
+
+PHASE 5 — N8N Workflows (Automation Engine)
+
+Build these 3 workflows:
+
+1. Appointment workflow
+Triggered by event appointment_requested.
+
+2. Follow-up sequence
+Triggered by new_lead if no contact in X hours.
+
+3. Voice call workflow
+Triggered by missed_call event.
+
+Output required:
+✔ N8N screenshot of each workflow
+✔ Test execution proof
+
+PHASE 6 — ChatGPT Actions (Optional but important)
+
+Implement AFTER memory + widget.
+
+Actions needed:
+
+create_contact
+update_job
+create_job
+send_sms
+send_email
+add_note
+schedule_appointment
+
+Mapped directly to CRM API.
+
+SUMMARY: WHAT YOU MUST DELIVER NEXT
+
+E2E test proof for existing flows
+
+Contact form → CRM → N8N integration
+
+Chat widget (full implementation)
+
+Memory system (pgvector + embeddings)
+
+Automation workflows in N8N
+
+ChatGPT Actions (tools)
+
+This is the required order.
+No jumping ahead, no partial implementations.
+
+If anything is unclear, ask BEFORE you build.

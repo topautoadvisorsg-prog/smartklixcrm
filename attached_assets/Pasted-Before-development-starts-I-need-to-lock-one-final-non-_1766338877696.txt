@@ -1,0 +1,67 @@
+Before development starts, I need to lock one final, **non-negotiable execution rule** so there is no ambiguity later.
+
+---
+
+## Final Execution Model (Authoritative)
+
+**This system is NOT fully autonomous.**
+AI does **not** execute final actions on its own.
+
+### The Correct Flow Is:
+
+1. **AI Action Chat**
+
+   * Drafts a proposed action
+   * Defines structured input + expected output
+   * Submits the proposal to the Review Queue
+
+2. **Master AI Architect**
+
+   * Reviews the draft action
+   * Approves or rejects it
+   * If approved:
+
+     * Confirms input/output correctness
+     * Marks the action as **“Approved – Ready for Execution”**
+     * Writes the ledger entry (approved or corrected)
+
+3. **Human Final Executor (Manual Step)**
+
+   * Sees the approved action in a “Ready / Done List”
+   * Manually triggers the final execution
+   * This is the **only step that actually performs the real action**
+
+---
+
+## Critical Rules (Must Be Enforced in Code)
+
+* ❌ AI agents may **never** trigger the final execution
+* ❌ Approval does **not** auto-run anything
+* ❌ No background or “helpful” automation after approval
+* ✅ AI drafts → Architect approves → **Human executes**
+* ✅ Ledger is written at approval time, not execution time
+
+---
+
+## Why This Exists
+
+* Prevents silent or runaway automation
+* Ensures human accountability for real-world changes
+* Keeps AI focused on being a **high-quality MCP**, not an authority
+* Makes every action legally and operationally defensible
+
+This is intentional design, not a temporary limitation.
+
+---
+
+## Please Confirm Before Building
+
+1. Can this manual execution gate be enforced cleanly in the backend?
+2. Do you see any conflicts with existing workflows or Neo8 logic?
+3. Do you recommend any UI patterns to make “Approved but not executed” unmistakably clear?
+
+Once this is confirmed, we lock architecture and proceed.
+
+---
+
+Let me know if anything here is unclear **before** implementation.

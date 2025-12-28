@@ -1,0 +1,119 @@
+FULL SYSTEM TESTING PROMPT (END-TO-END)
+Objective
+
+We are testing the entire product as if it were live for a real customer.
+
+Your task is to execute every capability the system claims to have, using real contact details, real messages, real scheduling, and real documents.
+
+This is not a demo.
+This is not theory.
+This is full operational testing.
+
+Scope (DO NOT LIMIT)
+
+You must test everything the platform is supposed to do, including:
+
+SMS
+
+WhatsApp
+
+Email
+
+Phone call scheduling
+
+Meeting invites
+
+Calendar sync
+
+CRM contact management
+
+AI-generated messages
+
+Approval flows
+
+Docs & Excel usage
+
+Invoices (create + send)
+
+UI / UX behavior
+
+If a real customer could do it, you must test it.
+
+Test Contact
+
+Use the approved real test contact already provided.
+
+All sends are authorized.
+
+Required Execution
+
+For each feature or flow:
+
+Trigger it from the GUI (not just API)
+
+Verify backend behavior (DB, logs, states)
+
+Confirm real-world delivery (message received, invite created, invoice sent)
+
+Try breaking it (bad input, missing data, edge cases)
+
+UX / Product Feedback (MANDATORY)
+
+You must also report on:
+
+Confusing screens
+
+Missing buttons or actions
+
+Bad defaults
+
+Needed pop-ups or confirmations
+
+Anything that feels clunky, unclear, or dangerous
+
+Anything you’d fix if you were the customer
+
+This feedback is as important as bugs.
+
+Failure Reporting (STRICT)
+
+For anything that fails or feels incomplete, report:
+
+What you tried to do
+
+What actually happened
+
+What should have happened
+
+Where it failed (UI / backend / integration)
+
+Logs, payloads, screenshots if applicable
+
+“No idea” is not acceptable.
+
+Final Deliverable
+
+Provide a structured report with:
+
+✅ What works
+
+❌ What does not work
+
+⚠️ What is partially implemented
+
+🧱 What is missing entirely
+
+🎨 UX / UI recommendations
+
+🛠️ Implementation recommendations
+
+🚀 What’s production-ready vs not
+
+Definition of Success
+
+A real customer can be onboarded, contacted, scheduled, invoiced, and managed end-to-end without breaking the system.
+
+Final note (important)
+
+You’re not asking for “testing help.”
+You’re running a product shakedown.

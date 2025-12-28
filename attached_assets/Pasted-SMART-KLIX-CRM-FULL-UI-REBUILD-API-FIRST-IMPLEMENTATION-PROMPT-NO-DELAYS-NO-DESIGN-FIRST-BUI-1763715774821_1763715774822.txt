@@ -1,0 +1,258 @@
+SMART KLIX CRM – FULL UI REBUILD + API-FIRST IMPLEMENTATION PROMPT
+NO DELAYS. NO “DESIGN FIRST.” BUILD AS YOU AUDIT. DO THE CODE NOW.
+
+You already completed the full UI/UX audit.
+Now you will immediately begin implementing the fixes, restructuring the UI, and upgrading the CRM according to the audit, while also documenting as you go.
+
+MANDATORY:
+
+Do NOT wait for approval.
+Do NOT provide plans.
+Do NOT ask questions unless absolutely necessary.
+Proceed directly with coding and implementation.
+
+1. NAVIGATION RESTRUCTURE – CODE IT NOW
+
+Implement the new final navigation:
+
+Top-Level Navigation (9 items MAX)
+
+Dashboard
+
+Contacts
+
+Jobs
+
+Estimates
+
+Invoices
+
+Calendar
+
+Pipeline
+
+AI Assistant (rename Intelligence Bot to this)
+
+Settings (contains User Mgmt, Audit Log, AI Memory, Integrations)
+
+Remove these tabs COMPLETELY from UI code:
+
+Notes
+
+Files
+
+Metrics
+
+AI Assist Queue (merge into Master Architect)
+
+Move these into Settings section:
+
+User Management
+
+Audit Log
+
+AI Memory
+
+Code instructions:
+
+Update layout components
+
+Remove routes
+
+Remove menu items
+
+Update sidebar icons
+
+Delete unused components or mark for refactor
+
+Move existing content under new Settings subsections
+
+2. CONTACT DETAIL PAGE – START IMPLEMENTATION NOW
+
+Use the audit spec and implement the missing sections:
+
+Must add:
+
+Inline notes creation
+
+Inline file upload
+
+Communication timeline (SMS, email, calls, AI actions, N8N callbacks)
+
+Financial overview (estimates, invoices, payments)
+
+Quick Action panel (Create job, send SMS, email, schedule, etc.)
+
+AI suggestions panel
+
+Editable contact info
+
+Merge contact button
+
+Delete button
+
+3. JOB DETAIL PAGE – IMPLEMENT NEXT
+
+Add all missing tools:
+
+Task checklist
+
+Time tracking
+
+Parts/materials
+
+Assigned techs
+
+Job timeline (status changes, AI events)
+
+Appointments tied to job
+
+Before/after file uploads
+
+Photo gallery
+
+Profitability section
+
+AI suggestions block
+
+4. MERGE AI ASSIST QUEUE → MASTER ARCHITECT
+
+Do NOT keep two separate pages.
+
+Update Master Architect Hub to include:
+
+All pending actions
+
+Approval / reject
+
+Bulk actions
+
+Original prompt context
+
+Which entity it relates to
+
+Links into Contact/Job detail pages
+
+Also:
+Hide this hub unless user has admin role.
+
+5. SETTINGS REBUILD
+
+In Settings, build these sections:
+
+Company Profile
+
+Branding (logo, colors — use Smart Klix branding)
+
+User Management
+
+Audit Log
+
+AI Configuration (AI Memory + Architect)
+
+Integrations (N8N URL, OpenAI key, Stripe key, etc.)
+
+Templates (Email, SMS)
+
+Everything should be wired to backend settings storage (if missing, create minimal schema).
+
+6. DELETE REDUNDANT COMPONENTS
+
+Remove from codebase entirely:
+
+global Files page
+
+global Notes page
+
+Metrics page
+
+AI Assist Queue page
+
+Do NOT leave dead components.
+Clean the repo.
+
+7. API-FIRST IMPLEMENTATION
+
+Every UI feature you build MUST have an API behind it.
+
+Implement consistent REST endpoints for:
+
+contacts, jobs, estimates, invoices, payments, appointments, notes, files metadata, ai_tasks, events, audit_log
+
+All must support:
+
+GET list
+
+GET by id
+
+POST create
+
+PATCH update
+
+DELETE when appropriate
+
+Naming convention: camelCase for API bodies, snake_case for DB.
+
+8. UI ↔ N8N Touchpoints
+
+Every action that needs automation should trigger N8N via webhook:
+
+SMS send
+
+Email send
+
+Payment link create
+
+Missed call follow-up
+
+Job status change
+
+Appointment creation
+
+Estimate send
+
+Invoice send
+
+Each should:
+
+POST to N8N
+
+Log result in CRM
+
+Display in Communication Timeline
+
+9. IMPLEMENT THIS AS YOU GO
+
+For each update:
+
+Update the UI
+
+Update the backend
+
+Clean unused code
+
+Document changes in the repo
+
+Push the working version immediately
+
+10. DELIVERABLES
+
+Every update must come with:
+
+Updated UI
+
+Updated backend
+
+Cleaned code
+
+Structured commit messages
+
+Short written report of what was changed
+
+Next steps you will implement automatically
+
+YOU ARE NOT WAITING. YOU ARE EXECUTING.
+
+Build the new Smart Klix CRM exactly as described.
+
+Proceed with coding now.

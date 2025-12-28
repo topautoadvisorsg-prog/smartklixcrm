@@ -1,0 +1,182 @@
+CLEAN CODE DOCTRINE
+
+Clean code is not optional in this project.
+If the code is not clean, readable, and documented, the product is worthless because it will break and be impossible to maintain or extend.
+
+Every single step must be understandable and modifiable by any future developer.
+
+1. Core Principles
+
+You must follow these rules at all times:
+
+Code must be human readable, not clever or cryptic
+
+Every file and module has one clear responsibility
+
+No dead code, no commented out blocks, no unused imports
+
+Strict TypeScript everywhere, no any unless there is a documented reason
+
+All logic is explicit, no hidden side effects, no magic shortcuts
+
+If someone new opens this project in 6 months, they must be able to understand and modify any part without guessing.
+
+2. Structure and Syntax
+
+Follow a consistent folder structure:
+
+/src/api
+
+/src/core
+
+/src/db
+
+/src/jobs
+
+/src/tools
+
+/src/voice
+
+/src/widget
+
+/src/ui
+
+/docs
+
+No misc, helpers2, junk or random folders
+
+All imports are explicit and sorted
+
+No circular dependencies
+
+No random utils hidden deep in unrelated folders
+
+Formatting:
+
+ESLint and Prettier must pass with zero warnings
+
+No console.log in production code
+
+No trailing debug code, no commented console statements
+
+3. Naming and Comments
+
+Names must describe intent clearly:
+
+customerLead, jobTicket, invoiceStatus, not x1, tmp, data2
+
+Do not use abbreviations that only you understand
+
+Comments must explain WHY, not WHAT
+
+Good: "We split this to avoid locking the queue worker"
+
+Bad: "This loops over jobs"
+
+If the code needs a long comment to be understood, refactor it.
+
+4. Documentation For Every Module
+
+Every feature or structural decision must be documented.
+
+Update /docs files whenever you add or change a module:
+
+architecture.md
+
+api_tools.md
+
+memory.md
+
+rbac.md
+
+workflow_boundaries.md
+
+upgrade_strategy.md
+
+file_storage.md
+
+widget_security.md
+
+Minimum rule:
+If you add a new table, endpoint, queue, or workflow, you must add at least one or two lines in the right doc file that explains what it does and how it fits.
+
+No undocumented behavior. No secret logic.
+
+5. Tests And Safety
+
+You do not push code that does not pass tests and lint
+
+Unit tests must cover:
+
+Core business flows
+
+RBAC
+
+Tool endpoints
+
+Main error paths
+
+Integration tests must cover:
+
+Widget to API to n8n to CRM chain
+
+Job pipeline (lead to payment)
+
+Any bug that is found in a core flow must get a test, so it cannot come back.
+
+6. Error Handling And Logging
+
+All APIs must fail with clear, deterministic errors
+
+No raw stack traces to the client
+
+Sensitive info must never appear in logs
+
+Each failure path must have a clear message and code the AI and UI can understand
+
+Every action that changes data must create an AuditLog entry.
+
+7. No Hidden Vendors Or Trash Code
+
+No vendor analytics, trackers, or meta tags unless explicitly requested
+
+No obfuscated or minified files in the repo
+
+No copy pasted blobs that nobody understands
+
+All dependencies must be listed, used, and justifiable
+
+If a dependency is not clearly needed, do not use it.
+
+8. Modification Guarantee
+
+You are building this so that:
+
+Any competent dev can:
+
+open the repo
+
+read the docs
+
+understand the architecture
+
+safely modify or extend any part without breaking the system
+
+Every new module or feature must respect this rule.
+If a change makes the system harder to understand or harder to extend, that change is not acceptable.
+
+9. Enforcement
+
+Before you say the project or a feature is "done", you must:
+
+Run lint, tests, and build
+
+Manually verify routes and main flows
+
+Confirm docs are updated
+
+Confirm no dead code or debug leftovers
+
+Confirm structure still matches the architecture
+
+If any of this fails, you are not done.

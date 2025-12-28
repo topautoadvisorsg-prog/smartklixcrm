@@ -1,0 +1,184 @@
+CALENDAR TAB — DECISIONS & GREENLIGHT
+
+Everything below is authoritative for this phase.
+
+1️⃣ Purpose & Authority (CONFIRMED)
+
+Your understanding is 100% correct.
+
+✅ Calendar Tab = Read-only Scheduling Mirror
+
+✅ Google Calendar is the single source of truth
+
+❌ CRM never writes to Google Calendar
+
+❌ No drag/drop, no edits, no rescheduling in CRM
+
+Mental model is locked:
+
+“This is a mirror for awareness and verification, not control.”
+
+If something needs changing → user clicks through to Google Calendar.
+
+2️⃣ File Strategy
+
+Decision: MODIFY EXISTING FILE
+
+✅ Use client/src/pages/Calendar.tsx
+
+❌ Do NOT rename
+
+❌ Do NOT create a second calendar page
+
+Same reasoning as Intake Hub: routing + permissions stability.
+
+3️⃣ Views & Scope (VERY IMPORTANT)
+
+Decision: DAY VIEW ONLY (FOR NOW)
+
+✅ Implement Day view only
+
+✅ Day / Week / Month switcher exists in UI
+
+❌ Week/Month views are non-functional placeholders
+
+📌 Label them clearly as inactive or disabled
+
+Why:
+We do not fake parity. Day view is the operational view dispatchers actually need.
+
+4️⃣ Data Source & API Strategy
+
+Decision: FRONTEND DOES NOT TOUCH GOOGLE DIRECTLY
+
+One of these must be true — we do NOT guess:
+
+✅ Approved assumption for implementation:
+
+Calendar data already exists (or will exist) in CRM DB
+
+Data arrives via Neo8 → webhook → database
+
+Frontend calls:
+
+GET /api/calendar/events?date=YYYY-MM-DD
+
+
+(or equivalent existing endpoint)
+
+If endpoint does NOT exist:
+
+✅ Stub with mock data
+
+✅ Wrap API call in service abstraction
+
+❌ Do NOT call Google APIs from frontend
+
+❌ Do NOT embed OAuth or tokens
+
+📌 README must state clearly:
+
+“Calendar events are synced externally via Neo8. This tab is a passive consumer.”
+
+5️⃣ Neo8 / Automation (LOCKED)
+
+Your table is correct.
+
+❌ Triggers automations? NO
+
+✅ Reads automation results? YES
+
+❌ Writes to Automation Ledger? NO
+
+Inbound only:
+
+Google Calendar → Neo8 → CRM DB → Calendar Tab
+
+
+No ledger noise. No fake events.
+
+6️⃣ UI / UX AUTHORIZATION
+
+You are fully cleared to implement:
+
+Header
+
+“Scheduling Mirror” title
+
+Google Calendar authority indicator
+
+Sync timestamp
+
+Manual refresh (rate-limited)
+
+Linked Only / Show All toggle
+
+Date Navigation
+
+Today highlighted
+
+Prev / Next
+
+Correct real date (not hardcoded)
+
+Event List
+
+Card-based list
+
+Time column
+
+Status indicators:
+
+Active
+
+Imminent
+
+Completed
+
+Future
+
+Linked entity chips (Job / Contact)
+
+Click → opens Google Calendar
+
+Error Handling
+
+Dismissible error banner on API failure
+
+Styling
+
+Glassmorphic tokens approved
+
+You MAY reduce card padding slightly for density
+
+Do NOT reduce clarity
+
+7️⃣ What You MUST NOT Do
+
+Just like Intake Hub:
+
+❌ No background polling
+❌ No optimistic updates
+❌ No calendar mutations
+❌ No automation triggers
+❌ No silent GCal writes
+
+8️⃣ README REQUIREMENTS (MANDATORY)
+
+Update docs/tabs/calendar.md to explicitly include:
+
+Read-only guarantee
+
+Google Calendar authority
+
+No background polling
+
+Rate-limited manual refresh
+
+Neo8 as sync layer
+
+Day-view-only (v1 scope)
+
+✅ FINAL STATUS
+
+Calendar Tab: APPROVED — IMPLEMENT NOW

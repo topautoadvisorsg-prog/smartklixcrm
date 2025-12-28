@@ -1,0 +1,98 @@
+IMMEDIATE CLARIFICATION & DIRECTIVE (SEND THIS TO HIM)
+1️⃣ “Testing mode” is NOT an excuse for missing UI visibility
+
+I don’t care if it’s in testing / dev / sandbox mode
+
+If something is approved, validated, or written to the ledger, it MUST appear in the UI
+
+You are allowed to:
+
+Create a TEST proposal
+
+Label it clearly as TEST
+
+Run it through the entire lifecycle
+
+But:
+
+Every field must be filled
+
+Every step must be visible
+
+No hidden paths
+
+If it exists in the database, I must be able to see it in the UI.
+
+2️⃣ Ledger discrepancy is a blocking issue
+
+This is critical and needs to be fixed or explained immediately:
+
+Ledger-related activity IS showing on the Dashboard
+
+BUT:
+
+The official Ledger tab shows NOTHING
+
+That means one of the following is true (all unacceptable without explanation):
+
+The Ledger tab is querying the wrong table
+
+The Ledger tab is filtered incorrectly (env, tenant, status, type)
+
+The Dashboard is reading from a different source than the Ledger tab
+
+Or the Ledger tab is incomplete / broken
+
+👉 The Ledger tab is the source of truth.
+If it’s empty while the dashboard shows ledger activity, governance is broken.
+
+3️⃣ Explicit requirement: Full visible lifecycle test
+
+You need him to do ONE complete test, end to end, and you must be able to SEE it.
+
+Required visible steps in UI (no exceptions):
+
+Intake created (marked TEST if needed)
+
+INTAKE_RECEIVED ledger entry visible
+
+ActionAI proposal created
+
+AI_PROPOSAL_CREATED visible in Ledger tab
+
+Proposal visible in Review Queue
+
+Approval action taken
+
+AI_VALIDATION_RECORDED visible in Ledger tab
+
+Proposal appears in Ready Execution
+
+Human decision taken
+
+HUMAN_EXECUTION_DECISION visible
+
+Dispatch / execution result visible
+
+Final execution result ledger entry visible
+
+If any of these steps:
+
+Exist in code
+
+Exist in DB
+
+Exist in logs
+but do not appear in the UI → that is a failure, not “working”.
+
+4️⃣ Absolute rule going forward
+
+Nothing is considered “working” unless it is:
+
+Written to the ledger
+
+AND visible in the official Ledger tab
+
+AND traceable by a human without checking code
+
+Dashboards, summaries, or console logs do not count as proof.

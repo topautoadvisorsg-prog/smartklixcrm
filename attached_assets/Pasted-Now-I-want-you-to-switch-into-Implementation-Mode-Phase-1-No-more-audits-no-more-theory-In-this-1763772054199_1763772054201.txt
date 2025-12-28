@@ -1,0 +1,346 @@
+Now I want you to switch into Implementation Mode, Phase 1.
+
+No more audits, no more theory.
+In this phase your only job is to implement the highest impact fixes you already identified.
+
+Important rules for this phase
+
+Do not touch Neo8 SMS or email yet
+
+Do not wire Twilio, SendGrid, or Stripe, that will be handled later through Neo8
+
+Do not redesign everything or add new concepts that are not in the report
+
+Do not break any working endpoints or UI that already function
+
+You will focus only on the following 5 areas that you yourself marked as top priority in the report:
+
+Master Architect Settings Page
+
+ActionGPT Config page for ChatGPT Actions
+
+Conversation persistence and history handling
+
+Input validation and basic rate limiting
+
+N8N health and status panel
+
+Nothing else. No RAG, no background job queue, no communication tools yet.
+
+1. MASTER ARCHITECT SETTINGS PAGE
+
+Current problem from your report
+
+The Master Architect Hub is basically read only. No configuration, no control, no tuning.
+
+Your task
+
+Turn Master Architect into a real controllable brain using a proper Settings section.
+
+On the Master Architect area, add a Settings panel with at least:
+
+A. Model configuration
+
+Model dropdown
+
+gpt 4o
+
+gpt 4o mini
+
+gpt 3.5 turbo
+
+Temperature slider
+
+Max tokens input
+
+Top P slider
+
+Frequency penalty slider
+
+These values must be persisted and actually used by the Master Architect when calling OpenAI.
+
+B. System behavior
+
+System prompt editor with save and load (persist to DB)
+
+Reflection enabled toggle
+
+Max reflection rounds
+
+Recursion depth limit
+
+Again, these must be wired to the actual Master Architect class, not just stored.
+
+C. Context management
+
+Max conversation history messages
+
+Toggle for context summarization (you can just store the setting now, real summarization logic can be minimal or stubbed for this phase)
+
+Auto prune setting (for example, prune after X messages or X days)
+
+For this phase, keep it minimal and robust. No need to implement every single advanced control from the big spec, but the basics above should work end to end.
+
+D. Tool permissions (minimal version)
+
+Build a simple tool permissions table:
+
+Tool name
+
+Description
+
+Enabled toggle
+
+Allowed modes per tool (Draft, Assist, Auto checkboxes)
+
+These flags must be enforced when the Master Architect selects tools.
+If a tool is disabled or not allowed in that mode, it must not be called.
+
+2. ACTIONGPT CONFIG PAGE (CHATGPT ACTIONS)
+
+Current problem from your report
+
+The ActionGPT config page manages internal workflows but gives zero guidance to connect ChatGPT Actions.
+
+Your task
+
+Make this page usable so I can plug it into the ChatGPT Actions console without guessing.
+
+On /actiongpt-config, add:
+
+A. Setup block with copy ready values
+
+Display “Actions Base URL” for ChatGPT, for example
+
+https://[current backend domain]/api/ai/gpt-actions/execute
+
+Include a Copy button.
+
+Display the Bearer token that Actions must use
+
+Hidden by default
+
+Show button
+
+Copy button
+
+This should read from the internal token that is actually used by the backend, not a fake value.
+
+B. OpenAPI schema section
+
+You can keep it simple for now:
+
+Generate or hardcode a minimal OpenAPI 3 schema that describes the POST /api/ai/gpt-actions/execute endpoint and the main shape of the payload
+
+Show it in a read only JSON code block
+
+Add buttons: Copy and Download
+
+We do not need a full blown auto generator in this phase, just something that can be pasted into the Actions console.
+
+C. Available actions table
+
+Add a table that lists the tools the ActionGPT endpoint can call, for example:
+
+Action name
+
+Description
+
+Required parameters
+
+Optional parameters
+
+Reuse your own tool metadata if it already exists. If not, define a small, clean mapping for the tools we expose through Actions.
+
+D. Test connection
+
+Add a “Test Action” button that:
+
+Sends a simple test payload through the same path ChatGPT Actions would use
+
+Shows the raw HTTP status and JSON response in the UI
+
+This is an internal test only. It does not need to call the real ChatGPT console.
+
+3. CONVERSATION PERSISTENCE
+
+Current problem from your report
+
+Conversation history is not persisted. The frontend has to send the entire history every time. Refresh and everything is gone.
+
+Your task
+
+Move conversation history to the backend and make it the source of truth.
+
+A. Database
+
+If these tables already exist, extend them, otherwise create them cleanly:
+
+conversations
+
+id
+
+user id or owner
+
+contact id nullable
+
+created at
+
+updated at
+
+messages
+
+id
+
+conversation id
+
+role user or assistant or system
+
+content
+
+metadata JSONB
+
+created at
+
+B. Backend behavior
+
+For both CRM chat and Master Architect:
+
+When a user sends a message, create a message record
+
+When the AI responds, create a message record
+
+Always return a conversationId in the response so the frontend can reuse it
+
+Add an endpoint like GET /api/conversations/:id that returns the recent messages for that conversation
+
+C. Wiring Master Architect
+
+Update the Master Architect so it can:
+
+Load previous messages for a conversation id from the database
+
+Append the new exchanges
+
+Not depend on the client passing the full conversation history array
+
+The client can still send additional context, but persistence must live server side.
+
+4. REQUEST VALIDATION AND BASIC RATE LIMITING
+
+Current problem from your report
+
+Many AI endpoints trust raw input, and there is no rate limit.
+
+Your task
+
+Add a simple, reusable safety layer.
+
+A. Validation
+
+Wrap AI entry routes with a reusable validation helper that uses Zod (or the library already used in this codebase)
+
+If validation fails, return a clean 400 with a clear message, no stack traces
+
+At minimum, cover:
+
+Internal AI chat endpoints
+
+GPT actions execute endpoint
+
+Any endpoints that directly trigger AI tools
+
+B. Rate limiting
+
+Add basic rate limiting to:
+
+Internal AI chat endpoint
+
+GPT Actions endpoint
+
+Use simple, sane defaults for now, like:
+
+X requests per minute per IP or per user
+
+This is just to prevent abuse and accidental runaway loops.
+
+5. N8N HEALTH AND STATUS PANEL
+
+Current problem from your report
+
+We have n8n event logging but no health view or connectivity checks.
+
+Your task
+
+Add a small, clear N8N status area so we can see if automation is alive without guessing.
+
+You can place this either:
+
+Inside Master Architect as a “N8N Status” section
+or
+
+Inside Settings under Integrations
+
+Minimum required:
+
+Show the currently configured N8N webhook URL
+
+Show last successful event timestamp (if we have one)
+
+Show a count of failed events in the last 24 hours
+
+Show the last few error messages if they exist
+
+Add a “Test Ping” button that:
+
+Sends a simple test payload to the N8N webhook
+
+Displays the HTTP status and body returned
+
+If there is an existing table or log for webhooks, reuse it.
+If not, create a small webhook_events table with:
+
+id
+
+url
+
+status code
+
+error message nullable
+
+created at
+
+No retry logic yet. Just visibility.
+
+GENERAL RULES FOR THIS PHASE
+
+Do not implement send sms, send email, payment links, or any Twilio SendGrid Stripe features in this phase
+
+Do not start on RAG, semantic search, background job queues, or knowledge base yet
+
+If you add any new fields, tables, or environment variables, document them clearly
+
+If a setting appears in the UI, it must be persisted and actually used by the backend, not dummy only
+
+DELIVERABLES
+
+When you finish this Phase 1 work, I need:
+
+Short bullet summary of what you built
+
+List of new environment variables or config keys, if any
+
+List of new or changed API endpoints
+
+Screenshots or quick descriptions of
+
+Master Architect settings panel
+
+ActionGPT config page with base URL, token, schema, and test button
+
+N8N status section
+
+Any known limitations or follow up items you recommend for Phase 2
+
+After we confirm Phase 1 is stable and working, we will move to the next items from your own roadmap
+(tool execution safeguards, AI execution logs, context summarization, etc).

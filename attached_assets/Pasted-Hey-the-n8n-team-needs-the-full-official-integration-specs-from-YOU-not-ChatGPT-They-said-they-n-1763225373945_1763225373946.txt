@@ -1,0 +1,108 @@
+Hey, the n8n team needs the full official integration specs from YOU, not ChatGPT.
+
+They said they need the CRM developer to provide:
+
+The final REST API documentation
+
+All endpoints
+
+Request and response formats
+
+Validation rules
+
+Error responses
+
+Example payloads
+
+The exact behavior of each endpoint (especially contacts/create upsert logic)
+
+The final SmartKlix → n8n event payload schemas
+
+new_lead
+
+job_updated
+
+send_sms
+
+send_email
+
+invoice_created
+
+create_payment_link
+
+missed_call
+
+call_completed
+
+call_missed
+
+They want YOU to confirm the exact field names, especially the ones sent from the dashboard (e.g., event_type vs eventType).
+
+The Webhook URLs YOU are calling inside the CRM, and the exact payload YOU send.
+
+The authentication method YOU require
+
+Header format
+
+Required secrets
+
+If any endpoints require special permissions
+
+The CRM → n8n test payloads YOU used, including the one that generated the error:
+(Neo8 wants this directly from you, not ChatGPT.)
+
+Confirmation of the CRM’s final data contract, meaning:
+
+Which fields are required
+
+Which fields are optional
+
+Which fields are nullable
+
+How deduplication works
+
+How jobs and leads get created
+
+How activity logs behave
+
+What metadata the CRM expects
+
+The final contract for POST /api/events/update, including:
+
+Required fields
+
+Optional fields
+
+Example of successful payload
+
+Example of failed payload
+
+What the CRM expects in the "result" object
+
+What the CRM returns back
+
+A short checklist of what needs to be tested by Neo8
+
+Contact create
+
+Contact update
+
+Job create
+
+Lead create
+
+Activity-log/write
+
+Events/update callback
+
+Missed call flow
+
+Send SMS/email events
+
+Create payment link flow
+
+They also said:
+
+“We cannot complete the workflow until the CRM developer sends us the OFFICIAL documentation. ChatGPT’s explanation is NOT valid documentation. We need it straight from the CRM dev, because only he knows the real logic and field formats.”
+
+So please write the full official SmartKlix API + Event Spec (everything above) and send it to Neo8, directly from you as the CRM dev.

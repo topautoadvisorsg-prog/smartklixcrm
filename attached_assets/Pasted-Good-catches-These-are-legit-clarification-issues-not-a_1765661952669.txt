@@ -1,0 +1,199 @@
+Good catches. These are **legit clarification issues**, not architectural failures — and you’re still on track. I’ll go point-by-point and be very explicit about **what is actually true in *your* system**, what needs correction in the checklist, and what action (if any) is required.
+
+---
+
+## 3. AI Receptionist — economic vs premium (VALID, NEEDS CLARITY)
+
+You’re right. The checklist **over-generalized** and would cause wiring mistakes if left as-is.
+
+### What’s actually correct in *your* architecture
+
+You have **two modes**, even if they’re not formally labeled yet:
+
+### ✅ Economic AI Receptionist
+
+* **Twilio Gather** (`SpeechResult`, confidence, timeouts)
+* **Multi-turn loop**
+* **Stateful**
+* **Redis REQUIRED** (or equivalent short-term store)
+* Neo8 manages:
+
+  * Partial turns
+  * Conversation state
+  * Loop exit conditions
+
+### ✅ Premium AI Receptionist
+
+* Uses **external voice / AI layer**
+* Neo8 receives:
+
+  * Final transcript
+  * Structured summary
+  * Extracted lead data
+* **Stateless**
+* ❌ **Redis NOT required**
+* ❌ No multi-turn logic inside Neo8
+
+### Correction Required
+
+✅ The AI Receptionist section **must be split into two variants**:
+
+* “AI Receptionist — Economic (Twilio Gather + Redis)”
+* “AI Receptionist — Premium (External Voice Layer, Stateless)”
+
+No logic change — **documentation + wiring clarity only**.
+
+---
+
+## 4. Follow-Up & Qualification Trigger (VALID, IMPORTANT)
+
+You’re absolutely right — this is the **most important missing specificity**, and it’s not Neo8’s fault, it’s a **CRM contract issue**.
+
+### What must be locked (CRM side)
+
+The trigger is not “manual” in theory — it’s **intent-based**.
+
+The CRM must define:
+
+1. **Exact trigger source**
+
+   * Button click?
+   * Status change?
+   * Pipeline stage change?
+
+2. **Exact payload**
+
+   * contactId
+   * channel (sms | email | both)
+   * templateId or intent
+   * optional meeting link flag
+
+3. **Reply handling**
+
+   * ❌ Neo8 does NOT process inbound replies
+   * ✅ CRM logs replies and optionally re-triggers outreach
+
+### Correction Required
+
+✅ Update checklist to say:
+
+> “CRM Intent Trigger → Outreach Webhook
+> Triggered by explicit CRM action with defined payload contract”
+
+This is a **CRM developer task**, not Neo8 logic.
+
+---
+
+## 6. Google Workspace Triggers (100% CORRECT — checklist wording was wrong)
+
+You are completely right here.
+
+### Reality in n8n / Neo8
+
+* Gmail / Calendar **do NOT use simple inbound webhooks**
+* They are:
+
+  * Polling triggers
+  * Or Google Pub/Sub push subscriptions
+* Sheets / Docs are **almost always action-only**, not event-driven
+
+### What your architecture actually uses
+
+* **CRM → Neo8 = trigger**
+* **Neo8 → Google = action**
+* **Neo8 → CRM = log**
+
+There is **no “Google → Neo8” trigger requirement** in your system.
+
+### Correction Required
+
+✅ Rename all Google sections to:
+
+* “CRM-Triggered Google Workspace Actions”
+* Remove “Gmail webhook / Calendar webhook” language entirely
+
+No logic change — **terminology fix only**.
+
+---
+
+## 7. Master Architect Review — Redis & Retry Logic (CORRECT, NEEDS REWRITE)
+
+This is the most important architectural correction — and you’re right again.
+
+### Current reality (post-integration)
+
+* **Approval Hub + assistQueue live in CRM**
+* CRM owns:
+
+  * retries
+  * decision state
+  * escalation thresholds
+* Neo8:
+
+  * executes action
+  * sends completion
+  * **waits for callback**
+  * resumes or exits
+
+### Therefore:
+
+❌ Redis retry counters in Neo8 are **NOT REQUIRED**
+❌ Review logic does **NOT live in Neo8**
+✅ Neo8 is **review-aware, not review-authoritative**
+
+### Correct Model
+
+* Neo8 → “Action Completed”
+* CRM → evaluates
+* CRM → callback to Neo8:
+
+  * APPROVE
+  * RETRY
+  * ESCALATE
+
+### Correction Required
+
+✅ Rewrite Flow 7 as:
+
+* Stateless callback-driven review
+* No internal retry counting
+* No Redis dependency
+
+Again: **no system redesign**, just removing now-obsolete scaffolding.
+
+---
+
+## Final Verdict (Straight Answer)
+
+You are **not missing anything important**. What you’re seeing is:
+
+* Architecture evolved ✔️
+* CRM absorbed responsibility ✔️
+* Checklist lagged behind reality ⚠️
+
+### Required Actions Summary
+
+| Item                    | Action                            |
+| ----------------------- | --------------------------------- |
+| AI Receptionist         | Split economic vs premium in docs |
+| Follow-Up Trigger       | Lock CRM trigger + payload        |
+| Google Workspace        | Fix trigger terminology           |
+| Master Architect Review | Remove Redis retry logic          |
+
+### What does NOT change
+
+* Flow logic
+* Diagram structure
+* Separation of concerns
+* Memory system
+* Review authority model
+
+You’re still **~75% done**, and now you’re in **final contract + configuration territory**, not architecture risk.
+
+If you want, next I can:
+
+* Rewrite the **cleaned, corrected Neo8 Builder prompt**
+* Or generate a **CRM ↔ Neo8 payload contract doc**
+* Or produce a **final “no more changes” sign-off checklist**
+
+Your call.

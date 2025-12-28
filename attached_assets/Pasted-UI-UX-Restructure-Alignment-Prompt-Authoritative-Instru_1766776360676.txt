@@ -1,0 +1,252 @@
+UI/UX Restructure & Alignment Prompt
+
+(Authoritative Instructions — Read Carefully)
+
+Context (Read First)
+
+We are not rebuilding the product.
+
+We are refining, aligning, and polishing what already exists.
+
+Most tabs, backend logic, and integrations already live inside the CRM.
+This effort focuses on navigation structure, naming consistency, UI/UX layout, and visual polish, while ensuring the backend remains correctly wired and documented.
+
+Automation continues to run through n8n (Neo8).
+You are trusted to handle backend updates where required.
+
+Phase 0 — Alignment & Planning
+
+NO EXECUTION UNTIL APPROVED
+
+1. Sidebar / Tab Restructuring (First Priority)
+
+Start with navigation only.
+
+Your task:
+
+Review the final approved tab list (names are locked)
+
+Compare it against the existing CRM tabs
+
+Identify:
+
+1:1 matches
+
+Renamed tabs
+
+Merged tabs
+(Example: Invoices → merged into Estimates)
+
+Propose a logical sidebar grouping, such as:
+
+Core Overview
+
+Operations
+
+Revenue
+
+Communications
+
+AI & Automation
+
+Configuration
+
+⚠️ Do not implement yet.
+Deliverable here is a written restructuring plan only.
+
+2. Documentation System (READMEs)
+
+We are standardizing documentation for clarity and scalability.
+
+Rules
+
+Each tab has its own README
+
+READMEs are not created all at once
+
+A README is created or updated only when work on that tab begins
+
+Structure
+/docs
+  /tabs
+    dashboard.md
+    contacts.md
+    jobs.md
+    estimates.md
+    ...
+  README.md   (Main product overview)
+
+Constraints
+
+Do NOT delete the existing main README
+
+You may update it to reflect:
+
+Final tab structure
+
+High-level product flow
+
+Tab README Requirements
+
+Each tab README must document:
+
+Purpose of the tab
+
+UI/UX behavior and flow
+
+Backend touchpoints relevant to that tab
+
+Automation references (n8n / Neo8) where applicable
+
+READMEs describe behavior and connections —
+they do not redesign architecture.
+
+Phase 1 — Mock-Up Driven UI/UX Refinement
+
+EXECUTION ONLY AFTER PHASE 0 APPROVAL
+
+3. Mock-Up Code Usage (Critical)
+
+You will be provided mock-up layout code.
+
+This code is:
+
+Visual-only
+
+Not production logic
+
+Treat it as:
+
+Layout reference
+
+Spatial hierarchy
+
+Component composition
+
+You do NOT need to worry about:
+
+Colors
+
+Theme
+
+Typography
+
+Design tokens
+(these are already defined globally)
+
+You DO focus on:
+
+Layout clarity
+
+Visual hierarchy
+
+Spacing
+
+Readability
+
+Flow between sections
+
+UI polish
+
+Target style:
+
+Clean
+
+Minimal
+
+Modern SaaS
+
+Glassmorphic / Google-style
+
+Zero visual clutter
+
+4. UX Simplicity Rule (Non-Negotiable)
+
+Advanced functionality must never overwhelm the user.
+
+Rules:
+
+Progressive disclosure
+
+Advanced settings appear:
+
+Step-by-step
+
+Or behind secondary actions
+
+Avoid “everything on one screen”
+
+Optimize for:
+
+Speed
+
+Clarity
+
+Low cognitive load
+
+Backend & Automation Expectations (Important)
+
+You are allowed and expected to update the backend where necessary.
+
+Allowed Backend Work
+
+Wiring and configuring existing backend systems
+
+Updating or aligning n8n (Neo8) automation flows
+
+Ensuring UI changes are fully functional
+
+Refactoring only when required to support UI/UX
+
+Not Allowed
+
+Redesigning core business logic
+
+Changing product architecture
+
+Adding new features
+
+Rebuilding existing systems
+
+Documentation Requirement
+
+Anything you touch on the backend must be:
+
+Reflected in the tab’s README
+
+Clearly documented at a high level
+
+What triggers the automation
+
+What systems it interacts with
+
+Why it exists
+
+Use judgment.
+Do what is necessary.
+Document what you touch.
+
+Execution Constraints (Strict)
+
+❌ No feature expansion
+❌ No architecture changes
+❌ No duplicate or overlapping work
+❌ No rebuilding from scratch
+
+✅ Modify, refine, align only
+✅ Save time and cost
+✅ Execute top → bottom once approved
+
+Deliverables Before Any Execution
+
+Before writing code or changing UI, you must deliver:
+
+Sidebar restructuring plan
+
+Tab mapping (old → new, merges noted)
+
+Ordered task list (top → bottom, no overlap)
+
+README creation/update plan
+
+Stop and wait for explicit approval before executing anything.

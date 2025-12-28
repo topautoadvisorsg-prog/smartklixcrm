@@ -1,0 +1,291 @@
+FULL SYSTEM RE-AUDIT CHECKLIST
+
+Scope: Intake → ActionAI Console → Review Queue → Ready Execution → Ledger
+Goal: Prove the system behaves correctly every single time, with no silent paths
+
+I. INTAKE AUDIT (CRITICAL – MUST BE FIRST)
+
+Intake is the front door. If this is wrong, everything downstream is corrupted.
+
+1️⃣ Intake Configuration Verification
+
+Audit Questions
+
+What endpoint receives intake payloads?
+
+What sources are supported?
+
+External GPTs
+
+Widget
+
+API calls
+
+Manual operator intake
+
+Required Proof
+
+Show the intake endpoint
+
+Show payload schema
+
+Show source identifier (e.g. source = widget | gpt | operator)
+
+2️⃣ Intake → Ledger (MANDATORY)
+
+Expected Behavior
+
+Every intake creates a ledger entry:
+
+INTAKE_RECEIVED
+
+includes source, entity (contact/company), timestamp
+
+Fail Conditions
+
+Intake creates a proposal without a ledger entry
+
+Intake silently routes to ActionAI without trace
+
+II. ACTIONAI CONSOLE AUDIT (CORE BRAIN)
+
+This is where intent becomes proposals. No execution allowed here.
+
+3️⃣ Natural AI Chat (READ AUTHORITY)
+
+Audit Prompts
+
+“How many contacts are in the CRM?”
+
+“What’s waiting in Review Queue?”
+
+“Show me the last ledger entry”
+
+“What was the last human-approved action?”
+
+Expected
+
+AI uses READ tools
+
+AI answers with actual system data
+
+No “I don’t have access” responses
+
+Ledger
+
+No ledger entry for reads (READ-ONLY)
+
+4️⃣ Action Drafting (WRITE AUTHORITY)
+
+Audit Prompt
+
+“Create a follow-up email for Joe Acosta”
+
+Expected Flow
+
+ActionAI creates proposal
+
+Proposal stored in assist_queue
+
+Ledger entry written:
+
+AI_PROPOSAL_CREATED
+
+includes entity + proposal ID
+
+NOTHING executes
+
+Fail Conditions
+
+No ledger entry
+
+Proposal bypasses review
+
+Proposal mutates CRM data directly
+
+III. REVIEW QUEUE AUDIT (AI-ONLY GOVERNANCE)
+
+Humans do not touch this layer.
+
+5️⃣ Review Queue Visibility
+
+Expected
+
+Proposal appears immediately after creation
+
+Status = pending_review
+
+6️⃣ Master Architect Decision
+
+Test Both Paths
+
+Approve:
+
+Ledger entry:
+
+AI_VALIDATION_RECORDED
+
+status = approved
+
+Proposal becomes eligible for Ready Execution
+
+Reject:
+
+Ledger entry:
+
+AI_VALIDATION_RECORDED
+
+status = rejected
+
+If retry allowed:
+
+Proposal returns to ActionAI
+
+Retry counter increments
+
+Ledger: AI_RETRY_ISSUED
+
+If retries exhausted:
+
+Ledger: AI_RETRY_EXHAUSTED
+
+Proposal terminated
+
+Fail Conditions
+
+No ledger write
+
+Humans able to approve here
+
+Retry without ledger trace
+
+IV. READY EXECUTION AUDIT (HUMAN AUTHORITY)
+
+This is the only place execution is allowed.
+
+7️⃣ Ready Execution Population
+
+Expected
+
+Only items with:
+
+AI approved
+
+retries resolved
+
+NO mock IDs
+
+NO fake rows
+
+Proof
+
+Show DB query feeding this tab
+
+8️⃣ Human Decision
+
+Approve
+
+Ledger entry:
+
+HUMAN_EXECUTION_DECISION
+
+outcome = approved
+
+Execution dispatched to orchestration (n8n / Neo8)
+
+Ledger:
+
+EXECUTION_DISPATCHED
+
+Reject
+
+Ledger entry:
+
+HUMAN_EXECUTION_DECISION
+
+outcome = rejected
+
+Proposal permanently closed
+
+Fail Conditions
+
+Execution without human approval
+
+Ledger missing
+
+Dispatch not traceable
+
+V. EXECUTION & FEEDBACK AUDIT
+9️⃣ Execution Result
+
+Expected
+
+Execution result returns
+
+Ledger entry:
+
+EXECUTION_RESULT_RECORDED
+
+success/failure
+
+Result visible in UI/log feed
+
+VI. LEDGER INTEGRITY AUDIT (NON-NEGOTIABLE)
+🔟 Ledger Completeness Test
+
+Pick one proposal and trace:
+
+INTAKE_RECEIVED
+
+AI_PROPOSAL_CREATED
+
+AI_VALIDATION_RECORDED
+
+HUMAN_EXECUTION_DECISION
+
+EXECUTION_DISPATCHED
+
+EXECUTION_RESULT_RECORDED
+
+❌ If any step is missing, the system is invalid.
+
+VII. AI SETTINGS + AUTHORITY SAFETY CHECK
+1️⃣1️⃣ AI Settings Persistence
+
+Change instruction
+
+Reload page
+
+Ask AI a question that should reflect the change
+
+Expected
+
+Behavior changes
+
+No silent failures
+
+1️⃣2️⃣ Authority Lock
+
+AI must NOT:
+
+Change its own instructions
+
+Change API keys
+
+Change governance rules
+
+If AI can do this → critical security failure
+
+VIII. FINAL AUDIT DELIVERABLE (WHAT HE MUST RETURN)
+
+He must return with:
+
+✅ Screenshots
+
+✅ DB rows (ledger + queue)
+
+✅ Exact test prompts
+
+✅ Exact responses
+
+✅ One full traced proposal lifecycle

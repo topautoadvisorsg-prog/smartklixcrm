@@ -1,0 +1,146 @@
+FLOW #2 — FOLLOW-UP / OUTREACH FLOW
+
+We are building Flow #2: Follow-Up (Outreach).
+
+This flow exists for one reason only:
+👉 Send outbound messages (SMS / Email / Invites) when a human triggers it.
+
+Nothing else.
+
+WHAT THIS FLOW IS
+
+This is a manual outreach flow.
+
+A human inside the CRM decides:
+
+who to follow up with
+
+when to follow up
+
+what action to trigger
+
+This workflow simply executes the outreach and logs it.
+
+WHAT TRIGGERS THIS FLOW
+
+A manual action from the CRM, such as:
+
+Rep clicks “Send Follow-Up”
+
+Rep clicks “Send SMS”
+
+Rep clicks “Send Email”
+
+Rep clicks “Send Invite”
+
+No schedules.
+No monitoring.
+No background checks.
+
+If a human doesn’t click something, nothing runs.
+
+WHAT DATA THIS FLOW USES
+
+Whatever data already exists in the CRM at that moment:
+
+name
+
+email
+
+phone
+
+notes
+
+tags
+
+intake info
+
+This flow does not care where the data came from
+(AI, Excel, manual entry, imports — irrelevant).
+
+WHAT THIS FLOW DOES (ONLY THESE THINGS)
+
+Receives the manual trigger from the CRM
+
+includes contact ID
+
+includes action type (SMS / Email / Invite)
+
+Fetches the contact from the CRM
+
+just to get the latest info needed to send the message
+
+Generates message content (optional AI assist)
+
+SMS copy
+
+Email copy
+
+Invite message
+AI only helps write text — no decisions
+
+Sends the outreach
+
+SMS → Twilio
+
+Email → SendGrid
+
+Invite → Email / Calendar if applicable
+
+Logs the outreach back to the CRM
+
+what was sent
+
+which channel
+
+when
+
+who triggered it
+
+That’s it.
+
+WHAT THIS FLOW DOES NOT DO
+
+❌ No lead scoring
+
+❌ No qualification logic
+
+❌ No stage decisions
+
+❌ No follow-up strategy
+
+❌ No CRM cleanup
+
+❌ No assumptions
+
+❌ No AI acting on its own
+
+Humans decide everything.
+This flow just sends messages.
+
+INTEGRATIONS USED
+
+CRM API (read contact, write activity log)
+
+Twilio (SMS)
+
+SendGrid (Email)
+
+OpenAI (message writing only)
+
+⚠️ All credentials live in Neo8
+⚠️ Do NOT ask the client for Twilio / SendGrid keys
+
+FINAL NOTE FOR BUILDER
+
+Keep this workflow:
+
+lightweight
+
+manual
+
+action-based
+
+outreach-only
+
+If it doesn’t send a message or log it, it doesn’t belong here.

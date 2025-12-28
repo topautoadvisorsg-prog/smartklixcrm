@@ -1,0 +1,227 @@
+1. Priority & Development Order
+
+Phase A: New pages + structure → start here.
+
+Reason: All other features (widget optimization, AI brains, GPT Actions) rely on a stable page structure and routing.
+
+
+Phase C: Widget delay fix → implement after Phase A is stable and verified.
+
+
+
+---
+
+2. Page vs Pop-Up Rules
+
+Full pages required for:
+
+Leads, Contacts, Deals (create/edit)
+
+Settings / workflows
+
+AI brains / instruction management
+
+GPT Actions / Automation Brain
+
+
+Popups allowed for:
+
+Quick actions (status change, assign owner, notes)
+
+Filters
+
+Tooltips
+
+Confirmations
+
+
+⚠ No core workflows inside popups.
+
+
+---
+
+3. Contacts & Deals
+
+Contacts page: list view, filters, tags, detailed profile. “+ Add New Lead” can be popup, but deep edit = page.
+
+Deals page: build from scratch if not existing. Include:
+
+Pipeline/Kanban view
+
+Deal detail pages (full page)
+
+Creation can be popup
+
+Integration with AI actions / GPT workflows
+
+
+
+
+---
+
+4. Multi-Chat AI Brains (Dedicated Pages)
+
+Each AI brain gets a dedicated page:
+
+1. Website Widget Chat – handles external user messages
+
+
+2. Internal CRM Chat – handles team interactions
+
+
+3. Master Architect Chat – oversees AI decisions and approvals
+
+
+4. GPT System Brain – handles knowledge, instructions, and response logic
+
+
+5. Automation / Workflow Brain – handles all AI-triggered workflow execution
+
+
+
+Automation / Workflow Brain Details
+
+Dedicated page that executes AI jobs, runs background workflows, and logs every action.
+
+Works alongside existing AI brains; does not replace them.
+
+All jobs executed here appear in GPT Actions logs.
+
+Master Architect Review:
+
+✅ Single checkmark → Job completed by agent/AI
+
+✅✅ Double checkmark → Approved by Master Architect AI (locked after approval)
+
+
+
+
+---
+
+5. GPT Actions / Automation Brain (Dedicated Page)
+
+Handles execution of AI jobs and workflows.
+
+Interacts with CRM modules via APIs.
+
+Job Execution Log includes:
+
+Job ID
+
+Action type
+
+Trigger source AI
+
+Related module / contact / deal
+
+Timestamp
+
+
+Controls on page:
+
+Approve / Reject / Re-run jobs
+
+Add internal notes
+
+Filter by status / module / AI brain / date
+
+
+Jobs do not require Master Architect approval to execute, but review option exists.
+
+
+
+---
+
+6. Chat Widget (External)
+
+Must be functional on external websites.
+
+Optimize message sending delay (currently 5–10s).
+
+Keep auto-responses but reduce latency.
+
+Connect securely to CRM backend.
+
+Include heartbeat / debug monitoring in System Watcher.
+
+
+
+---
+
+7. Notifications
+
+Show only business-critical notifications:
+
+AI job failures
+
+Workflow errors
+
+Message failures
+
+Visitor engagement
+
+
+No server metrics or infra data in main UI.
+
+
+
+---
+
+8. System Watcher Page
+
+Hidden route (/system-watcher)
+
+Accessible only to Dev + Owner
+
+Sections:
+
+Server / infrastructure
+
+Database connections
+
+AI & Messaging pipeline
+
+Widget health
+
+
+Poll every 5–10s, status colors: Green / Yellow / Red
+
+
+
+---
+
+9. n8n Integration
+
+Connect CRM to n8n for automation workflows.
+
+All AI-triggered jobs are recorded in GPT Actions logs.
+
+n8n handles background automation & external integrations.
+
+
+
+---
+
+10. Build Quality
+
+Clean workflow logic, modular AI brains, scalable structure.
+
+High-detail polish, no clutter.
+
+Final structure locked before n8n integration.
+
+
+
+---
+
+11. Logo Fix (End)
+
+Replace current image logo with icon only.
+
+Render product name as live UI text, separate from icon.
+
+Ensure responsive scaling:
+
+Mobile: Icon ± short name or icon-only view
+
+Desktop: Icon + full product name

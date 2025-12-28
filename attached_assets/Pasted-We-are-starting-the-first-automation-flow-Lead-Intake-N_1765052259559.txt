@@ -1,0 +1,107 @@
+We are starting the first automation flow: Lead Intake → Neo8Flow.
+Before anything gets sent to the N8N builder, YOU need to review it first.
+
+Below is the exact prompt that we plan to send to the N8N builder.
+We need you to:
+
+Review the logic
+
+Make sure it matches our CRM structure
+
+Tell us if anything needs to be implemented on your side
+
+Tell us if anything is missing
+
+Tell us if anything is incorrect
+
+Ask any questions you need
+
+Once confirmed, you will build whatever backend requirements are needed
+
+Then you will give us the final, corrected version of this prompt to send to the N8N builder
+
+You do NOT build N8N.
+You verify, correct, and prepare the prompt for the N8N builder.
+
+📦 BEGIN N8N BUILDER PROMPT (FOR YOU TO REVIEW)
+
+Flow Name: Lead Intake Flow
+
+Purpose:
+Our CRM sends a Lead Intake event to Neo8Flow. Neo8Flow processes it and triggers any needed automations (AI receptionist follow-up, notifications, tasks, etc.).
+
+Important Rules:
+
+Intake has NO deduplication
+
+Intake has NO merge logic
+
+Intake has NO CRM decisions
+
+Intake is strictly pass-through
+
+CRM handles duplicate detection later, inside the CRM only
+
+Intake only sends the event to Neo8Flow
+
+Required Steps the Builder Must Implement:
+
+Receive POST webhook from Smart Klix
+
+Validate required fields
+
+Check signature (optional, but supported)
+
+Route by event_type (for now only lead.intake)
+
+Store raw data in N8N Data Store (if needed)
+
+Trigger the follow-up automation (to be defined later)
+
+Respond 200 OK
+
+Payload structure the flow will receive:
+
+{
+  "schema_version": "neo8flow.v1",
+  "event_type": "lead.intake",
+  "idempotency_key": "...",
+  "tenant_id": "...",
+  "timestamp": "...",
+  "source": {
+    "channel": "chat_widget",
+    "source_id": "widget-1",
+    "ip": "1.2.3.4"
+  },
+  "data": {
+    "contact": {
+      "firstName": "",
+      "lastName": "",
+      "email": "",
+      "phone": ""
+    }
+  }
+}
+
+
+Builder’s job:
+Only build the workflow exactly as described.
+No customizing CRM logic.
+No changing structure.
+No adding steps we didn’t approve.
+
+📌 END OF N8N BUILDER PROMPT
+
+Your Job (CRM Developer):
+
+Review this entire prompt
+
+Tell us what needs to be updated in our backend to support this
+
+Tell us if the structure matches our system
+
+Tell us if anything needs to be added before sending this to the builder
+
+Tell us if any required fields or logic are missing
+
+Once approved, provide the FINAL VERSION of the builder prompt that we will send to Neo8Flow Ask Agent for validation

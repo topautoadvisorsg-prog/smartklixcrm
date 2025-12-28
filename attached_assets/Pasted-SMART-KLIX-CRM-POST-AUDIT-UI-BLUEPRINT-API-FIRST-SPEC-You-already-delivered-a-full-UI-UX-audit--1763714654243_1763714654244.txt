@@ -1,0 +1,274 @@
+SMART KLIX CRM – POST-AUDIT UI BLUEPRINT + API-FIRST SPEC
+
+You already delivered a full UI/UX audit for Smart Klix CRM. Good.
+
+Now I want you to go one level deeper and turn that audit into a concrete blueprint we can implement later without guessing.
+
+Important:
+
+Do NOT write any code yet
+
+Do NOT change the UI yet
+
+This is a design and architecture planning pass only
+
+Use your previous audit as the base, and now produce a clear, opinionated implementation spec.
+
+1. FINAL NAVIGATION MAP (CLEAN VERSION)
+
+Based on your own recommendations, I want you to:
+
+Propose a final, simplified main navigation with at most 8–10 top-level items
+
+For each nav item, list:
+
+Purpose of the tab
+
+Exact sub-sections or views it contains
+
+Which user roles actually need it (owner, admin, dispatcher, tech, viewer)
+
+Make it explicit which current tabs are:
+
+removed
+
+merged
+
+moved under Settings
+
+renamed
+
+For example, be crystal clear on things like:
+
+Files tab → removed, file management lives in Contact / Job detail
+
+Notes tab → removed or repurposed, notes live in entity detail pages
+
+Metrics tab → removed or rebuilt as Reports
+
+AI Assist Queue → merged into Master Architect hub
+
+AI Memory, Audit Log, User Management → moved under Settings
+
+I want a final “this is the nav” map we will actually implement.
+
+2. CONTACT DETAIL PAGE – FULL SPEC
+
+You already called out that Contact Detail needs to become a command center.
+
+Now I want a formal spec for the Contact Detail page:
+
+Exact sections (header, left column, right column, tabs, side panel, etc.)
+
+What each section shows and what actions live there
+
+Which things are inline (notes, files, quick actions), not separate pages
+
+How the communication timeline works:
+
+What entries show up (SMS, email, calls, AI actions, N8N automations, status changes)
+
+What basic fields each timeline item must include
+
+Where AI shows up on this screen:
+
+AI suggestions (next action)
+
+Any “Ask AI about this contact” entry point
+
+Also define:
+
+Where files are attached for a contact
+
+Where notes are created and displayed
+
+Where appointments related to this contact are seen and created
+
+Where we see money from this contact (estimates, invoices, payments summary)
+
+Make this detailed enough that a frontend dev can build the page without asking you one million questions.
+
+3. JOB DETAIL PAGE – FULL SPEC
+
+Same thing for Job Detail.
+
+Give me a formal spec for the Job Detail page:
+
+Sections and layout
+
+What must be visible above the fold:
+
+Job title, status, priority, value, client, date, assigned techs
+
+Task checklist behavior:
+
+How tasks are displayed, checked off, reordered
+
+Where team assignment lives (who is working this job)
+
+Where time & materials tracking lives
+
+Where notes and files live (inline, not in some global tab)
+
+Where appointments for this job are shown and created
+
+Where we see linked estimate(s) and invoice(s)
+
+How the job timeline works (status changes, important events, AI/N8N actions)
+
+Also, define:
+
+Where AI recommendations appear on the job (for example, “AI suggests: send estimate reminder” or “AI suggests: follow up in 2 days”)
+
+Any buttons or quick actions that should exist on this page (send SMS, send email, send invoice, schedule follow-up, etc.)
+
+Again, detailed enough that implementation is straightforward.
+
+4. AI / MASTER ARCHITECT HUB – UI PLACEMENT
+
+You already identified Master Architect / AI control as a central concept.
+
+Now I want you to:
+
+Define exactly where this lives in the UI
+
+For example: Settings → AI Control → Master Architect Hub
+
+Describe what the main Master Architect Hub screen shows:
+
+Pending AI actions
+
+Status (draft, assist, auto)
+
+Which entity they relate to (contact, job, invoice, etc.)
+
+Original prompt / context
+
+Proposed action details
+
+Define how the review and approval flow looks visually:
+
+How a human sees pending actions
+
+How they approve / reject
+
+How they see previous decisions
+
+Important: connect this with the CRM entities:
+
+If an action is “Send SMS to Contact X”, show how the user jumps into that contact
+
+If an action is “Update Job Status”, show how it links to the job
+
+You are not coding it yet, just designing the behavior and layout.
+
+5. API-FIRST DESIGN – CRM AS A PLATFORM
+
+This is critical.
+
+I want Smart Klix CRM to act as a proper API product, not just an internal app.
+
+You already know the current API surface (contacts, jobs, invoices, events, etc.). Now I want you to:
+
+List the core resources that MUST have stable APIs:
+
+contacts
+
+jobs
+
+estimates
+
+invoices
+
+payments
+
+appointments
+
+notes
+
+files (metadata)
+
+AI tasks / assist queue
+
+events / audit logs
+
+For each resource, define the minimal API contract:
+
+Key endpoints (GET list, GET by id, POST create, PATCH update, etc.)
+
+Required and optional fields
+
+Consistent ID format and naming conventions (camelCase, snake_case, etc. – choose and stick to it)
+
+Define how external systems will integrate:
+
+Example: Zapier / Make / n8n / custom apps calling REST API
+
+Webhook events that CRM can emit for other systems
+
+Authentication pattern (Bearer token per tenant, etc.)
+
+Confirm that the planned UI flows match this API-first model:
+
+If the UI can do something, an external app should be able to do the same thing through the API
+
+No “UI-only magic” with no API behind it
+
+The goal is:
+Smart Klix CRM should “speak the same language” as other modern tools, through a clean JSON REST API and webhooks, so other apps can integrate without hacking.
+
+You do NOT have to rewrite the API, but you must:
+
+Evaluate the current API surface
+
+Point out inconsistencies or missing pieces
+
+Propose a clean, stable contract going forward
+
+6. N8N + UI TOUCHPOINTS
+
+Based on your UI audit and the existing N8N integration:
+
+Mark which screens and buttons will eventually trigger N8N workflows
+
+Example: sending SMS, sending emails, payment links, missed call follow-ups, etc.
+
+For each of those actions, describe:
+
+What the user clicks in the UI
+
+What payload must be sent to N8N
+
+What the user should see in the UI when it succeeds or fails (status, logs, etc.)
+
+We are not wiring N8N yet. We just want the UI + API blueprint to be correct and consistent with the future workflows.
+
+7. PRIORITIZED IMPLEMENTATION PLAN (NO CODE YET)
+
+Finally, based on everything above and your own roadmap in the previous audit:
+
+Create a clear, ordered list of implementation phases:
+
+Phase 1: Nav simplification + tab removals/moves
+
+Phase 2: Contact detail full implementation
+
+Phase 3: Job detail full implementation
+
+Phase 4: Settings reorganization (User Mgmt, Audit Log, AI Memory, Integrations, etc.)
+
+Phase 5: Master Architect Hub UI
+
+Phase 6: API contract cleanup and docs
+
+Phase 7: N8N touchpoint wiring (in a later prompt)
+
+For each phase, list:
+
+What files/areas of the codebase it will touch
+
+What can break if done wrong
+
+Any dependencies between phases
+
+Again, this is still planning, not implementation.

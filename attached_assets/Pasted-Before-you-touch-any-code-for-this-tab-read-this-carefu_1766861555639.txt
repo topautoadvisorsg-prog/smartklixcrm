@@ -1,0 +1,89 @@
+Before you touch any code for this tab, read this carefully.
+This is not optional and not advisory.
+We’ve had repeated issues where:
+Mockups are ignored or loosely interpreted
+UI structure drifts from what was provided
+Unapproved settings or controls appear in tabs
+README updates lag or don’t reflect reality
+That stops now.
+
+1. MOCKUP USE — NON-NEGOTIABLE
+The mockup we provide is MANDATORY GUIDANCE.
+You are required to follow the STRUCTURE, LAYOUT, and INTENT of the mockup.
+You do NOT need to pixel-match it.
+You DO need to:
+Respect panel layout (left/right, queue/detail, etc.)
+Respect component grouping
+Respect information hierarchy
+Respect light/dark theme intent (NO hardcoded colors)
+If you ignore the mockup or “freestyle” the UI:
+→ That is a failure of process.
+If something in the mockup conflicts with the README:
+→ You STOP and report it. You do NOT improvise.
+
+2. README IS THE SYSTEM CONTRACT
+The main README is the source of truth.
+Before implementation, you MUST:
+Read the README section relevant to this tab
+Confirm authority, flow, and ledger rules
+Identify what the tab is explicitly NOT allowed to do
+If during review or build you find:
+Logic that doesn’t match the README
+UI elements that violate authority boundaries
+Behavior that contradicts governance rules
+You MUST:
+Call it out
+Propose the correction
+Update the README if needed
+No silent assumptions. No “I thought it made sense”.
+
+3. REQUIRED PRE-IMPLEMENTATION REPORT (MANDATORY)
+Before writing code, you MUST send a summary that answers ALL of the following:
+A. What EXISTS today
+What UI elements currently exist for this tab (or related tabs)
+What backend behavior currently exists
+What data sources / APIs are involved
+B. What SHOULD exist (per README + mockup)
+What the tab is responsible for
+What it must never do
+Who has authority (Human vs AI vs System)
+C. What you will CHANGE
+What you will add
+What you will remove
+What you will not build (and why)
+D. Red Flags / Misfits
+Anything in the mockup that looks risky
+Anything in existing code that violates the README
+Anything that feels like “this doesn’t belong here”
+If something should not exist in the tab, you are REQUIRED to say so explicitly.
+Do NOT assume we’ll catch it later.
+
+4. LEDGER RULE (NO EXCEPTIONS)
+If an action happens, it gets written to the ledger.
+That includes:
+AI proposals
+Master Architect validation (approve / reject)
+Human execution decisions
+Dispatch events
+Final outcomes
+If you are unsure where a ledger event belongs:
+→ Ask before implementing.
+
+5. CLEAN CODE EXPECTATIONS
+No hardcoded colors
+Theme-aware tokens only
+No dead UI
+No speculative settings
+No “future use” controls
+No backend-driven intelligence leaking into UI
+This is a CRM, not an AI configuration console.
+
+6. FAILURE MODE (IMPORTANT)
+If you skip this process and implement:
+UI that ignores the mockup
+Controls that violate authority boundaries
+Features that do not belong in the tab
+That is a process failure, not a design disagreement.
+We are deliberately doing this review step to avoid wasted time and rework.
+
+Once you send the required summary and we approve it, you may proceed with implementation.

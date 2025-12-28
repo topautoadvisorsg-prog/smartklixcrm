@@ -1,0 +1,183 @@
+Purpose: Validate end-to-end execution of Neo8 as an orchestration layer using REAL payloads, REAL credentials, and REAL side effects (messages, logs, CRM updates).
+Scope: Economic mode only. Premium explicitly excluded.
+
+🧪 TESTING PHASE OBJECTIVE
+
+Confirm that Neo8 executes correctly when triggered by CRM-like payloads, without AI content generation, without approvals, and with correct logging back to CRM.
+
+This is execution testing, not architecture review.
+
+✅ TEST SEQUENCE (DO THESE IN ORDER)
+1️⃣ CRM → Neo8 Trigger Test (Baseline)
+
+Trigger: CRM Manual Trigger (or Webhook)
+
+Payload MUST include:
+
+{
+  "contactId": "test_contact_001",
+  "phone": "+1XXXXXXXXXX",
+  "email": "test@example.com",
+  "message": "This is a test message from CRM",
+  "voiceMode": "economy"
+}
+
+
+PASS if:
+
+Workflow executes without error
+
+No nodes skipped unexpectedly
+
+Global Config values resolve correctly
+
+No AI node generates outbound text
+
+2️⃣ Outbound Messaging Tests (Hard Requirement)
+A. SMS (Twilio)
+
+Expected:
+
+SMS is delivered to real phone
+
+Message body == CRM payload message
+
+Delivery status logged back to CRM
+
+B. Email (Gmail / SendGrid)
+
+Expected:
+
+Email delivered
+
+Subject/body exactly match CRM payload
+
+HTML renders correctly (if HTML)
+
+C. WhatsApp
+
+Expected:
+
+WhatsApp message sent
+
+Auth header validated
+
+Delivery receipt logged
+
+❌ FAIL if any outbound message is AI-generated or modified.
+
+3️⃣ Stripe Test (Payment Flow)
+
+Trigger: CRM payload with payment intent
+
+Expected:
+
+Stripe customer searched by email
+
+Created if not found
+
+stripeCustomerId normalized
+
+Downstream nodes use normalized ID
+
+No human approval step in Neo8
+
+4️⃣ Redis Test (State / Conversation)
+
+Expected:
+
+Keys written successfully
+
+Values retrievable
+
+TTL respected (if set)
+
+No crashes on read/write
+
+5️⃣ Google Stack Tests
+Sheets
+
+Append row
+
+Confirm row exists
+
+Docs
+
+Create doc
+
+Append content
+
+Export doc (if configured)
+
+Calendar
+
+Create Event using calendar = "primary"
+
+Update Event
+
+Cancel Event
+
+⚠️ Ignore validation warning on calendar ID
+✅ PASS if events actually appear in Google Calendar
+
+6️⃣ Economic AI Receptionist (INBOUND TEST)
+
+Required Setup (THIS IS WHY YOU’RE NOT GETTING CALLS):
+
+Twilio phone number MUST be pointed to the Neo8 webhook
+
+Voice webhook URL active
+
+Workflow activated
+
+Test:
+
+Call the Twilio number
+
+Speak for 10–20 seconds
+
+Hang up
+
+Expected:
+
+Call is answered
+
+STT → LLM → TTS executes
+
+Transcript captured
+
+Summary generated
+
+Summary sent to CRM via Neo8
+
+❌ FAIL if:
+
+Call not answered
+
+Call answered but no transcript
+
+No CRM update
+
+🚫 EXPLICITLY OUT OF SCOPE (DO NOT TEST)
+
+Premium AI Receptionist
+
+Low-latency streaming
+
+Whisper real-time model
+
+Outbound voice calls (premium-only)
+
+📋 FINAL TEST REPORT REQUIRED
+
+Neo8 builder must deliver:
+
+✅ Passed tests
+
+❌ Failed tests
+
+Logs / execution IDs
+
+Screenshots (Calendar, Sheets, Messages)
+
+Confirmation that Neo8 is execution-ready

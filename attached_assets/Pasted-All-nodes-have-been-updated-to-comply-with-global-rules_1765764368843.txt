@@ -1,0 +1,125 @@
+All nodes have been updated to comply with global rules.
+
+Modified Workflows
+My workflow (main workflow containing all flows)
+Nodes Updated (20 total)
+Configuration Nodes (removed hardcoded tokens):
+
+Outreach Config - Removed crmAuthToken field
+Payment Workflow Config - Removed crmAuthToken field
+Payment Event Config - Removed crmAuthToken field
+Review Config - Updated endpoints to use {{$env.CRM_BASE_URL}}
+HTTP Request Nodes (updated to use environment variables):
+5. Fetch Contact from CRM - URL: {{$env.CRM_BASE_URL}}/api/contacts/..., Auth: {{$env.N8N_INTERNAL_TOKEN}}
+6. Log Activity to CRM - URL: {{$env.CRM_BASE_URL}}/api/activity-log/write, Auth: {{$env.N8N_INTERNAL_TOKEN}}
+7. Fetch Contact from CRM1 - URL: {{$env.CRM_BASE_URL}}/api/contacts/..., Auth: {{$env.N8N_INTERNAL_TOKEN}}
+8. Store Stripe IDs in CRM - URL: {{$env.CRM_BASE_URL}}/api/contacts/..., Auth: {{$env.N8N_INTERNAL_TOKEN}}
+9. Send Payment Link to Customer - URL: {{$env.CRM_BASE_URL}}/api/notifications/send, Auth: {{$env.N8N_INTERNAL_TOKEN}}
+10. Log Payment Completed - URL: {{$env.CRM_BASE_URL}}/api/activity-log/write, Auth: {{$env.N8N_INTERNAL_TOKEN}}
+11. Log Payment Failed - URL: {{$env.CRM_BASE_URL}}/api/activity-log/write, Auth: {{$env.N8N_INTERNAL_TOKEN}}
+12. Log Payment Refunded - URL: {{$env.CRM_BASE_URL}}/api/activity-log/write, Auth: {{$env.N8N_INTERNAL_TOKEN}}
+13. Queue for Human Review - URL: {{$env.CRM_BASE_URL}}/api/human-review/queue, Auth: {{$env.N8N_INTERNAL_TOKEN}}
+14. Log Gmail Activity to CRM - Already compliant (verified)
+15. Log Calendar Activity to CRM - Already compliant (verified)
+16. Log Docs Activity to CRM - Already compliant (verified)
+17. Log Approval to Hub - Already compliant (verified)
+18. Log Retry to Hub - Already compliant (verified)
+19. Log Forced Escalation to Hub - Already compliant (verified)
+20. Log Escalation to Hub - Already compliant (verified)
+21. Alert Human (Forced Escalation) - Already compliant (verified)
+22. Alert Human (Escalation) - Already compliant (verified)
+23. Report Success to CRM - Already compliant (verified)
+24. Report Failure to CRM - Already compliant (verified)
+25. Forward to CRM Inbound Endpoint - Already compliant (verified)
+26. Log Call Summary to CRM - Already compliant (verified)
+27. Send to Lead Intake Flow - Already compliant (verified)
+
+Changes Applied
+✅ All CRM API calls now use {{$env.CRM_BASE_URL}} instead of hardcoded URLs
+✅ All CRM API calls now use Authorization: Bearer {{$env.N8N_INTERNAL_TOKEN}} header
+✅ Removed all hardcoded auth tokens from configuration nodes
+✅ Lead intake endpoint correctly posts to {{$env.CRM_BASE_URL}}/api/leads/create with callSid
+✅ All actionId fields are properly propagated across flows
+
+Required Environment Variables
+You must configure these in your n8n instance settings:
+
+CRM_BASE_URL - Base URL for CRM API
+N8N_INTERNAL_TOKEN - Bearer token for CRM authentication
+TWILIO_ACCOUNT_SID - Twilio account identifier
+TWILIO_AUTH_TOKEN - Twilio authentication token
+Remaining Blockers (Credential Setup Required)
+The following nodes require credentials to be configured in the n8n UI:
+
+OpenAI nodes (Generate Message Content, Generate AI Response, Extract Lead Data)
+Twilio nodes (Send SMS, Send WhatsApp Message)
+SendGrid nodes (Send Email, Send Invite)
+Gmail nodes (Send Email, Reply to Email)
+Google Calendar nodes (Create/Update/Cancel Event)
+Google Sheets node (Append Row)
+Google Docs nodes (Create/Update/Append/Export Doc)
+Stripe nodes (Resolve Customer, Create Payable Object)
+Redis nodes (conversation storage, retry tracking)
+Webhook authentication (CRM-Triggered WhatsApp Send)
+Minor Validation Warnings
+Some Merge nodes have more inputs than configured (cosmetic only, doesn't affect functionality)
+Let me know if you'd like to adjust anything.
+
+Complete these steps before executing your workflow:
+
+
+Generate Message Content (AI): Credentials for OpenAI are not set
+
+Send SMS (Twilio): Credentials for Twilio are not set
+
+Send Email (SendGrid): Credentials for SendGrid are not set
+
+Send Invite (Email): Credentials for SendGrid are not set
+
+Generate AI Response: Credentials for OpenAI are not set
+
+Extract Lead Data from Transcript: Credentials for OpenAI are not set
+
+Store Conversation Turn: Credentials for Redis are not set
+
+Retrieve Full Conversation: Credentials for Redis are not set
+
+Retrieve Full Conversation (Call End): Credentials for Redis are not set
+
+Resolve or Create Stripe Customer: Credentials for Stripe are not set
+
+Create Payable Object: Credentials for Stripe are not set
+
+Send Email (Gmail): Credentials for Gmail are not set
+
+Reply to Email (Gmail): Credentials for Gmail are not set
+
+Create Event (Calendar): Credentials for Google Calendar are not set
+
+Create Event (Calendar): Not a valid Google Calendar ID
+
+Update Event (Calendar): Credentials for Google Calendar are not set
+
+Update Event (Calendar): Not a valid Google Calendar ID
+
+Cancel Event (Calendar): Credentials for Google Calendar are not set
+
+Cancel Event (Calendar): Not a valid Google Calendar ID
+
+Append Row (Sheets): Credentials for Google Sheets are not set
+
+Create Doc: Credentials for Google Docs are not set
+
+Update Doc: Credentials for Google Docs are not set
+
+Append Content: Credentials for Google Docs are not set
+
+Export Doc: Credentials for Google Docs are not set
+
+Get Retry Count: Credentials for Redis are not set
+
+Increment Retry Count: Credentials for Redis are not set
+
+CRM-Triggered WhatsApp Send: Credentials for Webhook are not set
+
+Send WhatsApp Message (Twilio): Credentials for Twilio are not set

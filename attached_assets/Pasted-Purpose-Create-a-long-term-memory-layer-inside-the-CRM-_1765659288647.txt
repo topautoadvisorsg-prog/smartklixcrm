@@ -1,0 +1,118 @@
+Purpose
+
+Create a long-term memory layer inside the CRM that stores and retrieves historical context for AI agents and workflows.
+
+This memory is used to:
+
+Give AI agents context in future interactions
+
+Preserve lead, customer, and interaction history
+
+Support review, auditing, and continuity across flows
+
+What Needs to Be Stored (Core Memory Objects)
+
+The CRM must persist and index:
+
+Lead & contact data (intake, updates, enrichment)
+
+AI-collected information (chat, phone, assistant summaries)
+
+Conversation transcripts & summaries (AI Receptionist, CRM chat)
+
+Meeting details (calendar events, changes, outcomes)
+
+Follow-up actions and outcomes
+
+Stripe payment statuses (from downstream events)
+
+Google Workspace actions (emails sent, docs created, sheets logged)
+
+Master Architect decisions (approve / reject / escalate)
+
+All memory must be append-only or versioned (no silent overwrites).
+
+How Memory Is Used
+
+AI agents read from memory before acting
+
+New actions append new memory entries
+
+Master Architect review decisions are stored as immutable records
+
+Humans can view memory in CRM UI (timeline / activity feed)
+
+Memory is context, not decision logic.
+
+Integration Rules
+
+CRM is the single source of truth
+
+Neo8 does not store long-term memory
+
+Neo8 sends execution results → CRM writes memory
+
+CRM sends context → Neo8 for execution/review
+
+No business logic inside Neo8
+
+Suggested CRM Structure (High Level)
+
+You may implement however you want, but conceptually:
+
+Unified Activity / Memory Log
+
+Each entry includes:
+
+entityId (lead/contact/job)
+
+source (AI, human, Neo8, system)
+
+type (intake, call, email, meeting, payment, review)
+
+payload (structured JSON)
+
+timestamp
+
+related workflow / taskId (if applicable)
+
+Implementation Order (Confirming Current Plan)
+
+Lead Intake → verify all captured data is stored
+
+AI Receptionist → store transcripts + summaries
+
+Follow-Up & Qualification → store actions + results
+
+Stripe → store downstream payment events
+
+Google Workspace → store Gmail, Calendar, Sheets, Docs actions
+
+Master Architect → store review decisions + reasons
+
+AI Usage → verify agents can read historical context before acting
+
+Constraints
+
+Keep it simple
+
+No new automation logic here
+
+No UI redesign required (timeline / activity list is enough)
+
+Focus on reliable storage + retrieval
+
+Ask to CRM Developer
+
+Please:
+
+Confirm where and how memory will be stored in the CRM
+
+Confirm how AI agents will read this memory
+
+Flag any gaps or edge cases before implementation
+
+Do not change existing Neo8 logic
+
+This is the last architectural layer.
+Once this is confirmed, you move into keys, configuration, and testing.

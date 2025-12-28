@@ -1,0 +1,127 @@
+Hey, I need you to send the following directly to Neo8 so there is no confusion, no missing info, and no assumptions. You built the system, so you’re the only source of truth.
+
+Please send Neo8 a complete, direct explanation of:
+
+1. What IS Covered (Fully Implemented & Documented in your CRM)
+
+Confirm to him that the following are 100 percent implemented exactly as written in your docs:
+
+All 7 REST API endpoints with exact request/response formats
+
+Bearer token auth (N8N_INTERNAL_TOKEN)
+
+Zod validation schemas
+
+Contact upsert/dedup by phone number
+
+Event payload structures (snake_case)
+
+Phone number formatting rules (E.164 only)
+
+/api/events/update callback behavior
+
+Error response formats for all endpoints
+
+Audit logging behavior
+
+Complete curl test suite with working examples
+
+Dashboard → N8N event schema
+
+N8N → CRM callback schema
+
+Logging format
+
+Test plan
+
+Architecture references in replit.md
+
+Tell him clearly:
+“These parts are locked and guaranteed.”
+
+2. What is NOT Covered (Intentionally Undefined Because Not Implemented Yet)
+
+Please list out (exactly as you wrote):
+
+Rate limiting: none
+
+Request timeouts: default Express
+
+Retry logic: none
+
+Idempotency keys: not supported
+
+Webhook retries: not supported
+
+Pagination: none
+
+Batch operations: none
+
+Webhook signatures: none
+
+API versioning: none
+
+And explicitly tell him:
+
+“These features do not exist in the current version. Do not assume they do.”
+
+3. Explicit Instructions for Neo8 (Coming Directly From You)
+
+Please send him:
+
+The four specification documents ARE the contract
+
+Do NOT reference old messages
+
+If anything seems missing, ask you directly
+
+If behavior differs from documentation, that is a bug
+
+He must send “expected vs actual” and you will fix code or docs
+
+Use the curl commands from the test plan before wiring anything
+
+Use snake_case for dashboard events
+
+Use camelCase for CRM API
+
+Always send phone numbers in E.164
+
+Never send empty strings (omit fields instead)
+
+All endpoints require auth (except public webhooks)
+
+/api/contacts/create is the official upsert endpoint
+
+/api/events/update always returns 200 but contains success/error in JSON
+
+Make it clear:
+
+“If you see ANY mismatch during integration, document it and bring it to me. I will update the code OR the spec so they stay perfectly aligned.”
+
+4. Confirm Repo Paths for All Docs
+
+Please send Neo8:
+
+Exact file locations for:
+
+SMARTKLIX_CRM_API_SPEC.md
+
+SMARTKLIX_N8N_EVENT_CONTRACT.md
+
+N8N_CRM_CALLBACK_SPEC.md
+
+N8N_INTEGRATION_TEST_PLAN.md
+
+replit.md
+
+So he knows EXACTLY where to find them.
+
+5. Final Developer-to-Developer Clarification
+
+Tell him this directly:
+
+“These documents are the single source of truth.
+Do not guess.
+Do not assume undocumented features.
+If anything is unclear, ask me and I will update the docs.”

@@ -1,0 +1,186 @@
+Read this carefully. This message resolves the confusion around the Emails tab and locks scope.
+
+This area **IS being redesigned**.
+The redesign is intentional and expected.
+
+---
+
+## 1) EMAILS TAB — STRUCTURE (IMPORTANT)
+
+There is **ONE main Emails tab**, with **SUB-TABS inside it**.
+
+### Sub-Tab A: Emails (Personal Email)
+
+Purpose:
+
+* Human-sent, personal communication
+* Uses Google / Gmail–connected accounts
+* Free-text subject and body
+
+Used for:
+
+* 1:1 outreach
+* Ad-hoc follow-ups
+* Non-templated human communication
+
+Authority:
+
+* Human initiates
+* ActionAI may DRAFT, but:
+
+  * Must go through Review Queue
+  * Must be approved before send
+* Dispatch still goes through Neo8
+* Ledger records DISPATCH actions only
+
+---
+
+### Sub-Tab B: Email Accounts (Company / System Email)
+
+Purpose:
+
+* System and business email identity
+* Used for invoices, notifications, transactional messages
+
+Provider:
+
+* SendGrid / system provider
+* Routed via Neo8
+
+Used for:
+
+* Templates
+* Company-authoritative communication
+* Non-free-text emails
+
+Rules:
+
+* No free-text editing at send time
+* Template selection only
+* Templates are pre-approved assets
+
+Authority:
+
+* Human or ActionAI can select template
+* ActionAI proposals MUST go through Review Queue
+* Human approval required before execution
+* All sends dispatched via Neo8
+* All dispatch events written to ledger
+
+---
+
+## 2) TEMPLATES (REQUIRED)
+
+Templates ARE part of this scope.
+
+You must:
+
+* Research and implement a basic template system
+* Templates are:
+
+  * Read-only at send time
+  * Created/managed elsewhere (or via a simple template manager if needed)
+* Templates are REQUIRED for Company/System emails
+
+This is not optional.
+
+---
+
+## 3) README UPDATE (MANDATORY)
+
+If the README does not clearly explain:
+
+* Personal vs Company email
+* Gmail vs SendGrid
+* Why there are sub-tabs
+* Template-only rules for company email
+
+Then you MUST update the README.
+
+README is the contract.
+UI must match it.
+If something is unclear → document it.
+
+---
+
+## 4) ACTIONAI AUTHORITY
+
+ActionAI:
+
+* CAN draft emails
+* CAN select templates
+* CANNOT send directly
+* EVERYTHING it does must:
+  → Create a proposal
+  → Enter Review Queue
+  → Be approved
+  → Then executed via Neo8
+
+Humans:
+
+* Can send personal email directly
+* Company email still requires authorization + ledger
+
+---
+
+## 5) LEDGER RULES (REMINDER)
+
+Ledger entries are for ACTIONS ONLY.
+
+Write ledger entries for:
+
+* EMAIL_DISPATCH_AUTHORIZED
+* EMAIL_DISPATCH_SENT
+* EMAIL_DELIVERED
+* EMAIL_OPENED
+* EMAIL_CLICKED
+* EMAIL_FAILED
+
+DO NOT write ledger entries for:
+
+* Reading emails
+* Viewing lists
+* Searching
+* Asking questions
+
+---
+
+## 6) UI CODE YOU WERE GIVEN
+
+The UI code/mockups provided are:
+
+* A BASE PLATE
+* STRUCTURAL guidance
+* VISUAL inspiration
+
+They do NOT need to be copied pixel-for-pixel
+But you ARE expected to:
+
+* Follow layout intent
+* Follow information hierarchy
+* Respect light/dark themes
+* Use theme tokens (no hardcoded colors)
+
+If you diverge, you must explain why.
+
+---
+
+## 7) BEFORE YOU CONTINUE
+
+Before further implementation, return:
+
+1. Confirmation you understand:
+
+   * Personal vs Company email separation
+   * Why Email Accounts exists
+   * Template requirement
+
+2. A short plan:
+
+   * What you’re changing
+   * What you’re adding
+   * What README sections you’ll update
+
+No more guessing. No more reinterpretation.
+
+This message is authoritative.

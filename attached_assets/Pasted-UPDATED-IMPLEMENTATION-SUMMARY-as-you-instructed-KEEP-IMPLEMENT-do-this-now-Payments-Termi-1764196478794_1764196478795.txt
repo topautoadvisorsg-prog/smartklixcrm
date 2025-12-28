@@ -1,0 +1,72 @@
+UPDATED IMPLEMENTATION SUMMARY (as you instructed)
+✅ KEEP / IMPLEMENT (do this now)
+
+Payments
+
+Terminal Mode — full-screen payment route (/payment/terminal/:id). No nav, big typography, payment-only.
+
+Tap-to-Pay / Stripe integration — use Stripe Terminal / Payment Intents API for in-person card-present flows. Devs: integrate via Stripe SDK and expose a hardware pairing flow if using card readers.
+
+Wallet Management — stored payment methods in Contact record (Stripe Customer + PaymentMethod).
+
+Financing — not required now unless customer requests (leave hookable).
+
+Invoices
+
+Keep standard invoice builder / convert-from-estimate flows.
+
+Sync hooks for accounting (QuickBooks/Xero): do not implement full sync now. Add minimal fields/hooks so an integration can be dropped in later (see “Optional / Future” below).
+
+Estimates
+
+Pricebook integration — mandatory. Keep pricebook logic for parts/labor.
+
+Presentation Mode (tablet-friendly Good/Better/Best UI): keep — simple UI, no AI automatic tier generator.
+
+Visual comparison (check/ X) — optional simple UI; implement only if not complicated.
+
+Contacts
+
+Customer → Location relationship (bill-to customer with multiple service locations): required.
+
+Equipment: keep as a simple set of fields (serial, model, install date) — no complex hierarchy UI unless the customer asks.
+
+Duplicate detection — keep a HITL merge UI (diff view). Use simple fuzzy match rules; AI suggestions are optional, but keep the UI to resolve duplicates.
+
+Tags — primary mechanism for lightweight classification (not “motions”). Implement tags across Customers/Jobs/Contacts.
+
+Dispatch / Scheduling
+
+No live GPS tracker. Dispatching will be handled via tags + SMS / status updates (technician updates sent via SMS/API).
+
+Implement a Jobs Tray / backlog and drag-to-assign, but no live map/real-time ETA or route optimization unless requested.
+
+General UX
+
+Keep split-view (list/detail) pattern and resizable panels to reduce pogo-sticking.
+
+Keep modular widgets and the ability to save role-specific dashboards, but remove the AI “Pulse” widget (you said no AI pulse).
+
+Pipeline / Sales
+
+Keep Pricebook data flowing to pipeline where needed. Do not implement AI Win Score or rotting visuals unless you want them later.
+
+❌ REMOVE / DO NOT IMPLEMENT (done)
+
+AI Magic Upsell — removed. No auto-generated “Better/Best” via AI.
+
+Line-item images in estimates — removed. (If customer requests, we can add later.)
+
+AI Collections automation — removed. (No automatic AI chasing of invoices.)
+
+AI Pulse / Master Architect proactive toasts — removed.
+
+Live dispatch tracking / Uber-style live tracker — removed. Dispatch will be via tag/status updates + SMS.
+
+Photo intake with CV extraction — removed.
+
+Customer sentiment badges — removed.
+
+AI Receptionist barge-in / live call monitoring — removed for now (unless requested).
+
+Embedded complex AI configuration flows — keep the basics, but remove advanced AI orchestration features unless requested.

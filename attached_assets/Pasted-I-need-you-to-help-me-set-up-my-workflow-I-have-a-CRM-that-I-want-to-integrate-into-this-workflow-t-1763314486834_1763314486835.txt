@@ -1,0 +1,30 @@
+I need you to help me set up my workflow. I have a CRM that I want to integrate into this workflow that I'm creating right now as we speak, so we're still in the developing process. You're just pretty much going to guide me through every step from the beginning to the end of what we have right now on my workflow. If you don't know what that is, I'll be able to provide you that information. I believe, I think so. You're going to have to guide me through every step, like check here, let's make sure this is that, this is that, but if you have any questions for the developer, before you ask those questions, let me know so I can ask them, you answer anything, and we can take it from there.
+
+n8n AI
+Thanks for sharing your goal! I can definitely guide you step-by-step as you build your workflow and integrate your CRM. To get started, I’ll need a bit more information about your current setup and what you want to achieve.
+
+Here’s how we can proceed:
+
+Review Your Current Workflow:
+I’ll first need to know what nodes you already have in your workflow and what your current process looks like. If you’re not sure how to share this, just let me know and I’ll guide you.
+
+CRM Integration Details:
+
+What CRM are you using (e.g., HubSpot, Salesforce, Zoho, etc.)?
+Do you already have API credentials or access set up for this CRM?
+What kind of data do you want to send to or receive from the CRM?
+Workflow Goals:
+
+What is the main goal of this workflow? (e.g., create new contacts, update deals, sync data, etc.)
+Are there any triggers or specific events that should start the workflow?
+Next Steps:
+
+Please let me know which CRM you’re using and what you want to achieve with the integration.
+If you can, describe or list the nodes you currently have in your workflow, or let me know if you need help finding this information.
+Once I have this info, I’ll walk you through each step, checking your setup and making sure everything is configured correctly. If I need to ask you something that you’ll need to check with your developer, I’ll let you know before you ask them.
+
+Let me know how you’d like to proceed!
+
+Did this answer solve your question?
+
+Quick reply 👇

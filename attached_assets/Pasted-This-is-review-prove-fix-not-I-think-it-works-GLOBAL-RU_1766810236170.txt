@@ -1,0 +1,243 @@
+This is review → prove → fix, not “I think it works”.
+
+🔴 GLOBAL RULE (READ THIS FIRST)
+
+If anything happens, it MUST:
+
+Hit the Ledger
+
+Appear in the correct Queue / Tab
+
+Be queryable by AI chat
+
+Be auditable by a human
+
+If any step is missing → it is broken.
+
+🔍 PHASE 1 — HARD AUDIT (NO CODING YET)
+
+You must verify and prove each item below with actual UI + DB evidence, not words.
+
+1️⃣ AI CHAT — CORE INTELLIGENCE (MUST WORK)
+The AI chat MUST be able to:
+
+Answer read-only CRM questions
+
+“How many contacts named Joe?”
+
+“What is Joe’s client ID?”
+
+“What company is Joe associated with?”
+
+Answer ledger questions
+
+“What was the last action taken on Joe?”
+
+“Show me recent HUMAN_EXECUTION_DECISION events”
+
+Answer status questions
+
+“What’s waiting in Review Queue?”
+
+“What’s pending Ready Execution?”
+
+HARD CHECKS:
+
+Frontend endpoint EXISTS
+
+Backend endpoint EXISTS
+
+Endpoint actually queries DB
+
+Response is real data, not mock
+
+Errors are logged, not swallowed
+
+❌ If chat answers “error”, “I don’t know”, or nothing → FAIL
+
+2️⃣ ACTION CONSOLE — PROPOSALS (CRITICAL)
+ActionAI CRM MUST:
+
+❌ NEVER execute directly
+
+✅ ONLY PROPOSE
+
+✅ ALWAYS write to Ledger
+
+✅ ALWAYS appear in Review Queue
+
+Test cases:
+
+“Create a follow-up email”
+
+“Draft a reminder”
+
+“Prepare invoice” (proposal only)
+
+REQUIRED FLOW:
+
+ActionAI proposes
+
+LEDGER EVENT WRITTEN (AI_PROPOSAL_CREATED)
+
+Item appears in Review Queue
+
+Master Architect reviews
+
+LEDGER EVENT WRITTEN (AI_VALIDATION_RECORDED)
+
+❌ If it skips the queue → FAIL
+❌ If it doesn’t ledger → FAIL
+
+3️⃣ REVIEW QUEUE — MASTER ARCHITECT (BROKEN RIGHT NOW)
+MUST VERIFY:
+
+Items actually appear here
+
+Items are NOT invisible
+
+Approve / Reject works
+
+Rejection loops back for retry
+
+Max retries enforced (3-strike rule)
+
+LEDGER REQUIREMENTS:
+
+Every approve → ledger
+
+Every reject → ledger
+
+Every retry → ledger
+
+❌ “He said he did something but it’s not here” = SYSTEM FAILURE
+
+4️⃣ READY EXECUTION — HUMAN AUTHORITY
+MUST VERIFY:
+
+Only AI-approved items show up
+
+Human action REQUIRED
+
+No auto-dispatch
+
+Confirmation modal exists
+
+Final decision is terminal
+
+REQUIRED LEDGER EVENT:
+
+HUMAN_EXECUTION_DECISION
+
+REQUIRED DISPATCH:
+
+Writes to outbox
+
+Neo8 picks it up
+
+Execution result returns
+
+Result logged
+
+❌ If dispatch happens without ledger → FAIL
+❌ If reject still loops → FAIL
+
+5️⃣ LEDGER — ABSOLUTELY EVERYTHING
+Ledger MUST record:
+
+AI proposals
+
+Architect decisions
+
+Human approvals
+
+Human rejections
+
+Dispatch events
+
+Execution results
+
+Failures
+
+AI Chat MUST be able to query:
+
+By contact
+
+By action
+
+By time
+
+By actor (AI vs human)
+
+❌ If it “happened” but isn’t ledgered → IT DID NOT HAPPEN
+
+6️⃣ AI SETTINGS — REAL, NOT COSMETIC
+MUST VERIFY:
+
+Settings persist
+
+Settings are read by AI
+
+Settings affect behavior
+
+No mock/local-only state
+
+RULES:
+
+AI cannot update its own constitution
+
+AI can propose changes → Review Queue
+
+Humans approve → Ledger → Apply
+
+❌ If settings page doesn’t change AI behavior → FAIL  FRONTEND ↔ BACKEND PARITY
+For EVERY UI action:
+
+Endpoint exists
+
+Endpoint is wired
+
+No 404s
+
+No dead routes
+
+No fake success states
+
+If frontend calls an endpoint that doesn’t exist:
+❌ FAIL IMMEDIATELY
+
+🔴 PHASE 2 — FIX PLAN (REQUIRED OUTPUT)
+
+After audit, you must return:
+
+❌ What is broken
+
+📍 Where (file + endpoint)
+
+🧠 Why it’s broken
+
+🔧 Exact fix
+
+🔁 How it will be tested
+
+🧾 Ledger event affected
+
+No fixing until this is approved.
+
+FINAL WARNING
+
+If:
+
+Review Queue doesn’t populate
+
+Ledger isn’t complete
+
+AI chat can’t answer basic CRM questions
+
+Actions bypass governance
+
+Then the system is not working, regardless of UI.
+
+This checklist is mandatory.
+No skipping.
+No assumptions.

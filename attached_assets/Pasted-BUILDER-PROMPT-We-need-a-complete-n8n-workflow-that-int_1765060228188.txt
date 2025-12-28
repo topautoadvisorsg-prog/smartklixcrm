@@ -1,0 +1,566 @@
+BUILDER PROMPT
+
+We need a complete n8n workflow that integrates with Smart Klix CRM for lead intake processing. Build all nodes, connections, validation logic, normalization, lead scoring, CRM callback, and response handling as specified below.
+
+Flow Name
+
+Lead Intake Flow
+
+Purpose
+
+Smart Klix CRM sends lead intake events to n8n. The workflow must:
+
+Receive the webhook from CRM
+
+Validate the authentication token
+
+Validate required fields
+
+Normalize specified fields
+
+Derive a normalized channel value
+
+Calculate a lead score
+
+Call back to CRM to sync the processed data
+
+Return appropriate responses to CRM
+
+Important, there IS a callback to CRM. After processing, you MUST call /api/intake/sync to sync data back.
+
+INCOMING EVENT SPECIFICATION
+Webhook Endpoint
+
+Method: POST
+
+Path inside n8n webhook node: events/intake
+(The external URL will be whatever n8n assigns to this path.)
+
+Required Headers
+
+Content-Type: application/json
+
+x-internal-token: {TENANT_TOKEN}
+
+Request Payload Structure
+
+CRM sends this exact structure via dispatchIntakeToNeo8Flow:
+
+{
+  "outbox_id": "uuid-string",
+  "tenant_id": "tenant-uuid-string",
+  "payload": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+1234567890",
+    "company": "Acme Inc",
+    "message": "Interested in your services",
+    "source": "widget",
+    "tags": ["hvac", "residential"],
+    "custom_fields": {},
+    "contact_id": "optional-existing-contact-id",
+    "timestamp": "2025-12-06T10:30:00.000Z"
+  }
+}
+
+Field Descriptions
+Field	Type	Required	Description
+outbox_id	string (UUID)	Yes	Unique identifier for this intake
+tenant_id	string	Yes	Tenant or company identifier
+payload	object	Yes	Lead data container
+payload.name	string	No	Lead full name
+payload.email	string	No	Email address
+payload.phone	string	No	Phone number
+payload.company	string	No	Company name
+payload.message	string	No	Initial message or inquiry
+payload.source	string	No	Where the lead came from
+payload.tags	string[]	No	Tags to apply to the contact
+payload.custom_fields	object	No	Additional custom data
+payload.contact_id	string	No	Reference to existing CRM contact
+payload.timestamp	string ISO-8601	Yes	Server generated timestamp
+VALIDATION RULES
+1. Token Validation
+
+Check header x-internal-token against environment variable INTERNAL_TOKEN.
+
+If it does not match or is missing, return HTTP 401 Unauthorized.
+
+Body:
+
+{
+  "error": "Unauthorized",
+  "timestamp": "<ISO8601>"
+}
+
+
+No further processing should happen in this case.
+
+2. Required Fields
+
+The following fields must exist and be non empty:
+
+outbox_id
+
+tenant_id
+
+payload (must be an object)
+
+If any are missing or invalid, return HTTP 400 Bad Request.
+
+Body:
+
+{
+  "error_code": "VALIDATION_ERROR",
+  "message": "Missing required fields",
+  "details": {
+    "missing": ["outbox_id", "tenant_id"]
+  },
+  "timestamp": "<ISO8601>"
+}
+
+
+Populate the missing array with the actual missing field names.
+
+You do not need to validate every nested field, only those three at this stage.
+
+NORMALIZATION RULES
+
+All normalization should happen in a single Code node.
+
+Assume payload is items[0].json.payload.
+
+1. Email Normalization
+if (payload.email) {
+  payload.email = payload.email.toLowerCase().trim();
+}
+
+2. Phone Normalization to E.164
+
+Basic normalization:
+
+if (payload.phone) {
+  let cleaned = payload.phone.replace(/[^\d+]/g, '');
+  if (!cleaned.startsWith('+') && cleaned.length === 10) {
+    cleaned = '+1' + cleaned;
+  }
+  payload.phone = cleaned;
+}
+
+
+Do not reject the request if the phone format is not ideal, just normalize best effort.
+
+3. Tag Deduplication
+if (payload.tags && Array.isArray(payload.tags)) {
+  payload.tags = [...new Set(
+    payload.tags.map(t => t.toLowerCase().trim())
+  )];
+}
+
+4. Add Processing Tag
+
+Always add neo8flow-processed tag:
+
+payload.tags = [...(payload.tags || []), 'neo8flow-processed'];
+
+LEAD PROCESSING LOGIC
+
+All of this logic lives in the same Code node as normalization.
+
+Determine Channel
+
+Use this mapping:
+
+const channelMap = {
+  'widget': 'widget',
+  'chat_widget': 'widget',
+  'voice': 'voice',
+  'twilio_voice': 'voice',
+  'web_form': 'web_form',
+  'contact_form': 'web_form',
+  'extended_form': 'web_form',
+  'form': 'web_form',
+  'api': 'api',
+  'import': 'import',
+  'email': 'api'
+};
+
+const sourceRaw = payload.source ? String(payload.source).toLowerCase() : '';
+const channel = channelMap[sourceRaw] || 'widget';
+
+
+Valid CRM channel enum values are:
+
+widget
+
+voice
+
+web_form
+
+api
+
+import
+
+Expose channel and leadScore to the next nodes in the JSON.
+
+Lead Scoring
+let leadScore = 50;
+
+if (payload.email) leadScore += 10;
+if (payload.phone) leadScore += 10;
+if (payload.company) leadScore += 15;
+if (payload.message && payload.message.length > 50) leadScore += 15;
+
+if (leadScore > 100) {
+  leadScore = 100;
+}
+
+
+Attach leadScore onto the item JSON, for example:
+
+items[0].json.channel = channel;
+items[0].json.lead_score = leadScore;
+items[0].json.payload = payload;
+
+CRM SYNC CALLBACK (REQUIRED)
+
+After normalization and scoring, the workflow must call back to CRM.
+
+Endpoint
+
+POST {CRM_BASE_URL}/api/intake/sync
+
+Where CRM_BASE_URL comes from environment variable CRM_BASE_URL.
+
+Required Headers
+
+Content-Type: application/json
+
+Authorization: Bearer {N8N_INTERNAL_TOKEN} where the value is from env CRM_AUTH_TOKEN.
+
+Success Callback Payload
+
+Send this JSON body to CRM on success:
+
+{
+  "outbox_id": "original-outbox-uuid",
+  "tenant_id": "tenant-uuid",
+  "status": "success",
+  "payload": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+1234567890",
+    "company": "Acme Inc",
+    "message": "Interested in your services",
+    "source": "widget",
+    "tags": ["hvac", "residential", "neo8flow-processed"],
+    "custom_fields": {},
+    "contact_id": "optional-existing-contact-id",
+    "timestamp": "2025-12-06T10:30:00.000Z"
+  },
+  "channel": "widget",
+  "lead_score": 85
+}
+
+
+In the real workflow, fill these from:
+
+outbox_id from the original request
+
+tenant_id from the original request
+
+payload from the normalized payload
+
+channel from the computed channel
+
+lead_score from the computed score
+
+Error Callback Payload
+
+If something fails inside the workflow before CRM sync or the HTTP request to CRM returns non 2xx:
+
+{
+  "outbox_id": "original-outbox-uuid",
+  "tenant_id": "tenant-uuid",
+  "status": "error",
+  "error_message": "Description of what failed",
+  "payload": {}
+}
+
+
+Use a best effort error_message string.
+
+ENVIRONMENT VARIABLES
+
+Configure these in n8n and use them via expressions, for example {{ $env.INTERNAL_TOKEN }}.
+
+Variable	Description
+INTERNAL_TOKEN	Expected token in incoming x-internal-token
+CRM_BASE_URL	Base URL of Smart Klix CRM
+CRM_AUTH_TOKEN	Token for callback, same as CRM N8N_INTERNAL_TOKEN
+WORKFLOW NODES
+
+You must build these eleven nodes and wire them exactly in the order below.
+
+Node 1: Webhook Trigger
+
+Type: Webhook
+
+Name: Receive Lead Intake
+
+Path: events/intake
+
+Method: POST
+
+Response: use a separate Respond to Webhook node for all responses
+
+Output should pass the JSON body into the workflow.
+
+Node 2: Validate Token
+
+Type: IF node or Function node
+
+Name: Validate Token
+
+Logic: Compare header x-internal-token to environment INTERNAL_TOKEN.
+
+If they match, go down the true branch.
+If they do not match, go down the false branch.
+
+False branch connects to Node 3.
+
+Node 3: Unauthorized Response
+
+Type: Respond to Webhook node
+
+Name: Unauthorized Response
+
+Status code: 401
+
+Body:
+
+{
+  "error": "Unauthorized",
+  "timestamp": "<ISO8601>"
+}
+
+
+End the workflow here for unauthorized requests.
+
+Node 4: Validate Required Fields
+
+Type: IF node or Function node
+
+Name: Validate Required Fields
+
+On the true branch, continue the flow.
+On the false branch, go to Node 5.
+
+Logic:
+
+Check that outbox_id, tenant_id, and payload exist and are non empty.
+
+If any are missing, store an array of missing field names on the item, for example json.missingFields.
+
+Node 5: Validation Error Response
+
+Type: Respond to Webhook node
+
+Name: Validation Error Response
+
+Status code: 400
+
+Body:
+
+{
+  "error_code": "VALIDATION_ERROR",
+  "message": "Missing required fields",
+  "details": {
+    "missing": ["outbox_id", "tenant_id"]
+  },
+  "timestamp": "<ISO8601>"
+}
+
+
+Fill missing from json.missingFields.
+
+End the workflow here for validation failures.
+
+Node 6: Normalize And Process Lead
+
+Type: Code node (Function)
+
+Name: Normalize And Process Lead
+
+Responsibilities:
+
+Read the incoming payload from items[0].json.payload.
+
+Apply all normalization rules:
+
+Lowercase and trim email
+
+Normalize phone to E.164 best effort
+
+Deduplicate and normalize tags
+
+Add neo8flow-processed tag
+
+Compute channel from payload.source using the mapping above.
+
+Compute lead_score using the scoring rules above.
+
+Write back:
+
+json.payload with normalized data
+
+json.channel with channel
+
+json.lead_score with score
+
+Keep outbox_id and tenant_id on the item
+
+If any unexpected internal error happens inside this node, set an error flag on the item and an error message for Node 11 to use.
+
+Node 7: Future Automation Placeholder
+
+Type: Set node or simple Code node
+
+Name: Future Automation Placeholder
+
+This node currently does nothing except pass data through.
+It is a reserved place for future enrichment or routing.
+
+Connect:
+
+Normalize And Process Lead → Future Automation Placeholder.
+
+Node 8: CRM Sync Callback
+
+Type: HTTP Request node
+
+Name: CRM Sync Callback
+
+Configuration:
+
+Method: POST
+
+URL: {{ $env.CRM_BASE_URL }}/api/intake/sync
+
+Headers:
+
+Content-Type: application/json
+
+Authorization: Bearer {{ $env.CRM_AUTH_TOKEN }}
+
+Body type: JSON
+
+Body:
+
+Use the success callback payload format, filled from the current item:
+
+outbox_id from json.outbox_id
+
+tenant_id from json.tenant_id
+
+status: "success"
+
+payload: from json.payload
+
+channel: from json.channel
+
+lead_score: from json.lead_score
+
+Connect:
+
+Future Automation Placeholder → CRM Sync Callback.
+
+Node 9: Handle Sync Response
+
+Type: IF node
+
+Name: Handle Sync Response
+
+Logic:
+
+Treat the request as successful if the HTTP status code from Node 8 is in the 2xx range.
+In n8n you can check something like {{$json["statusCode"]}} if you store it, or use the default HTTP node output field.
+
+If response code is 200 to 299, go down the true branch.
+
+Any other code or error goes down the false branch.
+
+True branch connects to Node 10.
+False branch connects to Node 11.
+
+Node 10: Success Response
+
+Type: Respond to Webhook node
+
+Name: Success Response
+
+Status code: 200
+
+Body:
+
+{
+  "status": "ok",
+  "outbox_id": "<original outbox_id>",
+  "tenant_id": "<original tenant_id>",
+  "message": "lead intake processed and synced"
+}
+
+
+Fill fields from json.outbox_id and json.tenant_id.
+
+This is the final response that Smart Klix CRM receives when everything is successful.
+
+Node 11: Error Response
+
+Type: Respond to Webhook node
+
+Name: Error Response
+
+Status code: 500
+
+Body:
+
+{
+  "status": "error",
+  "outbox_id": "<original outbox_id>",
+  "tenant_id": "<original tenant_id>",
+  "error_message": "Failed to sync intake to CRM",
+  "timestamp": "<ISO8601>"
+}
+
+
+If there is a specific error message from Node 6 or Node 8, include it in error_message.
+
+NODE CONNECTIONS SUMMARY
+
+Wire the nodes in this exact flow:
+
+Node 1 Receive Lead Intake
+→ Node 2 Validate Token
+
+Node 2 Validate Token
+
+True branch → Node 4 Validate Required Fields
+
+False branch → Node 3 Unauthorized Response → end
+
+Node 4 Validate Required Fields
+
+True branch → Node 6 Normalize And Process Lead
+
+False branch → Node 5 Validation Error Response → end
+
+Node 6 Normalize And Process Lead
+→ Node 7 Future Automation Placeholder
+→ Node 8 CRM Sync Callback
+→ Node 9 Handle Sync Response
+
+Node 9 Handle Sync Response
+
+True branch → Node 10 Success Response → end
+
+False branch → Node 11 Error Response → end

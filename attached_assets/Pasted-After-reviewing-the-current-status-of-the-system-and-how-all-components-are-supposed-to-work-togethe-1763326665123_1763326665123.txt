@@ -1,0 +1,92 @@
+After reviewing the current status of the system and how all components are supposed to work together (CRM → N8N → Neo8 AI), we’re going to adjust the build order to avoid unnecessary bugs, rework, and broken integrations.
+
+Here’s the reasoning and the plan:
+
+✅ What We Discovered
+
+N8N is already able to hit the CRM API successfully
+But the failures were caused by incomplete CRM payload structure and unfinished backend pieces, not by N8N.
+
+Multiple key CRM subsystems are not fully implemented yet, including:
+
+chat widget
+
+chat → lead pipeline
+
+memory system (redis/pgvector)
+
+unified inbound event schema
+
+full conversation storage
+
+stable API endpoints for Neo8
+
+Without these completed, we cannot reliably test N8N, because:
+
+the payload fields keep changing
+
+test events don’t match production events
+
+expressions break as soon as backend changes
+
+Neo8 memory cannot work without the storage layer
+
+chat widget isn’t sending real events yet
+
+So instead of continuing to fight with N8N errors caused by missing backend features, we should finish the CRM foundation first.
+
+✅ Why We’re Changing Strategy
+
+N8N should be the last piece in the chain, not the first.
+
+If the backend changes after N8N is built, we break every single node and workflow.
+If we stabilize the backend first, N8N becomes simple plug-and-play.
+
+This is the professional, scalable approach.
+
+🚀 Updated Plan (Recommended)
+1. Finish CRM foundation
+
+complete memory system (pgvector + summaries)
+
+complete all API endpoints
+
+finalize inbound event JSON structure
+
+finish chat widget backend routes
+
+ensure contacts, leads, messages, events DB are stable
+
+2. Build chat widget + intake pipeline
+
+So that real events and leads flow into CRM in a consistent, predictable way.
+
+3. Connect CRM → N8N
+
+Now that payloads are stable, N8N workflows can be built once and won’t break.
+
+4. Integrate with Neo8 AI
+
+Memory retrieval, summarization, planning, and tool calls.
+
+🔍 Why This Order Matters
+
+Avoids breaking nodes constantly
+
+Avoids mismatched payloads
+
+Lets us test n8n with production-ready data
+
+Makes Neo8’s memory system functional
+
+Makes the entire automation chain more reliable
+
+🎯 Summary
+
+We’re not abandoning N8N — we’re simply building in the correct order:
+
+CRM first → Widget + Events → N8N → Neo8 AI
+
+This ensures a clean architecture with no rework and stable automation.
+
+Let me know if you disagree with anything so we can discuss it — but based on what we’ve seen so far, this is the most efficient and stable path

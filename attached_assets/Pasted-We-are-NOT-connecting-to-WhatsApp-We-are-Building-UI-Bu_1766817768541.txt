@@ -1,0 +1,120 @@
+We are NOT connecting to WhatsApp.
+
+We are:
+
+Building UI
+
+Building backend wiring
+
+Defining contracts
+
+Preparing Neo8-trigger payloads
+
+Writing ledger events
+
+Ensuring governance + review flow
+
+Everything stops before actual delivery.
+
+🚦 AUTHORITY & FLOW (NON-NEGOTIABLE)
+User (Human)
+→ ActionAI drafts WhatsApp message
+→ Review Queue (approval required)
+→ CRM emits Neo8 trigger (NOT WhatsApp)
+→ Neo8 later handles provider delivery
+
+🚫 ABSOLUTELY NOT ALLOWED
+
+❌ CRM calling WhatsApp API
+
+❌ CRM holding WhatsApp credentials
+
+❌ CRM sending messages directly
+
+❌ “Test sends” to WhatsApp
+
+📡 WHAT THE CRM ACTUALLY DOES
+CRM Responsibility
+
+Collect:
+
+client_id
+
+conversation_id
+
+channel = whatsapp
+
+message_body
+
+template_id (if applicable)
+
+Enforce:
+
+Client ID exists
+
+Conversation ID exists
+
+Approval exists
+
+Emit Neo8 trigger event
+
+CRM Output (Example)
+{
+  "event": "WHATSAPP_DISPATCH_AUTHORIZED",
+  "client_id": "joe_4837",
+  "conversation_id": "joe_4837-1",
+  "payload": {
+    "message": "Hey Joe, just following up on your estimate.",
+    "channel": "whatsapp"
+  }
+}
+
+
+That’s it.
+No WhatsApp knowledge required beyond the word “whatsapp”.
+
+📘 LEDGER REQUIREMENTS (IMPORTANT)
+
+Ledger must record authorization, not delivery (for now).
+
+Required Ledger Events (Phase 1)
+Event	When
+WHATSAPP_DRAFTED	ActionAI generates message
+WHATSAPP_DISPATCH_AUTHORIZED	Human approves
+(STOP HERE)	Neo8 not connected yet
+❌ NOT YET
+
+WHATSAPP_SENT
+
+WHATSAPP_DELIVERED
+
+WHATSAPP_FAILED
+
+Those belong to Neo8 callbacks later.
+
+🧱 UI EXPECTATIONS (FOR THE DEV)
+
+WhatsApp tab is review + dispatch prep
+
+Looks like chat, but is not chat
+
+No “send now”
+
+Only:
+
+Draft
+
+Review
+
+Approve
+
+Clear badge:
+
+“Dispatch handled by Neo8”
+
+🧾 EXACT LINE YOU CAN SEND THE DEV (COPY/PASTE)
+
+WhatsApp is NOT connected directly.
+The CRM never sends messages to WhatsApp.
+All WhatsApp actions terminate in a Neo8 trigger after human approval.
+This phase is UI + backend wiring only, with ledger events written up to WHATSAPP_DISPATCH_AUTHORIZED.

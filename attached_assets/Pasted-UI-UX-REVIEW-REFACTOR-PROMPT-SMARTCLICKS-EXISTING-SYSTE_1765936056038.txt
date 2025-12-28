@@ -1,0 +1,217 @@
+UI / UX REVIEW & REFACTOR PROMPT — SMARTCLICKS (EXISTING SYSTEM ONLY)
+Scope (READ CAREFULLY)
+
+You are NOT adding new pages, features, or modules.
+
+You are reviewing ONLY what already exists today in SmartClicks and improving usability, clarity, layout, and flow.
+
+If a feature or page does not currently exist, DO NOT design it, reference it, or propose it.
+
+Your job is UI/UX cleanup, simplification, and guidance, not product expansion.
+
+PRIMARY OBJECTIVE
+
+The system currently works, but the UI is:
+
+Too technical
+
+Too raw
+
+Too “engineer-facing”
+
+Lacks guidance
+
+Your job is to:
+
+Make it easier to understand
+
+Make it less intimidating
+
+Improve visual hierarchy
+
+Improve first-time user experience
+
+Improve navigation and clarity
+
+No new functionality. Only better presentation.
+
+CORE UX PRINCIPLES (MANDATORY)
+
+Do Not Change Logic
+
+No backend assumptions
+
+No workflow changes
+
+No feature logic changes
+
+Do Not Add Pages
+
+Only improve existing screens/tabs
+
+Progressive Disclosure
+
+Advanced / technical fields must be:
+
+Visually separated
+
+Collapsed by default
+
+Clearly labeled as “Advanced”
+
+Human-Friendly Language
+
+Replace technical labels with clearer wording
+
+Keep original functionality intact
+
+WHAT TO REVIEW (ONLY EXISTING AREAS)
+1. Global Navigation
+
+Reduce visual clutter
+
+Improve naming clarity
+
+Improve grouping of related items
+
+Highlight “primary actions” clearly
+
+2. Dashboard (Existing)
+
+Improve layout and spacing
+
+Improve readability of metrics already shown
+
+Reduce noise
+
+Make the most important data obvious at a glance
+
+Do not add new reports or widgets
+
+3. CRM / Contacts (Existing)
+
+Improve contact detail layout
+
+Improve timeline readability
+
+Improve action button placement
+
+Reduce information overload
+
+4. Voice Agent UI (Existing)
+
+This area is too technical right now.
+
+Improve by:
+
+Better grouping of fields
+
+Clear section headers
+
+Helper text / microcopy
+
+Logical ordering of inputs
+
+Hide advanced fields by default
+
+Do not change how agents work. Only how they are presented.
+
+5. Automations / Flows (Existing)
+
+Improve readability of flow screens
+
+Make steps easier to understand visually
+
+Improve labels and descriptions
+
+Reduce “developer-looking” density
+
+No new flow types
+
+No new automation logic
+
+6. Integrations (Existing)
+
+Improve clarity of what is connected vs not
+
+Improve API key input UX
+
+Improve error / success feedback
+
+No marketplace
+
+No new integrations
+
+7. Settings (Existing)
+
+Improve organization
+
+Improve labeling
+
+Reduce fear-factor
+
+Separate:
+
+Normal user settings
+
+Technical / advanced settings (collapsed)
+
+VISUAL CLEANUP REQUIREMENTS
+
+Better spacing
+
+Better typography hierarchy
+
+Better grouping of related fields
+
+Less wall-of-text
+
+Cleaner cards / sections
+
+No redesigning the brand
+
+No new visual themes
+
+WHAT NOT TO DO (IMPORTANT)
+
+Do NOT add:
+
+New pages
+
+New tabs
+
+New features
+
+New services
+
+Do NOT assume future roadmap
+
+Do NOT reference tools or features not currently live
+
+Do NOT rename the product or reposition it
+
+FINAL DELIVERABLES
+
+UI audit of current screens (what’s confusing)
+
+Suggested layout improvements per existing tab
+
+UX improvements that require zero backend changes
+
+Before / after wireframe-level recommendations
+
+Clear rationale for each UX improvement
+
+SUCCESS CRITERIA
+
+A non-technical user should:
+
+Understand where they are
+
+Understand what to do next
+
+Not feel overwhelmed
+
+Not feel like they’re “configuring infrastructure”
+
+That’s it.

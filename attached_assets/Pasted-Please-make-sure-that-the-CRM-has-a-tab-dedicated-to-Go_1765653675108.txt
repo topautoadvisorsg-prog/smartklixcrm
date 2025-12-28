@@ -1,0 +1,63 @@
+Please make sure that the CRM has a tab dedicated to Google Workspace integration that will handle the following actions and work in sync with the Neo8 workflows:
+
+Google Workspace Tab Requirements
+
+Google Workspace Integration Overview:
+
+The CRM should be able to trigger Google Workspace actions such as sending emails, managing calendar events, and updating Google Sheets.
+
+The tab will handle the triggers and pass data to Neo8 to execute these actions.
+
+Google Workspace Actions (What Needs to Be in the Tab):
+
+Gmail:
+
+Provide an option to trigger an email send through Gmail via Neo8 when needed.
+
+Fields for recipient, subject, and body should be included, as well as optional threadId for replies.
+
+Ensure the contactId and email-related info are passed and logged in CRM activity.
+
+Google Calendar:
+
+Create options to trigger create_event, update_event, and cancel_event actions.
+
+Include fields for event title, start/end time, and attendees (at least one).
+
+Ensure the jobId and contactId are part of the data sent to Neo8.
+
+Ensure event data is logged back in CRM for audit and tracking.
+
+Google Sheets:
+
+Implement an option to append_row to a Google Sheet (specific sheets such as "Leads").
+
+Fields like name, phone number, and date should be part of the data being logged.
+
+End-Points and Data Handling:
+
+The CRM should trigger the following webhook endpoints:
+
+Gmail Webhook: https://smartklixai2.app.n8n.cloud/webhook/google/gmail
+
+Calendar Webhook: https://smartklixai2.app.n8n.cloud/webhook/google/calendar
+
+Sheets Webhook: https://smartklixai2.app.n8n.cloud/webhook/google/sheets
+
+Ensure all action fields are correctly sent and routed (i.e., send_email, create_event, append_row).
+
+The CRM should pass correct authorization tokens and handle any required logging via the provided API (see activity logging endpoint).
+
+Tab Functionality:
+
+The CRM tab should have a clear UI to trigger these actions. Each action (send email, create event, append row) should be visible with inputs to enter required data.
+
+When an action is triggered, it should call the corresponding webhook and initiate the action in Google Workspace via Neo8.
+
+Ensure that every event triggered (whether email, calendar update, or sheet update) is logged properly in the CRM activity log for transparency and traceability.
+
+Error Handling:
+
+Ensure any errors related to the Google Workspace actions (failed emails, calendar errors, or sheet issues) are logged and passed back to the CRM for review.
+
+Let me know if this covers everything or if anything needs to be adjusted!

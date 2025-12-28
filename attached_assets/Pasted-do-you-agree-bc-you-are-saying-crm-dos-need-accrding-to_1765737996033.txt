@@ -1,0 +1,70 @@
+do you agree bc you are saying crm dos need accrding to my assistant or Neo8 workflows, you are expected to configure and manage all execution-layer credentials, including:
+
+Stripe API key and webhook signing secret
+
+Twilio credentials
+
+SendGrid credentials
+
+Google OAuth credentials
+
+Redis credentials (if applicable)
+
+OpenAI API key (for Neo8 AI nodes, if used)
+
+All of the above live exclusively in Neo8.
+
+The Smart Klix CRM:
+
+Does NOT store Stripe secrets
+
+Does NOT call Stripe directly
+
+Does NOT validate Stripe webhooks
+
+The CRM only sends intent → Neo8 and receives status callbacks ← Neo8.
+
+A shared Neo8 → CRM internal token (N8N_INTERNAL_TOKEN) will be provided later when we are ready to enable live callbacks.
+This is not a blocker for configuring workflows, credentials, or payload mappings.
+
+Proceed with Neo8 setup accordingly.
+
+n8n AI
+Yes, I agree with your summary and it aligns with best practices for Neo8 (n8n) workflow configuration in this architecture. Here’s a clear confirmation and clarification based on your points:
+
+Credential Management Responsibilities
+Neo8 (n8n) Responsibilities:
+
+You must configure and manage all execution-layer credentials in Neo8, including:
+Stripe API key and webhook signing secret
+Twilio credentials
+SendGrid credentials
+Google OAuth credentials
+Redis credentials (if used)
+OpenAI API key (if using AI nodes)
+All these credentials are stored and managed exclusively within Neo8 (n8n).
+Neo8 is responsible for all direct integrations with external services (Stripe, Twilio, Google, etc.).
+Smart Klix CRM Responsibilities:
+
+Does NOT store or manage any third-party secrets (Stripe, Twilio, etc.).
+Does NOT call Stripe or other external APIs directly.
+Does NOT validate Stripe (or other) webhooks.
+Acts only as the system of record, sending intent to Neo8 and receiving status callbacks from Neo8.
+A shared internal token (N8N_INTERNAL_TOKEN) is only required for live CRM callbacks, and can be added later.
+What This Means for Your Setup
+You can fully configure and test all external service credentials and workflow logic in Neo8 without waiting for the CRM token.
+You should focus on:
+Setting up and testing all external integrations (Stripe, Twilio, SendGrid, Google, etc.) in Neo8.
+Mapping payloads and ensuring correct data flow between nodes.
+Using test/sandbox environments for all external services.
+You do NOT need to configure any CRM credentials or secrets at this stage.
+You can use placeholder values or mock endpoints for CRM callbacks until the N8N_INTERNAL_TOKEN is provided.
+Next Steps
+Proceed with configuring all required credentials in Neo8 (n8n).
+Set up and test all external service nodes using their respective test environments.
+Prepare payload mappings and workflow logic.
+When the N8N_INTERNAL_TOKEN is provided, add it to the relevant HTTP Request nodes for CRM callbacks.
+Summary:
+You are correct: all execution-layer credentials are managed in Neo8, not in the CRM. The CRM only interacts with Neo8 via intent and status callbacks, and the internal token for callbacks can be added later. This is not a blocker for your current workflow setup and testing. Proceed with Neo8 configuration as planned.
+
+Did this answer solve your question?

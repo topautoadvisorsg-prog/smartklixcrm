@@ -1,0 +1,151 @@
+All review, decision-making, and approvals happen inside the CRM first.
+
+By the time anything reaches Neo8:
+
+It is already approved
+
+It already has an explicit action
+
+Neo8 should only EXECUTE and LOG
+
+🧱 SOURCE-OF-TRUTH ARCHITECTURE
+
+Inbound events (SMS, email, calls, widget, contact form):
+
+Event comes into CRM
+
+CRM AI reviews + summarizes
+
+CRM AI decides next action(s)
+
+CRM marks action as approved
+
+CRM triggers Neo8 (n8n) with a clear instruction
+
+Outbound actions (email, SMS, call, payment, calendar, etc.):
+
+Neo8 executes exactly what CRM sends
+
+Neo8 logs execution result
+
+Neo8 returns status to CRM
+
+CRM handles:
+
+checkmarks
+
+human architect review
+
+final confirmation
+
+👉 Neo8 does NOT do reviews, approvals, retries, or decision logic unless explicitly required for execution safety.
+
+🎯 YOUR TASK (VERY IMPORTANT)
+
+You are NOT being asked to remove anything.
+
+You are asked to AUDIT AND REPORT ONLY.
+
+For every existing Neo8 / n8n workflow, do the following:
+
+1️⃣ Identify
+
+Workflow name
+
+Trigger type (webhook, manual, schedule, etc.)
+
+Whether it is currently active
+
+What system triggers it (CRM? external service?)
+
+2️⃣ Describe
+
+What the workflow actually does
+
+What action it executes
+
+What it logs or returns
+
+3️⃣ Validate Against Architecture
+
+For each workflow, explicitly state:
+
+✅ Fits the architecture (execution-only)
+
+⚠️ Partially overlaps with CRM responsibilities
+
+❌ Does not make sense / unclear purpose
+
+4️⃣ Call Out (DO NOT FIX)
+
+If you see:
+
+Review logic
+
+Approval logic
+
+Retry governance
+
+Human escalation
+
+“Master Architect” logic
+
+Decision trees that belong in CRM
+
+👉 DO NOT CHANGE OR DELETE THEM
+👉 JUST CALL THEM OUT AND EXPLAIN WHY
+
+🚫 HARD RULES
+
+❌ Do NOT delete workflows
+
+❌ Do NOT “clean up”
+
+❌ Do NOT refactor
+
+❌ Do NOT assume something is unused
+
+❌ Do NOT move logic into Neo8 that belongs in CRM
+
+If something looks wrong or unnecessary:
+
+Document it
+
+Explain why
+
+Wait for instruction
+
+📄 OUTPUT FORMAT
+
+Return a written audit with:
+
+Workflow Inventory Table
+
+Per-Workflow Analysis
+
+Misalignment Findings
+
+Open Questions / Clarifications Needed
+
+Recommendations (NO ACTION TAKEN)
+
+🧠 GOAL
+
+Neo8 should be:
+
+Clean
+
+Deterministic
+
+Execution-only
+
+CRM-driven
+
+Easy to reason about
+
+If the current Neo8 setup does not reflect this, call it out clearly.
+
+That’s it.
+No extras.
+No assumptions.
+No deletions.

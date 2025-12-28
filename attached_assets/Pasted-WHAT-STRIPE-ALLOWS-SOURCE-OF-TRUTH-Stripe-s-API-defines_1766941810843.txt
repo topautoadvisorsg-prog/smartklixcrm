@@ -1,0 +1,312 @@
+WHAT STRIPE ALLOWS — SOURCE OF TRUTH
+
+Stripe’s API defines what is even possible.
+Your CRM and MCP cannot exceed this.
+
+Core Stripe Payment Capabilities (API-Level)
+
+From Stripe docs, the core primitives are:
+
+🔹 PaymentIntent (MOST IMPORTANT)
+
+This is the canonical object for taking payments.
+
+Stripe uses PaymentIntent to:
+
+Create a payment
+
+Handle authentication (3DS)
+
+Track status transitions
+
+Key statuses:
+
+requires_payment_method
+
+requires_confirmation
+
+processing
+
+succeeded
+
+canceled
+
+requires_action
+
+👉 This is the object your system should revolve around.
+
+🔹 Invoice
+
+Used when you want:
+
+Line items
+
+Due dates
+
+Auto-reminders
+
+Accounting-style flow
+
+Invoices usually:
+
+Create a PaymentIntent under the hood
+
+Are better for B2B / services
+
+🔹 Customer
+
+Stores:
+
+Email
+
+Name
+
+Payment methods
+
+Your CRM likely maps:
+
+CRM Contact → Stripe Customer
+
+🔹 Payment Link (Optional but useful)
+
+Stripe-hosted checkout URLs.
+Good for:
+
+“Send payment link” flows
+
+Low-friction payments
+
+🔹 Webhooks (NON-OPTIONAL)
+
+Stripe only guarantees correctness via webhooks.
+
+Critical events:
+
+payment_intent.succeeded
+
+payment_intent.payment_failed
+
+invoice.paid
+
+invoice.payment_failed
+
+charge.refunded
+
+👉 Anything not confirmed by webhook is not real.
+
+2️⃣ WHAT YOUR CRM CAN DO (BY CONNECTING TO STRIPE API)
+
+Based on Stripe’s API, your CRM is capable of:
+
+✅ CRM CAN (AND SHOULD)
+1. Create a Stripe Customer
+CRM Contact → Stripe Customer
+
+2. Create an Invoice
+
+Add line items
+
+Set due date
+
+Attach to customer
+
+3. Create a PaymentIntent
+
+Amount
+
+Currency
+
+Metadata (VERY IMPORTANT)
+
+Attach to contact/job IDs
+
+4. Send Payment Link
+
+Either:
+
+Stripe Payment Link
+
+Or hosted invoice URL
+
+5. Receive Stripe Webhooks
+
+Update CRM state
+
+Write ledger events
+
+Trigger automations
+
+6. Store Payment State (READ-ONLY)
+
+CRM should never guess payment success.
+It should mirror Stripe state.
+
+❌ CRM SHOULD NOT
+
+Decide payment success without webhook
+
+Mark invoices paid manually
+
+Retry charges blindly
+
+Trust client-side confirmations
+
+3️⃣ WHAT YOUR MCP (ACTION MCP) IS ALLOWED TO DO
+
+Now this is the important part.
+
+Your MCP is not Stripe-aware.
+It is capability-aware.
+
+MCP DOES NOT:
+
+Talk to Stripe directly
+
+Handle money
+
+Decide payment outcomes
+
+MCP DOES:
+
+Decide which CRM action to invoke
+
+Enforce guardrails
+
+Require confirmation
+
+Log intent to ledger
+
+MCP Payment Capabilities (SAFE SET)
+✅ MCP CAN REQUEST:
+
+Create Invoice
+
+“Create an invoice for $500 for job X”
+
+→ MCP calls CRM endpoint
+→ CRM talks to Stripe
+→ Stripe creates invoice
+
+Send Payment Link
+
+“Send payment link to John”
+
+→ MCP calls CRM
+→ CRM generates Stripe URL
+→ CRM sends email/SMS/WhatsApp
+
+Check Payment Status
+
+“Has this invoice been paid?”
+
+→ MCP queries CRM
+→ CRM returns Stripe-derived state
+
+❌ MCP MUST NEVER:
+
+Capture payments
+
+Confirm payments
+
+Retry failed charges
+
+Refund without explicit approval
+
+Those require human or system-level authorization.
+
+4️⃣ WHAT DOCUMENTATION YOU ACTUALLY NEED (NO BULLSHIT)
+
+You asked “what documentation do we need”.
+Here’s the exact list.
+
+📘 Stripe Docs (MANDATORY)
+
+You or the CRM dev should reference:
+
+PaymentIntents API
+
+Creation
+
+Status lifecycle
+
+Invoices API
+
+Customers API
+
+Stripe Webhooks
+
+Test Mode vs Live Mode
+
+Idempotency Keys
+
+👉 This defines what is possible.
+
+📕 CRM INTERNAL DOCS (YOU NEED TO WRITE / CONFIRM)
+
+Your CRM must document:
+
+Which Stripe objects it uses
+
+Which endpoints wrap Stripe
+
+What metadata is attached (contactId, jobId)
+
+Which webhook events are handled
+
+How ledger events are written
+
+📙 MCP ACTION CONTRACT (CRITICAL)
+
+You need a short doc that says:
+
+“Action MCP is allowed to request the following payment actions…”
+
+Example:
+
+actions:
+  - create_invoice
+  - send_payment_link
+  - check_payment_status
+blocked:
+  - capture_payment
+  - refund_payment
+  - retry_charge
+
+
+This prevents AI from doing dumb shit.
+
+5️⃣ WHAT WE DO NEXT (VERY SPECIFIC)
+
+Here’s the exact next step, no ambiguity:
+
+Step 1 — Ask CRM AI Agent:
+
+“List all Stripe-related endpoints and what Stripe API they call.”
+
+Step 2 — Confirm:
+
+Are you using PaymentIntents, Invoices, or both?
+
+Where are webhooks handled?
+
+Step 3 — Define MCP Allowed Actions (write once)
+
+We lock MCP’s permissions before testing.
+
+Step 4 — THEN test in Stripe Test Mode
+
+Create invoice
+
+Send link
+
+Pay with test card
+
+Confirm webhook fires
+
+Confirm CRM updates
+
+Confirm ledger entry
+
+🔒 Final Reality Check
+
+You’re doing this correctly because you’re stopping before execution.

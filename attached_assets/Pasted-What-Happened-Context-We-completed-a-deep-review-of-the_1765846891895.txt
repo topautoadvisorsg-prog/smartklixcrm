@@ -1,0 +1,123 @@
+What Happened / Context
+
+We completed a deep review of the current n8n workflow architecture and identified a misalignment between message generation and message delivery.
+
+Originally, outbound flows (SMS, Email, Invites) were still generating message content inside n8n using an AI node (Generate Message Content (AI)), while the intended architecture is that the CRM is the single source of truth for all outbound content.
+
+This caused confusion, duplication of logic, and unnecessary approval layers.
+
+2. Final Architectural Decision (Locked In)
+
+CRM is the sole source of truth for outbound message content.
+
+Message content is:
+
+Created (manual or AI-assisted)
+
+Reviewed
+
+Approved
+
+Finalized
+inside the CRM
+
+Once approved, the CRM triggers n8n only for delivery and logging.
+
+n8n must not generate or modify outbound content for these flows.
+
+3. Required Changes to Implement (Critical)
+A. Outbound Message Generation
+
+Remove or bypass Generate Message Content (AI) from:
+
+SMS flows
+
+Email flows
+
+Invite flows
+
+This node may remain only for:
+
+Inbound automation
+
+AI receptionist
+
+Internal assistant workflows
+
+B. Outbound Send Nodes – Field Mapping
+
+Update all outbound delivery nodes to pull approved content directly from CRM payload:
+
+SMS / Email / Invite
+
+{{ $('CRM Manual Trigger').first().json.body.message }}
+
+
+WhatsApp
+
+{{ $('CRM-Triggered WhatsApp Send').first().json.body.body }}
+
+
+No other content source should be used for outbound delivery.
+
+4. Approval / Review Logic (Master Architect)
+Decision:
+
+Master Architect approval is NOT required inside n8n for outbound messaging, because:
+
+Human approval already occurs in the CRM before the trigger fires
+
+n8n should not duplicate governance already enforced upstream
+
+Therefore:
+
+Remove or bypass approval/review nodes for:
+
+Outbound SMS
+
+Outbound Email
+
+Outbound WhatsApp
+
+Keep Master Architect / Review Logic ONLY for:
+
+Payment events (failed, refunded, disputed)
+
+AI receptionist / inbound automation
+
+Any flow where content is not pre-approved by CRM
+
+This preserves governance where it actually matters.
+
+5. Final Workflow Model (Authoritative)
+Outbound Messaging
+CRM (create → review → approve)
+   ↓
+n8n (send only)
+   ↓
+Delivery status logged back to CRM
+
+Inbound / Payments / AI
+Trigger
+   ↓
+n8n logic + escalation
+   ↓
+Human review (if required)
+
+6. What To Do Now
+
+Implement all changes above
+
+Confirm no outbound flow uses AI-generated content at send time
+
+Proceed with credential wiring and live testing
+
+Once complete, the system will be:
+
+Cleaner
+
+Faster
+
+Safer
+
+Fully aligned with real operational intent

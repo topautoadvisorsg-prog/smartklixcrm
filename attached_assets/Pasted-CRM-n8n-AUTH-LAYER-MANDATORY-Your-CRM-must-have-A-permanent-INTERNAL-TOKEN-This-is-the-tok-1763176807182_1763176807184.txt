@@ -1,0 +1,173 @@
+CRM → n8n AUTH LAYER (MANDATORY)
+
+Your CRM must have:
+
+✔ A permanent INTERNAL_TOKEN
+
+This is the token n8n uses when it calls your CRM.
+
+Your dev must build:
+
+ENV variable: N8N_INTERNAL_TOKEN
+
+Middleware that checks this on all protected endpoints
+
+Header format:
+
+Authorization: Bearer <N8N_INTERNAL_TOKEN>
+
+✔ Health check endpoint
+
+So n8n can test the connection.
+
+Example:
+
+GET /internal/health
+
+✔ Secure endpoint for creating/updating contacts/jobs/etc
+
+n8n will interact with:
+
+/contacts/create
+
+/contacts/update
+
+/jobs/update-status
+
+/estimates/create
+
+/invoices/create
+
+/payments/record
+
+/activity-log/write
+
+All must accept AUTH via your internal token.
+
+2. CRM → n8n WEBHOOK SYSTEM
+
+Your dev must build:
+
+✔ A place in your CRM to configure:
+
+N8N_BASE_WEBHOOK_URL
+
+Your CRM will call n8n webhooks for events like:
+
+new lead created
+
+estimate sent
+
+job completed
+
+invoice overdue
+
+missed call
+
+etc
+
+These POST calls MUST include:
+
+event
+data: {}
+timestamp
+signature (optional)
+
+
+This gives n8n exactly what it needs to start flows.
+
+3. API CONNECTIONS YOU MUST BE ABLE TO FILL IN ON THAT SCREEN
+
+This is what that screen is expecting from YOU:
+
+✔ OpenAI credentials
+
+OPENAI_API_KEY
+
+✔ Twilio credentials
+
+TWILIO_ACCOUNT_SID
+
+TWILIO_AUTH_TOKEN
+
+TWILIO_PHONE_NUMBER
+
+✔ Email provider credentials
+
+If using SendGrid:
+
+SENDGRID_API_KEY
+
+Verified sender email
+
+If using Mailgun:
+
+MAILGUN_DOMAIN
+
+MAILGUN_API_KEY
+
+✔ Stripe credentials
+
+STRIPE_SECRET_KEY
+
+STRIPE_PUBLISHABLE_KEY
+
+STRIPE_WEBHOOK_SECRET
+
+✔ Google Drive (service account)
+
+JSON credentials
+
+Google project
+
+Folder ID
+
+✔ CRM internal API credentials
+
+CRM_BASE_URL
+
+CRM_INTERNAL_TOKEN
+
+4. DEVELOPER MUST EXPOSE THESE ENDPOINTS FOR n8n TO CALL
+
+n8n will need working endpoints for:
+
+Contacts
+
+POST /api/contacts/create
+
+POST /api/contacts/update
+
+Leads
+
+POST /api/leads/qualify
+
+POST /api/leads/update
+
+Jobs
+
+POST /api/jobs/create
+
+POST /api/jobs/update-status
+
+POST /api/jobs/add-note
+
+Estimates
+
+POST /api/estimates/create
+
+POST /api/estimates/send
+
+Invoices
+
+POST /api/invoices/create
+
+POST /api/invoices/send
+
+POST /api/invoices/mark-paid
+
+Payments
+
+POST /api/payments/record
+
+This allows n8n to return info back to your CRM after sending an email or SMS or performing any automation

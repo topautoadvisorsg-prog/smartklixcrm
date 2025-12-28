@@ -1,0 +1,121 @@
+Hey —
+
+We need to lock this down clearly because this is now blocking progress.
+
+1. UI Mockups = STRUCTURAL CONTRACT (Not Art, Not Inspiration)
+
+The UI layouts we provide are examples of structure and hierarchy, not freeform references.
+
+You are required to:
+
+Follow the same panel structure
+
+Follow the same information grouping
+
+Follow the same user flow
+
+Follow the same component intent
+
+You are not required to:
+
+Match pixels exactly
+
+Copy colors from screenshots
+
+Hardcode styles
+
+If we give a two-panel layout, you build a two-panel layout.
+If we give a left queue / right detail, you implement that structure.
+
+Do not invent new layouts.
+
+2. THEME SYSTEM IS LAW (This Is Where You Broke It)
+
+This is critical:
+
+DO NOT hardcode colors
+
+DO NOT copy dark-theme colors into light mode
+
+DO NOT copy light-theme colors into dark mode
+
+You must use:
+
+Existing theme tokens
+
+Existing palette variables
+
+Existing dark/light switching logic
+
+Screenshots may appear dark or light — that does not override the theme system.
+
+If a mockup shows a dark UI but the app is currently in light mode:
+➡️ You still implement it using theme-aware tokens, not literal colors.
+
+Breaking theme consistency is a hard fail.
+
+3. Ledger + Authority Rules MUST BE WIRED (Not Just Drawn)
+
+Every stage writes to the ledger. No exceptions.
+
+For example:
+
+ActionAI proposes → ledger
+
+Review Queue (Master Architect decision) → ledger
+
+Ready Execution (human decision) → ledger
+
+Dispatch → ledger
+
+If a screen allows an action, it must:
+
+Respect authority (AI vs human)
+
+Trigger the correct ledger event
+
+Never bypass governance
+
+4. What You Must Do Before Coding (Every Tab)
+
+Before implementing:
+
+Read the README (source of truth)
+
+Review the mockup (structure contract)
+
+Confirm:
+
+Layout matches structure
+
+Theme tokens are used
+
+Authority rules are enforced
+
+If something is unclear → STOP AND ASK
+
+Do not guess
+
+Do not redesign
+
+5. This Is Not Optional
+
+We are not paying for:
+
+Freeform UI interpretation
+
+Screenshot cloning
+
+Theme violations
+
+Ignoring provided layout code
+
+We are paying for:
+
+Correct structure
+
+Correct governance
+
+Clean, theme-compliant implementation
+
+Confirm you understand these rules and update the current work accordingly.

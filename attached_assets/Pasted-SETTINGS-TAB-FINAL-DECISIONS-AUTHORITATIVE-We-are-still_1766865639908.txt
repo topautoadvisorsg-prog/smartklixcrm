@@ -1,0 +1,164 @@
+SETTINGS TAB — FINAL DECISIONS (AUTHORITATIVE)
+
+We are still talking only about the Settings tab.
+
+The goal is:
+
+Remove duplicate logic
+
+Remove UI that belongs elsewhere
+
+Keep Settings clean, non-technical, and non-overlapping
+
+Treat Settings as workspace configuration, not automation or execution
+
+❌ REMOVE THESE ENTIRELY (NO REPLACEMENT)
+1️⃣ Communication Templates (SMS / Email)
+
+Examples currently shown:
+
+SMS Appointment Reminder
+
+SMS Invoice Due
+
+Email Templates
+
+Decision: REMOVE
+
+Reason:
+
+Templates already live in dedicated Email / SMS / Automation areas
+
+Duplicates existing functionality
+
+Creates confusion and split ownership
+
+Settings ≠ messaging engine.
+
+2️⃣ Billing & Tax Settings
+
+Decision: REMOVE
+
+Reason:
+
+Billing, taxes, invoices, and payments are handled by Stripe
+
+No calculation, enforcement, or execution happens in Settings
+
+Any Stripe-related logic belongs in:
+
+Payments
+
+Invoices
+
+Stripe-specific flows
+
+Settings should not pretend to manage billing logic.
+
+If Stripe needs configuration:
+
+That lives either:
+
+Inside Stripe itself
+
+Or inside a future Stripe Connection UI, not Settings
+
+✅ KEEP (WITH CLARITY)
+1️⃣ Company Profile ✅
+
+Company name
+
+Email
+
+Phone
+
+Timezone
+
+Business info
+
+No automation. Just identity.
+
+2️⃣ Branding ✅
+
+Primary color
+
+Secondary color
+
+Logo
+
+Used globally across UI and outbound comms.
+
+3️⃣ Users & Roles ✅
+
+Team members
+
+Access control
+
+Roles
+
+This stays and can be expanded later.
+
+4️⃣ Integrations → Credential Storage Vault ✅
+
+(Previously called “External Integrations”)
+
+This stays exactly as defined earlier, with these rules:
+
+Storage only
+
+No execution
+
+No provider validation
+
+No Stripe / Twilio “connection” states
+
+Users can:
+
+Add credentials
+
+Name them
+
+Save partial or full data
+
+Copy when needed
+
+Delete anytime
+
+Think secure drawer, not engine.
+
+❌ REMOVE / DO NOT INCLUDE (REDUNDANT)
+AI Agent Mode
+AI Control Center
+AI Learning
+AI Config
+System Audit Logs
+
+Reason:
+
+All AI behavior lives in AI Settings
+
+Audit logs live in Ledger
+
+No duplication allowed
+
+🧭 FINAL SETTINGS TAB STRUCTURE (WHAT DEV SHOULD BUILD)
+
+Settings
+
+Company Profile
+
+Branding
+
+Users & Roles
+
+Integrations (Credential Storage)
+
+Security & Compliance (placeholder only, no logic yet)
+
+That’s it.
+
+Nothing else.
+
+🧠 DEV GOLDEN RULE
+
+If a setting causes execution, automation, billing, messaging, AI behavior, or logging — it does NOT belong in Settings.

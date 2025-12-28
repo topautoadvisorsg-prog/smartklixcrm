@@ -1,0 +1,169 @@
+Below is a comprehensive audit and configuration guide for your Neo8 (n8n) workflow integrating with Smart Klix CRM. This is structured according to your requested format and constraints.
+
+Workflow Overview
+This workflow acts as an automation bridge between Smart Klix CRM (system of record) and external execution platforms (SMS, Email, Payments, Voice, Calendar, Docs, Sheets, WhatsApp). It processes CRM-triggered events (manual, webhook, or status callbacks), performs the requested external action (e.g., send SMS, email, payment, etc.), and logs all results and activities back to the CRM for full traceability and compliance.
+
+Key Flows:
+
+CRM Outreach: Sends AI-generated messages (SMS, Email, Invite) to contacts.
+AI Receptionist: Handles inbound calls, collects lead info, and logs to CRM.
+Payment Request: Creates Stripe payment links and notifies contacts.
+Payment Event Processing: Handles payment status events and human review.
+Google Integrations: Manages Gmail, Calendar, Docs, and Sheets actions.
+WhatsApp: Handles outbound/inbound WhatsApp via Twilio.
+Node-by-Node Breakdown
+1. CRM Outreach Flow
+CRM Manual Trigger: Webhook for manual outreach requests from CRM.
+Input: POST with contactId, actionType, triggeredBy.
+Output: Passes request data.
+Outreach Config: Sets CRM API base URL, auth token, Twilio number.
+Input: From trigger.
+Output: Adds config values.
+Fetch Contact from CRM: HTTP GET to CRM for contact details.
+Input: contactId, config.
+Output: Contact info (name, email, phone, etc.).
+Generate Message Content (AI): Uses OpenAI to generate outreach message.
+Input: Contact info, actionType.
+Output: Message text.
+Route by Action Type: Switches to SMS, Email, or Invite path.
+Input: actionType.
+Output: Routes to correct channel.
+Send SMS (Twilio): Sends SMS via Twilio.
+Input: Phone, message.
+Output: Twilio response.
+Send Email (SendGrid): Sends email via SendGrid.
+Input: Email, message.
+Output: SendGrid response.
+Send Invite (Email): Sends invite email via SendGrid.
+Input: Email, message.
+Output: SendGrid response.
+Combine All Outreach Results: Merges results from all channels.
+Input: Channel responses.
+Output: Combined result.
+Log Activity to CRM: HTTP POST to CRM activity log.
+Input: Outreach details, message, channel.
+Output: CRM log response.
+2. AI Receptionist Call Flow
+Inbound Call (Per-Segment): Webhook for Twilio call events.
+AI Receptionist Config: Sets call metadata.
+Extract Caller Speech (Twilio STT): Extracts speech from Twilio webhook.
+Retrieve Full Conversation: Gets conversation history from Redis.
+Build Conversation Context: Formats conversation for AI.
+Generate AI Response: Uses OpenAI to generate next prompt.
+Append AI Response to History: Updates conversation array.
+Store Conversation Turn: Saves updated conversation to Redis.
+Build TwiML Response (Twilio TTS): Generates TwiML for Twilio.
+Return TwiML to Twilio: Responds to Twilio with next prompt.
+3. Call End Processing
+Call Ended (StatusCallback): Webhook for call end.
+Retrieve Full Conversation (Call End): Gets full call transcript from Redis.
+Merge Conversation with Call Metadata: Combines transcript and metadata.
+Extract Lead Data from Transcript: Uses OpenAI to extract lead info.
+Prepare Lead Data for Intake: Formats for CRM intake.
+Log Call Summary to CRM: Logs call summary.
+Send to Lead Intake Flow: Forwards lead data to CRM intake endpoint.
+4. Payment Request Flow
+CRM Action: Send Payment: Webhook for payment requests.
+Payment Workflow Config: Sets CRM/Stripe config.
+Fetch Contact from CRM1: Gets contact for payment.
+Resolve or Create Stripe Customer: Finds/creates Stripe customer.
+Create Payable Object: Creates Stripe charge.
+Attach Metadata: Adds CRM metadata to Stripe object.
+Store Stripe IDs in CRM: PATCHes Stripe IDs to CRM contact.
+Send Payment Link to Customer: Notifies contact with payment link.
+5. Payment Event Processing
+CRM Payment Event Webhook: Webhook for payment status events.
+Payment Event Config: Sets config.
+Route by Payment Event Type: Switches by event type.
+Log Payment Completed/Failed/Refunded: Logs to CRM.
+Combine All Payment Logs: Merges logs.
+Check If Requires Human Review: IF for failed/refunded.
+Queue for Human Review: Queues for manual review if needed.
+6. Google Integrations (Gmail, Calendar, Docs, Sheets)
+Webhooks: Receive CRM requests for each service.
+Switch/Route Nodes: Route by action type.
+Action Nodes: Perform requested action (send email, create event, etc.).
+Combine Results: Merge results if needed.
+Log Activity to CRM: Log all actions back to CRM.
+7. WhatsApp Flows
+CRM-Triggered WhatsApp Send: Webhook for outbound WhatsApp.
+WhatsApp Outbound Config: Sets config.
+Add WhatsApp Prefix to Numbers: Formats numbers for Twilio.
+Send WhatsApp Message (Twilio): Sends WhatsApp message.
+Report Success/Failure to CRM: Notifies CRM of result.
+Twilio Inbound WhatsApp → CRM: Webhook for inbound WhatsApp.
+Immediate HTTP 200 to Twilio: Responds to Twilio.
+Parse Inbound Payload: Parses WhatsApp message.
+Forward to CRM Inbound Endpoint: Forwards to CRM.
+Missing Configuration
+Nodes Lacking Credentials
+OpenAI nodes: No OpenAI API credentials set.
+Twilio nodes: No Twilio credentials set.
+SendGrid nodes: No SendGrid credentials set.
+Stripe nodes: No Stripe credentials set.
+Redis nodes: No Redis credentials set.
+Gmail, Google Calendar, Google Sheets, Google Docs nodes: No Google OAuth2 credentials set.
+CRM-Triggered WhatsApp Send: No HTTP Header Auth credentials set.
+Nodes Lacking Payload Mapping
+Some HTTP Request nodes (e.g., Log Activity to CRM, Store Stripe IDs in CRM) have hardcoded or incomplete payloads—ensure all required CRM fields are mapped.
+Google Calendar nodes: Calendar ID is set to "primary" but may need to be dynamic.
+Google Sheets: Spreadsheet and sheet names are mapped from input, but column mapping should be verified.
+Nodes Requiring Secrets
+All nodes integrating with external APIs (OpenAI, Twilio, SendGrid, Stripe, Google, Redis) require API keys or OAuth tokens.
+CRM API calls require the internal token (N8N_INTERNAL_TOKEN).
+Nodes Requiring CRM Callback Configuration
+Log Activity to CRM
+Log Call Summary to CRM
+Store Stripe IDs in CRM
+Report Success/Failure to CRM (WhatsApp)
+Forward to CRM Inbound Endpoint (WhatsApp)
+All "Log ... to CRM" nodes in Google/Gmail/Calendar/Docs/Sheets flows
+Step-by-Step Setup Plan
+1. Configure Environment Variables and Secrets
+What: Set up all required API keys/tokens in n8n credentials (OpenAI, Twilio, SendGrid, Stripe, Redis, Google, CRM internal token).
+Info Needed: API keys, OAuth client IDs/secrets, CRM internal token.
+How to Test: Use n8n credential test features for each integration.
+What NOT to Configure Yet: Do not enable webhooks or trigger live actions until credentials are verified.
+2. Set Up CRM API Endpoints
+What: Ensure CRM endpoints (intake, activity log, events, etc.) are reachable and accept the expected payloads.
+Info Needed: CRM API base URL, endpoint paths, required headers (Authorization: Bearer N8N_INTERNAL_TOKEN).
+How to Test: Use Postman or n8n HTTP Request node in isolation to test each endpoint.
+What NOT to Configure Yet: Do not connect to production CRM until test environment is validated.
+3. Configure External Service Nodes
+What: Set up Twilio, SendGrid, Stripe, Google, and Redis nodes with correct credentials and test connections.
+Info Needed: Account credentials, test numbers/emails, sandbox/test mode where available.
+How to Test: Use test contacts and sandbox environments to send test messages/payments.
+What NOT to Configure Yet: Do not use real customer data or live payment methods.
+4. Map Payloads and Test Data Flow
+What: Verify all payload mappings (contact info, message content, payment details, etc.) are correct.
+Info Needed: Sample payloads from CRM, expected field names/types.
+How to Test: Use n8n’s "Execute Node" feature with sample data.
+What NOT to Configure Yet: Do not enable full workflow execution until all mappings are validated.
+5. Enable and Test Webhooks
+What: Activate webhooks for CRM, Twilio, Stripe, Google, etc.
+Info Needed: Public URLs, webhook registration in external systems.
+How to Test: Trigger test events from CRM and external services, verify workflow execution.
+What NOT to Configure Yet: Do not enable in production until all test cases pass.
+6. Finalize Logging and Error Handling
+What: Ensure all "Log to CRM" nodes are working and errors are reported.
+Info Needed: CRM error handling expectations, fallback contacts for alerts.
+How to Test: Simulate errors and verify CRM receives error logs.
+What NOT to Configure Yet: Do not suppress errors or skip logging.
+Safety & Reliability Notes
+Idempotency
+Where it matters: All CRM API POSTs (lead intake, activity log, payment events) must be idempotent to avoid duplicate records.
+How to ensure: Use unique IDs (e.g., contactId, callSid, paymentId) in payloads. CRM should reject duplicates.
+Retries
+Where to configure: For all external API calls (Twilio, SendGrid, Stripe, Google, CRM), configure retry logic for transient errors.
+How: Use n8n’s built-in retry settings or custom logic in code nodes.
+Error Reporting to CRM
+How: All failures (e.g., message send failure, payment failure) should be logged to CRM via the appropriate endpoint (e.g., /api/events/update or /api/activity-log/write).
+What to include: Error details, action attempted, timestamp, and unique identifiers.
+Avoiding Duplicates (SMS, Email, Payments)
+How:
+Use idempotent CRM endpoints.
+Store and check unique message/payment IDs before sending.
+Log all actions and check logs before retrying.
+For payments, ensure Stripe customer/payment IDs are stored in CRM and checked before creating new ones.
+Summary:
+This workflow is a robust, multi-channel automation bridge for Smart Klix CRM, but requires careful configuration of credentials, payload mappings, and error handling to ensure safe, reliable, and idempotent operation. Follow the setup plan step-by-step, test thoroughly in a sandbox, and only enable in production once all flows are verified.

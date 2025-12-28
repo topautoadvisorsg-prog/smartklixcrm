@@ -1,0 +1,43 @@
+Thank you for your directness. Here’s a clear explanation of what I can and cannot do for you in n8n, followed by the summary for your CRM developer as requested.
+
+What I Can and Cannot Do
+What I Can Do:
+
+I can answer any specific question about n8n nodes, expressions, features, and best practices.
+I can provide technical summaries and documentation for any node you specify, including what it does, how it works, and what data it expects.
+If you provide me with the names or types of nodes in your workflow, I can describe each one and how they connect.
+I can help troubleshoot issues, explain error messages, and guide you on how to configure nodes or workflows.
+What I Cannot Do:
+
+I do not have automatic access to your entire workflow structure or a list of all nodes unless you provide that information.
+I cannot generate a full report on every node in your workflow without knowing what nodes are present and how they are connected.
+I cannot view or export your workflow from n8n directly; you need to provide the relevant details.
+Summary for Your CRM Developer: CRM Manual Trigger
+What We’re Working On:
+We are integrating the CRM with n8n using a webhook trigger called "CRM Manual Trigger."
+
+Webhook Details:
+
+Webhook URL: https://ai3smartklix.app.n8n.cloud/webhook/outreach/trigger
+HTTP Method: POST
+What the Developer Needs to Do:
+
+Configure the CRM to send a POST request to the above URL whenever the relevant manual action is performed in the CRM.
+Include the required data in the request body. The data format should be JSON (unless otherwise specified by the workflow).
+Example Payload:
+{
+  "leadId": "12345",
+  "action": "manual_trigger",
+  "user": "john.doe@example.com"
+}
+(Replace with actual fields required by your workflow.)
+What Happens Next in n8n:
+
+The workflow will start when the webhook receives the POST request.
+The data sent will be available to all subsequent nodes in the workflow for processing (such as creating records, sending notifications, or triggering other automations).
+If you want a detailed breakdown of what happens after the trigger:
+Please provide the names or types of the nodes that follow "CRM Manual Trigger," and I will describe each one and the data flow for your developer.
+
+Let me know if you want to proceed with a detailed breakdown of the workflow after the trigger, or if you need help with another part of your n8n setup.
+
+Did this answer solve your question?

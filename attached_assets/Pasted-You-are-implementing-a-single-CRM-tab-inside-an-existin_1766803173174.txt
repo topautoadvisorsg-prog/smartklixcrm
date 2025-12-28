@@ -1,0 +1,166 @@
+You are implementing a single CRM tab inside an existing authority-driven system.
+The review document provided is NOT the final authority
+
+
+The system authority rules already exist
+
+
+You must NOT reinterpret, redesign, or override system logic
+
+
+Your job is implementation + clarification, not invention
+
+
+If something is unclear, ask once.
+ If something is already defined, do not restate it.
+
+AUTHORITY RULE (LOCKED)
+Human / Operator actions
+
+
+Are already reviewed
+
+
+Do NOT go to Review Queue
+
+
+Trigger EOA immediately
+
+
+AI Action CRM actions
+
+
+Are proposals only
+
+
+ALWAYS go to Review Queue
+
+
+Require human approval before EOA
+
+
+This rule applies to all tabs.
+ Tabs do not redefine authority.
+
+YOUR SCOPE FOR THIS TAB
+You are responsible for:
+Understanding the tab’s purpose
+
+
+What it shows
+
+
+What actions are possible
+
+
+What it does not do
+
+
+Implementing the tab
+
+
+Respect existing flows
+
+
+Respect authority resolution
+
+
+Do not introduce new logic paths
+
+
+Cleaning & improving
+
+
+Refactor code structure
+
+
+Improve readability
+
+
+Remove dead code
+
+
+Apply design tokens consistently
+
+
+Keep behavior identical unless explicitly approved
+
+
+Documentation
+
+
+Update the tab README
+
+
+Document:
+
+
+Purpose
+
+
+Read vs Execute actions
+
+
+Authority resolution
+
+
+Ledger events (if applicable)
+
+
+README documents reality — it does NOT invent it
+
+
+
+WHAT YOU MUST NOT DO
+❌ Do not change execution flow
+ ❌ Do not add new queues
+ ❌ Do not redefine authority
+ ❌ Do not auto-execute AI actions
+ ❌ Do not block human actions with review
+ ❌ Do not treat mockups as product truth
+Mockups = layout reference only
+
+EXPECTED OUTPUT FROM YOU
+For this tab, provide:
+Concise summary
+
+
+One paragraph max
+
+
+Action matrix
+
+
+Human vs AI behavior
+
+
+EOA trigger points
+
+
+Ledger events involved
+
+
+Files touched
+
+
+README updates
+
+
+Any blocking questions (only if truly blocking)
+
+
+If there are no blockers, do not ask questions.
+
+FINAL EXECUTION RULE
+If an action originates from:
+Human UI → execute
+
+
+AI Action CRM → queue → approve → execute
+
+
+No exceptions.
+ No reinterpretation.
+ No debate.
+
+

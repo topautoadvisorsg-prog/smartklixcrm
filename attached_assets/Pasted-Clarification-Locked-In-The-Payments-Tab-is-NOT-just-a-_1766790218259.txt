@@ -1,0 +1,126 @@
+Clarification (Locked In)
+The Payments Tab is NOT just a mirror
+
+It is also the launch point for payment execution, after approval, using a Payment Slip.
+
+Stripe is authoritative for money movement, but the CRM must generate the intent payload.
+
+✅ What Was Missing (and must be built)
+🧾 Payment Slip (Draft Object)
+
+This is what he failed to create.
+
+A Payment Slip is:
+
+A structured draft payload
+
+Matches Stripe-required fields
+
+Can be AI-generated or Human-created
+
+Never auto-executes
+
+Executes only after authority resolution
+
+🔁 Authority Flow (Payments – Correct)
+Origin	Flow
+Human creates Payment Slip	Executes immediately → EOA → n8n → Stripe
+AI Action CRM creates Payment Slip	Review Queue → Approval → EOA → n8n → Stripe
+
+👉 Same rule as everywhere else
+👉 Payments are not special-cased
+
+🧾 Payment Slip — Required Fields (Stripe-Aligned)
+
+This is the minimum contract the dev must implement:
+
+PaymentSlip {
+  id
+  origin: "human" | "ai"
+  status: "draft" | "approved" | "sent" | "failed"
+
+  amount
+  currency
+
+  customerId
+  customerEmail
+  customerName
+
+  description
+  memo
+
+  invoiceId?      // optional
+  estimateId?     // optional
+  jobId?          // optional
+
+  paymentMethodTypes: ["card", "us_bank_account", "terminal"]
+
+  stripeIntentId? // filled AFTER execution
+  processorRef?   // Stripe reference
+
+  createdBy
+  approvedBy?
+  createdAt
+}
+
+
+This object is what gets sent to n8n, not raw UI data.
+
+🚀 Execution Trigger
+
+When approved (or human-created):
+
+CRM → EOA Trigger
+→ n8n workflow
+→ Stripe PaymentIntent / Invoice / Terminal
+→ Stripe Webhook
+→ CRM Payments Tab (immutable record)
+
+
+The Payments tab then mirrors the RESULT, not the draft.
+
+🧾 Ledger Events (Payments)
+Event	When
+PAYMENT_SLIP_CREATED	Draft created
+PAYMENT_SLIP_APPROVED	Approved (AI only)
+PAYMENT_EXECUTION_REQUESTED	Sent to n8n
+PAYMENT_RECEIVED	Stripe webhook
+PAYMENT_FAILED	Stripe failure
+PAYMENT_REFUNDED	Refund webhook
+🧠 What the Dev Must Do (Very Explicit)
+He must:
+
+Create PaymentSlip draft model
+
+Create Payment Slip UI
+
+Amount
+
+Customer
+
+Reference (Invoice / Job)
+
+Method
+
+Respect authority
+
+AI → Review Queue
+
+Human → EOA
+
+Send structured payload to n8n
+
+Never let UI write payment records
+
+Update README to document this reality
+
+He must NOT:
+
+❌ Call Stripe directly from UI
+❌ Auto-send AI-generated payments
+❌ Treat Payments tab as passive-only
+❌ Edit settled payments
+
+🧨 One-Line Summary You Can Tell Him
+
+“You missed the Payment Slip. Payments aren’t just mirrored — the CRM drafts a Stripe-aligned payment intent, resolves authority, then sends it to n8n. Stripe only sees approved execution, never raw UI actions.”

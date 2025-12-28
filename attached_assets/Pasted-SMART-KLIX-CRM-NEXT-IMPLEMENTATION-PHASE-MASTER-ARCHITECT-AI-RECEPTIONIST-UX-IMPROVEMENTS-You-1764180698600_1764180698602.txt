@@ -1,0 +1,320 @@
+SMART KLIX CRM – NEXT IMPLEMENTATION PHASE
+MASTER ARCHITECT + AI RECEPTIONIST + UX IMPROVEMENTS
+
+You are the implementation developer for Smart Klix CRM.
+
+You have already read and agreed to the previous SUPER AUDIT implementation plan.
+From this point forward your job is:
+
+Keep following that plan
+
+Implement the items below
+
+Keep everything clean, consistent, and ready for n8n and production
+
+This is not a theoretical review, this is an implementation phase.
+
+1. ARCHITECTURE RULES (NON-NEGOTIABLE)
+
+We are now locking in the AI architecture:
+
+There is ONE brain only
+
+Master Architect is the central AI brain
+
+Different “channels” all talk to the same Master Architect:
+
+CRM Chat UI inside the CRM
+
+ChatGPT Actions (external)
+
+AI Receptionist (voice)
+
+All tools, modes, and approvals go through this one pipeline
+
+Your tasks:
+
+Audit the current implementation and confirm:
+
+CRM Chat calls → go through Master Architect
+
+ChatGPT Actions → go through Master Architect
+
+Future AI Receptionist → will also go through Master Architect
+
+Fix any place where:
+
+A separate “brain” is being created
+
+Tools are called directly, bypassing Master Architect
+
+Modes or approvals are not respected
+
+Do not introduce any new AI “brains”.
+Everything routes through the same Master Architect engine.
+
+2. AI RECEPTIONIST PAGE (NEW)
+
+We are adding a dedicated AI Receptionist page in the CRM.
+
+This is a real configuration page, not a placeholder. It should be designed so that:
+
+It configures how the receptionist behaves
+
+It exposes everything the n8n builder will need later
+
+It stays wired to Master Architect, not a separate brain
+
+You are NOT wiring n8n yet, just preparing the CRM side properly.
+
+2.1. Page location
+
+Add a dedicated page/tab:
+
+Name: AI Receptionist
+
+Section: under the AI / Automation area of the app, alongside Master Architect / ActionGPT config
+
+2.2. Page structure
+
+Divide the page into clear sections:
+
+A. Basic Behavior
+
+Toggle: Enable AI Receptionist
+
+Mode:
+
+Inbound only
+
+Outbound follow-ups allowed (configuration only, no actual outbound yet)
+
+Role description text area:
+
+Short description shown in UI: “Smart Klix AI receptionist that answers missed calls, captures info, and books or requests appointments.”
+
+B. Voice / Model Settings
+
+Provider: Hardcode “OpenAI Realtime Voice API” in UI for now
+
+Fields:
+
+Voice model name (string)
+
+Language preference (e.g. English, Spanish, bilingual notes)
+
+Max call duration (seconds)
+
+Note in UI: “Internal: Realtime voice API will be wired here. Do not implement actual telephony yet.”
+
+C. Allowed Actions (Tool Permissions for Receptionist)
+
+This receptionist is a restricted persona of Master Architect.
+
+Create a small table or settings list that allows us to enable/disable which tools this channel can use:
+
+create_contact
+
+create_lead or create_job
+
+add_note
+
+schedule_appointment (or “create callback request”)
+
+For each:
+
+Toggle: Enabled / Disabled for AI Receptionist
+
+Optional: “Requires approval” toggle if you want to hook into the existing double-check system
+
+These settings are per channel, so receptionist can be more restricted than full Master Architect.
+
+D. Call Handling Logic (Config Only)
+
+Config fields (no telephony yet):
+
+When to use AI receptionist:
+
+When no human agent answers within X seconds
+
+Outside business hours
+
+What the receptionist must always capture:
+
+Name
+
+Phone
+
+Reason for call
+
+Best time to call back
+
+Handoff rules:
+
+Text explanation: “If a human agent joins the call, AI receptionist must immediately stop and log the transcript so far.”
+
+E. Logging / CRM Integration Settings
+
+We are preparing what n8n and the CRM will log later. Add a section that describes and configures:
+
+What should be saved in CRM when a call is handled by AI:
+
+Call record
+
+Linked contact ID
+
+Linked job/lead if created
+
+Structured summary (short)
+
+Transcript location (reference to where transcript will be stored)
+
+Toggle options:
+
+Store full transcript vs Store summary only (for privacy/cost)
+
+You do not need to build the full transcript engine now, but the config and data model hooks must be ready.
+
+F. Future n8n Notes (for the n8n builder)
+
+At the bottom of the page, add a read-only section that documents for the future:
+
+“AI Receptionist is wired through Master Architect and n8n. Future flows will expect:”
+
+Call events (incoming, answered by AI, handed to human, ended)
+
+Call result payloads (summary, outcome, created entities)
+
+Do NOT implement these flows now, just clearly document them in the UI so the n8n builder and I know where to connect.
+
+3. CRM CHAT + MASTER ARCHITECT: EXECUTION MUST WORK
+
+Right now, the CRM chat could not even create a lead. That is not acceptable.
+
+Your tasks:
+
+Make sure the CRM AI Chat page:
+
+Sends messages through Master Architect
+
+Can actually execute allowed tools (example: create_contact, create_lead, add_note, update_job_status, etc)
+
+Respects modes:
+
+Draft → suggestions only
+
+Assist → goes into approval queue
+
+Auto → executes immediately within its allowed scope
+
+Confirm that:
+
+The double-checkmark logic still works for Assist/Auto
+
+The Assist Queue and Master Architect hub show what the AI wants to do, for review
+
+Add minimal but clear validation and error messaging in the chat UI:
+
+If a tool call fails, show a readable error, not a cryptic stack trace
+
+If you find missing wiring in the backend (for example, no proper endpoint for chat to reach Master Architect), fix it according to the previous SUPER AUDIT plan and clean code rules.
+
+4. CLEAN CODE REQUIREMENTS (ALWAYS ACTIVE)
+
+Everything you touch must respect strict clean code rules:
+
+TypeScript strict mode everywhere possible
+
+No dead or commented-out code left behind
+
+No unused imports
+
+No random helper files doing too many things
+
+Clear, descriptive naming for components, hooks, and services
+
+One responsibility per module where possible
+
+No secrets hardcoded
+
+Keep config and tokens in environment variables
+
+Keep components and pages small, readable, and easy to extend
+
+If you refactor, leave the code better than you found it
+
+If you need to adjust structure, choose the option that is more maintainable and future-friendly, not the hacky one.
+
+5. PER-PAGE IMPROVEMENT PASS
+
+In addition to implementing the items above, do a quick but serious pass on the main pages and, wherever it is low-effort and high-impact, improve things now.
+
+Focus on:
+
+AI-related pages:
+
+Master Architect Hub
+
+CRM Chat
+
+ActionGPT Config
+
+New AI Receptionist page
+
+Core CRM pages:
+
+Contacts + Contact Detail
+
+Jobs + Job Detail
+
+Calendar
+
+Pipeline
+
+Settings / AI config
+
+For each page you touch:
+
+Fix obvious UX bugs or broken actions
+
+Clean up labels, layout, and consistency
+
+Make sure it is clear how this page plugs into the AI and automation system
+
+When you are done, provide a short report with:
+
+A bullet list of what you changed per page
+
+Any remaining bigger UX improvements you recommend but did not implement yet (with a short explanation)
+
+6. CONFIRMATION AND FEEDBACK
+
+Before you start, reply with:
+
+Confirmation that you understand and agree with:
+
+Single-brain architecture (Master Architect for everything)
+
+Adding and wiring the AI Receptionist page as described
+
+Fixing CRM Chat so it can actually execute tools via Master Architect
+
+Keeping strict clean code standards
+
+Any blockers or concerns you see, especially:
+
+Technical constraints
+
+Anything that conflicts with the existing implementation
+
+Any better way you propose to design the AI Receptionist config or routing
+
+A brief implementation plan:
+
+Step 1, Step 2, Step 3 in your own words
+
+After implementation, provide:
+
+A short summary of what is done
+
+Any items you think should be tackled next to get Smart Klix CRM truly production-ready

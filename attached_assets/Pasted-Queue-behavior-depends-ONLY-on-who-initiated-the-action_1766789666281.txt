@@ -1,0 +1,158 @@
+Queue behavior depends ONLY on who initiated the action
+✅ HUMAN / OPERATOR
+
+Action is already reviewed
+
+NO Review Queue
+
+Directly triggers EOA
+
+Ledger logs it as Human-Authorized
+
+Execution proceeds immediately
+
+✅ AI Action CRM
+
+Action is NOT trusted by default
+
+ALWAYS goes to Review Queue
+
+Requires Architect / Manager approval
+
+ONLY after approval → EOA triggers
+
+Ledger logs it as AI-Proposed → Human-Approved
+
+The queue exists ONLY to compensate for AI authority.
+Humans do NOT queue themselves.
+
+That’s it. That’s the system.
+
+🧠 EOA CLARITY (What You Were Pointing At)
+
+Yes — everything triggers EOA.
+
+The difference is WHEN:
+
+Initiator	Path
+Human	Action → EOA immediately
+AI	Action → Review Queue → Approval → EOA
+
+EOA does not care who initiated.
+EOA only cares that authority is satisfied.
+
+📄 PAYMENTS / ESTIMATES / INVOICES — SAME RULE
+
+This applies to:
+
+Estimates
+
+Invoices
+
+Payments
+
+Conversions
+
+Sends
+
+Anything financial or executable
+
+The tab does NOT change the rule.
+Only who initiated changes the rule.
+
+🧩 WHAT THE PAYMENTS TAB ACTUALLY IS (CORRECTED)
+
+The Payments tab is:
+
+A financial execution + confirmation surface
+
+Shows attempted, authorized, captured, settled payments
+
+Can initiate payments (human or AI)
+
+But authority is resolved before EOA fires
+
+So:
+
+❌ Not Stripe.com
+
+❌ Not read-only
+
+✅ Contextual execution + financial truth
+
+✅ Fully integrated with EOA + Ledger
+
+🧾 LEDGER EVENTS (FINAL, CORRECT)
+Human-Initiated
+
+PAYMENT_INITIATED_HUMAN
+
+EOA_EXECUTED
+
+PAYMENT_CAPTURED
+
+PAYMENT_SETTLED
+
+AI-Initiated
+
+PAYMENT_PROPOSED_AI
+
+PAYMENT_REVIEW_REQUIRED
+
+PAYMENT_APPROVED_HUMAN
+
+EOA_EXECUTED
+
+PAYMENT_CAPTURED
+
+PAYMENT_SETTLED
+
+No other paths exist.
+
+✅ THE PROMPT YOU GIVE THE DEV (THIS IS WHAT YOU ASKED FOR)
+
+You can paste this verbatim:
+
+SYSTEM CONTEXT
+
+You are working inside a CRM where authority depends on the initiator.
+
+Human / Operator actions are pre-approved and must NOT go to the Review Queue
+
+AI Action CRM actions must ALWAYS go to the Review Queue before execution
+
+All executions ultimately trigger EOA
+
+Every state change must be logged to the Automation Ledger
+
+TASK
+
+You are updating the [TAB NAME].
+
+For this tab:
+
+Implement actions so that:
+
+Human-initiated actions execute immediately via EOA
+
+AI-initiated actions are routed to the Review Queue before EOA
+
+Ensure no AI action can silently execute
+
+Ensure no human action is unnecessarily queued
+
+Log all transitions with correct authority attribution
+
+Use existing layout structure only — mockups are structural, not final UI
+
+OUTPUT REQUIRED
+
+Describe what the tab does
+
+Describe how authority is resolved
+
+Describe how EOA is triggered
+
+Identify any missing backend hooks or assumptions
+
+Ask questions ONLY if something blocks implementation

@@ -1,0 +1,204 @@
+Core Priority, Detail Pages (Contact and Job)
+
+These are top priority. Nothing else matters until these exist and are wired.
+
+A. Contact Detail Page
+
+Create a full contact detail page and wire it from the Contacts tab “View Details” action.
+
+The Contact Detail page must include:
+
+Contact header, name, phone, email, tags, editable
+
+Basic info section, address, primary contact fields
+
+Jobs for this contact, list of jobs tied to this contact, with link to Job Detail
+
+Notes for this contact, scoped notes that belong to this contact only
+
+Files for this contact, scoped files that belong to this contact only
+
+Appointments for this contact
+
+Activity timeline for this contact only, pulled from audit log
+
+Quick actions, Send SMS, Send Email, Create Payment Link
+
+Editing rules
+
+Simple inline edit or edit dialog is fine
+
+Changes must persist to the existing contacts API
+
+B. Job Detail Page
+
+Create a full job detail page and wire it from the Jobs tab “View Details” and anywhere else a job is clicked.
+
+Job Detail must include:
+
+Job header, status badge, title, job number if any
+
+Core job info, description, type, status, created date, value
+
+Associated contact, with link back to Contact Detail
+
+Status timeline or history section, at least a simple status history list
+
+Linked estimate if exists
+
+Linked invoice if exists
+
+Notes for this job, scoped to this job only
+
+Files for this job, scoped to this job only
+
+Appointments for this job
+
+Assigned technicians if supported in the schema, otherwise leave as placeholder for now
+
+Editing rules
+
+Status changes from this page should update the job status correctly
+
+Basic job fields should be editable
+
+Do not invent new API endpoints for this, reuse existing ones where possible. If you truly need a new endpoint, document it clearly.
+
+2. Files and Notes, Fix the Bad Tabs
+
+We are not keeping random “global” Files and Notes that float with no context.
+
+A. Files Tab
+
+Remove or disable the main Files tab from the sidebar for now
+
+Reuse the existing files API, but surface files only inside Contact Detail and Job Detail
+
+On Contact Detail, show files filtered by contact
+
+On Job Detail, show files filtered by job
+
+If you need to adjust the API to support filtering by entity, do that and document it.
+
+B. Notes Tab
+
+Remove or disable the global Notes tab, unless you repurpose it in a clean way
+
+Notes for CRM records must live on Contact Detail and Job Detail
+
+Make sure notes are clearly tied to either a contact or a job, no orphan notes
+
+If you want to keep a “Personal Notes” concept later, we can talk about that, but for now, focus on CRM related notes where they belong.
+
+3. Fix Broken Actions and Fake Buttons
+
+Go through the tabs you listed and fix the worst offenders.
+
+Minimum required:
+
+Contacts tab
+
+“View Details” must open the Contact Detail page
+
+If edit is present, it must work, or remove the control
+
+Jobs tab
+
+“View Details” must open the Job Detail page
+
+Any “Update Status” or “Edit” that stays visible must work, otherwise hide it
+
+Pipeline tab
+
+If you can reasonably add drag and drop now, do it
+
+At minimum, click on a card should open Job Detail
+
+Do not leave fake functionality
+
+Estimates and Invoices
+
+If you leave the tab visible, the main actions for each row must either do something real or be removed
+
+“View Details” should open a detail view, even if the first version is simple
+
+Rule
+If a button or menu item does nothing, either wire it or remove it. No fake UI.
+
+4. Search Bars, Make Them Actually Work
+
+You already listed where search is UI only. Fix those.
+
+Implement client side filtering for now using the already loaded data.
+
+Must work in:
+
+Contacts
+
+Estimates
+
+Invoices
+
+Payments
+
+User Management
+
+If performance becomes an issue later we can move to server side filtering, but first we need functional search.
+
+5. Settings, Minimal Real Save
+
+Right now Settings is all visual only. I do not need full blown settings, but I do need at least one real save path wired so the tab is not fake.
+
+Minimum for this pass:
+
+AI Agent Mode selector must save and load from a backend setting
+
+N8N integration fields can remain mock for now, but label them clearly as “coming soon” or hide them behind a flag
+
+Create a simple /api/settings or similar if it does not exist, keep it minimal but real.
+
+6. Do Not Break What Already Works
+
+Do not break these:
+
+Intelligence Bot
+
+AI Assist Queue
+
+AI Memory read views
+
+Dashboard metrics that already pull live data
+
+Calendar basic functionality
+
+If you need to refactor, be very careful and test.
+
+7. Deliverables
+
+When you are done with this pass, I want:
+
+Contact Detail page implemented and wired
+
+Job Detail page implemented and wired
+
+Files tab removed or disabled, files moved into Contact and Job detail views
+
+Notes tab removed or disabled, notes moved into Contact and Job detail views
+
+Search working in all listed tabs
+
+Fake dropdown actions either wired or removed
+
+AI Agent Mode setting persisted in Settings
+
+Plus a short follow up report that includes:
+
+Updated UI structure
+
+What changed
+
+What is still pending or blocked
+
+Focus on these items first before touching anything related to Chat widget, memory embeddings, or new AI features.
+
+Send me the updated build and a short written summary when this is complete.

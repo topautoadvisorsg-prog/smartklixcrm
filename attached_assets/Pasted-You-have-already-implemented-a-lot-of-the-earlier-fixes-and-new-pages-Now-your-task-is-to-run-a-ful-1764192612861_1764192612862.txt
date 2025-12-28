@@ -1,0 +1,161 @@
+You have already implemented a lot of the earlier fixes and new pages. Now your task is to run a full audit across the entire app and tell us exactly where we stand.
+
+This task is mainly an audit and validation pass, plus small low risk fixes that you can safely implement as you go. Anything larger or risky, you document and propose a clear fix plan.
+
+Clean code is required for any change you make. No dead code, clear naming, strict TypeScript, and documentation of what you touched and where it lives.
+
+Scope of the audit
+
+Audit every main tab and AI related page.
+
+At minimum include
+
+Dashboard
+
+Contacts list and Contact detail
+
+Jobs list and Job detail
+
+Estimates
+
+Invoices
+
+Payments
+
+Calendar
+
+Pipeline
+
+Emails page and email account config
+
+Intake Builder
+
+CRM Agent Chat page
+
+CRM Agent Config page
+
+ActionGPT Config page
+
+GPT Actions Tools, or GPT Actions page, however it is named now
+
+AI Receptionist page
+
+Master Architect hub
+
+Settings, including any AI related or integration related sections
+
+For each of these, you must
+
+• Describe what is there right now
+• Confirm what is working and how it behaves
+• Call out what is broken, fake, or clearly unfinished
+• Suggest specific improvements or missing pieces
+
+If something was already covered in a previous report and is now resolved, just confirm it is resolved and behaves correctly.
+
+Voice and AI Receptionist specific checks
+
+Right now there is a specific issue
+
+On the AI Receptionist page, in voice mode
+
+• Economy option works and is selectable
+• Premium real time API shows Coming soon, but the original requirement was that we can choose to use premium real time API or not
+
+For this audit
+
+• Confirm exactly how the AI Receptionist page is wired
+• Confirm how the Economy tier works, which provider, which model, and how calls will be triggered and logged
+• For Premium real time API, do not leave it as a fake Coming soon label
+
+We need
+
+• A real configuration section for Premium that can be used once we wire the provider
+• Clear indication in the UI whether Premium is available or not in this environment
+• If Premium is not yet fully wired, show a clean disabled state with explanation and keep all the fields ready, so switching later does not require new UI work
+
+We are using Twilio for telephony, and OpenAI for voice. Do not swap providers or guess at other vendors. If you need to choose a model or mode name, document what you used and why.
+
+Do not silently hardcode Coming soon in place of real config. Either make it truly configurable and working, or present a clean disabled state with a clear note for future wiring.
+
+AI channels and Master Architect routing
+
+We are using a single Master Architect brain for all AI flows.
+
+As part of the audit, confirm and document
+
+• CRM Agent Chat route, confirm that all tool executions go through the Master Architect pipeline and respect modes such as Draft, Assist, Auto
+• ChatGPT Actions, confirm that GPT Actions also route through Master Architect and do not bypass it with direct OpenAI calls
+• Public or widget chat, if there is any, confirm that it also goes through Master Architect and not through a legacy direct OpenAI service
+• AI Receptionist, confirm the plan for how it will call Master Architect when a call needs CRM actions or decisions
+
+If you find any place where OpenAI is being called directly without going through Master Architect, call it out clearly. If the fix is small and low risk, you can refactor it in this pass. If the fix is larger or touches old endpoints, describe the refactor plan instead of doing a risky change.
+
+Functional smoke tests
+
+For every tab, run a quick smoke test with realistic actions. Nothing deep, just confirm basic flows.
+
+Examples
+
+• Contacts, create contact, edit contact, delete or archive if supported, verify it shows correctly in lists and is accessible to AI as context
+• Jobs, create job, update status, link to contact, verify it appears in pipeline and detail views
+• Estimates and Invoices, create and view basic records, verify at least the minimal flow works without errors, even if sending or PDF export is still TODO
+• Calendar, create appointment, move appointment if supported, verify it links to contact or job correctly
+• Emails, add an email account with test values, test connection if available, load list views for inbox and sent, confirm the page does not break
+• Intake Builder, create an intake, define fields, set mappings to contact or job, verify it saves and shows correctly in the list
+• CRM Agent Chat, run at least a few commands such as create a new contact, add a note, create a job, and see what actually happens, do not just trust the AI message. Confirm whether tools actually execute or if the AI is only talking.
+• ActionGPT flows, trigger a test action if possible and confirm it hits the right endpoint and is visible in logs or history.
+• Master Architect hub, confirm you see queued actions, approvals, completed actions, and that approve or reject works as intended.
+• AI Receptionist, you do not need to place real calls yet, but confirm that test buttons, configuration and logging sections work without errors on the front end.
+
+For each area, in your report, say
+
+• Passed smoke test, or
+• Failed, with a short description of what failed and any errors seen
+
+If something depends on n8n or Twilio and cannot work yet, mark it as blocked by integration, not as a bug, and indicate what endpoint or event will be used later.
+
+Navigation and structure review
+
+Do a quick pass over the navigation and ask
+
+• Do any tabs feel duplicated, for example GPT Actions Tools versus ActionGPT Config
+• Do any tabs belong inside Settings instead of top level
+• Are there any orphan pages not reachable from the sidebar
+
+You do not need to move tabs yet unless it is a simple and obvious change. At minimum, list any confusing or redundant items and how you think they should be merged or relocated.
+
+If GPT Actions Tools and ActionGPT Config are effectively the same feature split into two pages, propose your preferred structure, for example a single unified ChatGPT Actions page with configuration and tools as tabs within it.
+
+Clean code and documentation expectations
+
+For any code you touch during this audit
+
+• Keep strict TypeScript and follow existing patterns in the repo
+• Remove or clearly mark any dead code you find that is guaranteed unused
+• Add validation for new endpoints if you introduce any during small fixes
+• Keep naming consistent with the rest of the project
+
+Documentation
+
+At the end of the task, provide a short written report that includes
+
+• Tab by tab summary, what exists, what works, what is broken or missing, and your top one or two recommendations for each
+• List of small fixes you actually implemented during this audit
+• List of larger items you did not implement, grouped into High, Medium, and Nice to have, with a sentence or two on how you would approach them
+• Explicit note about AI Receptionist premium voice mode status, what is wired today, what is still pending, and how the configuration will behave once premium is enabled
+
+Goal of this audit
+
+The goal of this audit is simple
+
+When you are done and we read your report, we want to clearly see
+
+• Which parts of the CRM are solid and ready for n8n and Twilio wiring
+• Which parts are still half baked or fake such as Coming soon labels, and what they need
+• That the AI channels are all going through Master Architect correctly
+• That voice and email and intake now have proper places in the UI and data model
+
+If you think there is anything else obviously missing or dangerous that we did not mention here, call it out. You are encouraged to use your judgment and experience as a SaaS engineer and suggest better ways to structure or harden the system.
+
+If any part of this plan is not clear or you see a better way to achieve the same goals, explain it in your report before making large structural changes. For small cleanups and fixes, just do them and document them.

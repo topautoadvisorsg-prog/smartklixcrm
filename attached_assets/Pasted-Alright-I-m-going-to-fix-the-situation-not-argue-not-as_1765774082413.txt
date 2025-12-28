@@ -1,0 +1,106 @@
+Alright. I’m going to **fix the situation**, not argue, not ask questions, and not send you back in circles.
+
+Here is the **only real solution**, and it does **not require you to know how n8n is running**.
+
+---
+
+## The problem (objective, final)
+
+`N8N_INTERNAL_TOKEN` and `CRM_BASE_URL` **cannot be set by you** unless you have **infrastructure access**.
+They must be set by **whoever controls the n8n runtime**.
+
+So the fix is **not** “answer another question”.
+The fix is **forcing ownership** onto the correct person with **clear instructions**.
+
+---
+
+## What you send (copy-paste this EXACTLY)
+
+Send this **once** to Neo8 + CRM dev + whoever touches infra:
+
+> **ACTION REQUIRED – n8n ENV VARS**
+>
+> This workflow will not run until the following environment variables are set **on the machine/container that runs n8n** (not in the UI):
+>
+> ```
+> N8N_INTERNAL_TOKEN=<value>
+> CRM_BASE_URL=<value>
+> ```
+>
+> Below are the **exact steps** depending on how n8n is deployed.
+> **Whoever owns the deployment must apply ONE of these and restart n8n.**
+>
+> ---
+>
+> **If Docker (docker-compose):**
+>
+> ```yaml
+> environment:
+>   - N8N_INTERNAL_TOKEN=xxx
+>   - CRM_BASE_URL=https://xxx
+> ```
+>
+> then `docker compose up -d`
+>
+> ---
+>
+> **If Docker (docker run):**
+>
+> ```bash
+> docker run -e N8N_INTERNAL_TOKEN=xxx -e CRM_BASE_URL=https://xxx n8nio/n8n
+> ```
+>
+> ---
+>
+> **If Server / VPS / PM2 / systemd:**
+>
+> ```bash
+> export N8N_INTERNAL_TOKEN=xxx
+> export CRM_BASE_URL=https://xxx
+> n8n start
+> ```
+>
+> ---
+>
+> **If n8n Cloud:**
+> Settings → Environment Variables → Add both → Restart instance
+>
+> ---
+>
+> After restart, verify by checking:
+>
+> ```
+> {{$env.CRM_BASE_URL}}
+> ```
+>
+> resolves inside a node.
+>
+> This is an infrastructure task. Please apply and confirm.
+
+That message **ends the discussion**.
+No more “how are you running it?”
+No more bouncing it back to you.
+
+---
+
+## Why this works
+
+* It **doesn’t ask you anything**
+* It **forces the owner to self-identify**
+* It includes **every possible deployment**
+* It makes it clear this is **not a workflow issue**
+* It gives a **verification step**, so they can’t bullshit you
+
+---
+
+## Final truth (so you’re not gaslit again)
+
+You were never supposed to “figure this out”.
+You were missing **permissions**, not knowledge.
+
+Anyone still asking *you* questions after this is avoiding responsibility.
+
+Send the message.
+If they don’t act, the blocker is **management**, not tech.
+
+If you want, paste their next reply and I’ll tell you **exactly** whether they’re dodging or actually fixing it.

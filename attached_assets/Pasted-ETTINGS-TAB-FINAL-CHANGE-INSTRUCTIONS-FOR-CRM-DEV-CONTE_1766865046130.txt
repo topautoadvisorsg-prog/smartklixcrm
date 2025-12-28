@@ -1,0 +1,188 @@
+ETTINGS TAB — FINAL CHANGE INSTRUCTIONS (FOR CRM DEV)
+CONTEXT
+
+We are NOT redesigning the whole product.
+We are cleaning up the existing Settings tab so it only contains what belongs there.
+
+Anything related to:
+
+AI behavior
+
+AI learning
+
+AI governance
+
+Ledger / audit
+
+Automation logic
+
+DOES NOT LIVE IN SETTINGS.
+Those already have dedicated tabs.
+
+🟢 KEEP (STAYS IN SETTINGS)
+1️⃣ Company Profile — KEEP
+
+Status: ✅ Keep as-is (minor polish OK)
+
+Includes:
+
+Company name
+
+Email
+
+Phone
+
+Business type
+
+Timezone
+
+Purpose:
+
+Workspace identity
+
+Business context
+
+2️⃣ Branding — KEEP
+
+Status: ✅ Keep
+
+Includes:
+
+Logo
+
+Primary color
+
+Secondary color
+
+No behavior logic here. Visual only.
+
+3️⃣ Users / User Management — KEEP & IMPROVE
+
+Status: ✅ Keep + implement properly
+
+Includes:
+
+Invite users
+
+Assign roles
+
+Remove / deactivate users
+
+This belongs in Settings.
+
+🟡 MODIFY (REPURPOSE, NOT REMOVE)
+4️⃣ External Integrations → RENAME / REPURPOSE
+
+Status: 🔁 KEEP but CHANGE PURPOSE
+
+Current:
+
+“External Integrations”
+
+Mixed usage / unclear intent
+
+New purpose:
+👉 Credential & Integration Storage
+
+What this tab IS:
+
+Storage for API keys
+
+Storage for webhook URLs
+
+Storage for integration credentials
+
+Easy copy / paste access for operators
+
+What this tab is NOT:
+
+No execution
+
+No workflows
+
+No automation triggers
+
+No Zapier / n8n logic
+
+Important:
+
+Keys may exist even if not connected
+
+n8n handles execution elsewhere
+
+This is just a vault / storage UI
+
+🔴 REMOVE (DO NOT EXIST IN SETTINGS)
+❌ AI Agent Mode — REMOVE
+
+Reason:
+
+AI behavior configuration already lives in AI Settings
+
+Does NOT belong in general Settings
+
+❌ AI Control Center / AI Learning — REMOVE
+
+Reason:
+
+This is Master Architect / AI Settings
+
+Already has a dedicated section
+
+Duplication causes confusion
+
+❌ System Audit Log — REMOVE
+
+Reason:
+
+Ledger already exists
+
+Audit / history belongs to the Ledger tab
+
+No deletes, no edits, no controls here
+
+🧭 FINAL SETTINGS TAB SHOULD CONTAIN ONLY:
+
+Company Profile
+
+Branding
+
+Users & Access
+
+Integrations (Credential Storage)
+
+(Optional placeholder) Security / Compliance — disabled, future
+
+That’s it.
+
+🚫 EXPLICITLY DO NOT ADD
+
+AI tuning
+
+AI prompts
+
+AI learning controls
+
+Automation logic
+
+Workflow builders
+
+Ledger management
+
+Notifications
+
+Audit logs
+
+Security enforcement (placeholder only)
+
+🧠 RULE OF THUMB FOR DEV
+
+If a setting:
+
+Affects AI decisions → AI Settings tab
+
+Affects execution / automation → n8n / backend
+
+Affects history / truth → Ledger tab
+
+Affects identity, people, stored credentials → Settings tab
