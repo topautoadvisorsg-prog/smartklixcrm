@@ -1093,8 +1093,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let hasExternalActions = false;
           let hasInternalActions = false;
           
+          // Entity ID resolution map - tracks created entity IDs for chained actions
+          const createdEntities: {
+            contactId?: string;
+            estimateId?: string;
+            invoiceId?: string;
+            jobId?: string;
+            appointmentId?: string;
+          } = {};
+          
+          // Helper to resolve placeholder IDs in action args
+          const resolveEntityIds = (args: unknown): unknown => {
+            if (!args || typeof args !== 'object') return args;
+            const resolved = { ...args as Record<string, unknown> };
+            
+            // Placeholder patterns to resolve
+            const placeholderPatterns = ['new', 'placeholder', 'placeholder_contact_id', 'placeholder_estimate_id', 'placeholder_invoice_id', 'placeholder_job_id'];
+            
+            // Resolve contactId
+            if (resolved.contactId && typeof resolved.contactId === 'string') {
+              const isPlaceholder = placeholderPatterns.some(p => 
+                resolved.contactId === p || (resolved.contactId as string).toLowerCase().includes('placeholder')
+              );
+              if (isPlaceholder && createdEntities.contactId) {
+                console.log(`[Ready Execution] Resolving contactId: "${resolved.contactId}" → "${createdEntities.contactId}"`);
+                resolved.contactId = createdEntities.contactId;
+              }
+            }
+            
+            // Resolve estimateId
+            if (resolved.estimateId && typeof resolved.estimateId === 'string') {
+              const isPlaceholder = placeholderPatterns.some(p => 
+                resolved.estimateId === p || (resolved.estimateId as string).toLowerCase().includes('placeholder')
+              );
+              if (isPlaceholder && createdEntities.estimateId) {
+                console.log(`[Ready Execution] Resolving estimateId: "${resolved.estimateId}" → "${createdEntities.estimateId}"`);
+                resolved.estimateId = createdEntities.estimateId;
+              }
+            }
+            
+            // Resolve invoiceId
+            if (resolved.invoiceId && typeof resolved.invoiceId === 'string') {
+              const isPlaceholder = placeholderPatterns.some(p => 
+                resolved.invoiceId === p || (resolved.invoiceId as string).toLowerCase().includes('placeholder')
+              );
+              if (isPlaceholder && createdEntities.invoiceId) {
+                console.log(`[Ready Execution] Resolving invoiceId: "${resolved.invoiceId}" → "${createdEntities.invoiceId}"`);
+                resolved.invoiceId = createdEntities.invoiceId;
+              }
+            }
+            
+            // Resolve jobId
+            if (resolved.jobId && typeof resolved.jobId === 'string') {
+              const isPlaceholder = placeholderPatterns.some(p => 
+                resolved.jobId === p || (resolved.jobId as string).toLowerCase().includes('placeholder')
+              );
+              if (isPlaceholder && createdEntities.jobId) {
+                console.log(`[Ready Execution] Resolving jobId: "${resolved.jobId}" → "${createdEntities.jobId}"`);
+                resolved.jobId = createdEntities.jobId;
+              }
+            }
+            
+            return resolved;
+          };
+          
+          // Helper to extract created entity ID from tool result
+          const captureCreatedEntity = (toolName: string, result: unknown) => {
+            if (!result || typeof result !== 'object') return;
+            const res = result as Record<string, unknown>;
+            
+            // Check for success and data.id pattern
+            if (res.success && res.data && typeof res.data === 'object') {
+              const data = res.data as Record<string, unknown>;
+              if (data.id && typeof data.id === 'string') {
+                if (toolName === 'create_contact') {
+                  createdEntities.contactId = data.id;
+                  console.log(`[Ready Execution] Captured contactId: ${data.id}`);
+                } else if (toolName === 'create_estimate') {
+                  createdEntities.estimateId = data.id;
+                  console.log(`[Ready Execution] Captured estimateId: ${data.id}`);
+                } else if (toolName === 'create_invoice') {
+                  createdEntities.invoiceId = data.id;
+                  console.log(`[Ready Execution] Captured invoiceId: ${data.id}`);
+                } else if (toolName === 'create_job') {
+                  createdEntities.jobId = data.id;
+                  console.log(`[Ready Execution] Captured jobId: ${data.id}`);
+                } else if (toolName === 'create_appointment') {
+                  createdEntities.appointmentId = data.id;
+                  console.log(`[Ready Execution] Captured appointmentId: ${data.id}`);
+                }
+              }
+            }
+          };
+          
           for (const action of toolsCalled) {
             const actionType = classifyAction(action.tool);
+            
+            // Resolve placeholder IDs before execution
+            const resolvedArgs = resolveEntityIds(action.args);
             
             if (actionType === "EXTERNAL") {
               hasExternalActions = true;
@@ -1103,7 +1199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 const dispatchResult = await dispatchExternalAction(
                   action.tool,
-                  action.args,
+                  resolvedArgs,
                   { 
                     assistQueueId: assistEntry.id,
                     userId: userId || undefined,
@@ -1140,9 +1236,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 const result = await executeAITool(
                   action.tool,
-                  action.args,
+                  resolvedArgs,
                   { userId: userId || undefined, finalizationMode: "semi_autonomous" }
                 );
+                
+                // Capture created entity IDs for subsequent actions
+                captureCreatedEntity(action.tool, result);
+                
                 executionResults.push({
                   tool: action.tool,
                   status: "executed",
