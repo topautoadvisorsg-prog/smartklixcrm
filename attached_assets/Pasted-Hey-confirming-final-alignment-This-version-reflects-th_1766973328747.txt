@@ -1,0 +1,183 @@
+Hey — confirming final alignment. This version reflects the last correction and is what we’re locking in.
+
+We’re not redesigning anything. We’re finalizing behavior and hard requirements.
+
+---
+
+## 1. Intake Hub (Intake Only)
+
+The Intake Hub:
+
+* Receives inputs (forms, phone, webhooks, manual, etc.)
+* Logs them
+* Assigns IDs / metadata
+
+That’s it.
+No decisions. No actions. No mutations.
+
+---
+
+## 2. Action AI (Smart Clicks CRM)
+
+The Action AI:
+
+* Reads intake
+* Reads CRM data
+* Reasons about what should happen
+
+When it decides something needs to be done, it creates a **draft proposal**.
+
+Clarification:
+
+* Draft is **real and complete**
+* Represents exactly what would be written
+* Includes before/after state (diff)
+* Nothing is injected yet
+
+Once created:
+
+* Draft is written to the ledger
+* Draft is placed into the Review Queue
+
+The AI **never executes**.
+
+---
+
+## 3. Review Queue — Architect
+
+The Architect reviews:
+
+* Intake
+* AI draft
+* Requested action/tool
+* Diff
+
+Decisions:
+
+* Approve
+* Reject with explanation
+
+Flow:
+
+* Approved → ledger → Execution Queue
+* Rejected → sent back to Action AI with reason
+
+Rule:
+
+* If the AI is rejected **twice**, it stops
+* Item is escalated to the Operator, flagged as “AI failed review”
+
+---
+
+## 4. Execution Queue — Operator (Final Authority)
+
+This is the final stage.
+
+Operator can:
+
+* Execute **as-is**
+* Reject and handle manually outside the AI flow
+
+Important:
+
+* Operator does **not** modify payloads
+* If execution isn’t acceptable, it is rejected and handled manually
+
+When executed:
+
+* Draft is injected into the CRM
+* That result is final
+* Ledger records the execution
+
+This execution is the authoritative outcome.
+
+---
+
+## 5. Automation (n8n)
+
+n8n is execution only.
+
+It:
+
+* Executes jobs sent from Smart Clicks CRM
+* Requires a valid ledger/action reference
+
+It does not reason, approve, or initiate.
+
+---
+
+## 6. **CRITICAL HARDENING TASKS (MANDATORY BEFORE AUTONOMY)**
+
+These are blocking requirements.
+
+### 🔴 P0 — Idempotency
+
+* Every executable action must include an idempotency key
+* Executor must deduplicate before execution
+* Same action must never execute twice
+
+### 🔴 P0 — Global Kill Switch
+
+Single flag to halt:
+
+* Execution
+* External dispatch (n8n)
+* Queue promotion
+
+Must work without redeploy.
+
+### 🔴 P0 — Reasoning Trace (Summary)
+
+* Store AI decision rationale (summary, not raw chain-of-thought)
+* Must be queryable per transaction
+* Must link intake → proposal → execution
+
+### 🟠 P1 — Timeouts & Escalation
+
+* No silent pending items
+* TTL + escalation required
+
+### 🟠 P1 — Soft Delete Only
+
+* AI can never hard-delete
+* Archive / flag only
+
+---
+
+## 7. Final Expectation
+
+This is **not** a chatbot.
+
+This is a **governed action console**.
+
+AI:
+
+* Proposes
+* Explains
+* Revises
+
+Humans:
+
+* Approve
+* Execute
+* Or take over manually
+
+Ledger:
+
+* Tells the truth
+
+If something breaks, we must be able to answer:
+**Who decided what, why, and when.**
+
+---
+
+## 8. Confirmation Required
+
+Please respond with:
+
+1. Any deviation you believe is required (and why)
+2. A step-by-step implementation plan aligned to the above
+3. The first files/modules you will touch
+
+Once confirmed, we move straight into implementation.
+Thanks.

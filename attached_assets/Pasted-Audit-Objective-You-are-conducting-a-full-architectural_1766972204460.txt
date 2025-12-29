@@ -1,0 +1,304 @@
+Audit Objective
+
+You are conducting a full architectural, behavioral, and governance audit of our AI Action Console as it exists today.
+This is not a theoretical design exercise. You must document actual current behavior, actual permissions, actual queues, actual ledgers, and actual failure modes.
+
+Assume this system is operating in, or is intended to operate in, a Level 3 → Level 4 Agency environment (Assisted → Autonomous Action).
+Your job is to identify what we have, how it works, where it is unsafe, and what is missing to meet Neo8 standards.
+
+Section 1 — Current-State Inventory (No Assumptions)
+1.1 AI Action Console Surface Area
+
+Document exactly what exists today:
+
+What interfaces expose AI actions?
+
+Chat UI
+
+Internal admin panel
+
+Slack / Teams
+
+Webhooks
+
+Background automations
+
+What actions can the AI currently:
+
+Read?
+
+Draft?
+
+Execute?
+
+Which systems are connected right now?
+
+CRM
+
+Email
+
+Billing
+
+Tickets
+
+Internal DBs
+
+Which environments?
+
+Production
+
+Staging
+
+Sandbox
+
+⚠️ If anything is undocumented, flag it as governance risk.
+
+Section 2 — Agency & Permission Model Audit
+2.1 Agency Level Classification
+
+For each AI capability, explicitly classify:
+
+Level 1 — Informational
+
+Level 2 — Advisory
+
+Level 3 — Assisted Action
+
+Level 4 — Autonomous Action
+
+For each Level 3 or Level 4 capability:
+
+What exact permissions does the AI token have?
+
+Are permissions scoped per action, per workflow, or globally?
+
+Can the AI:
+
+PATCH records?
+
+DELETE records?
+
+SEND communications?
+
+MOVE money?
+
+If the AI has write access without a deterministic gate, mark this as Critical Risk.
+
+Section 3 — Behavior & Reasoning Path
+3.1 Intent → Action Flow
+
+Document the actual runtime flow, step by step:
+
+How is user intent detected?
+
+Is intent classification deterministic or LLM-based?
+
+Does the system distinguish:
+
+Informational vs Actionable requests?
+
+Where does reasoning happen?
+
+Where does execution happen?
+
+Explicitly answer:
+
+Is reasoning decoupled from execution?
+
+Or is a single agent deciding and acting?
+
+3.2 Silent / Research Phase Verification
+
+Does a mandatory read-only research phase exist?
+
+Are READ-ONLY credentials enforced at the token level?
+
+Can the AI mutate state during “analysis”?
+
+Are policies, contracts, and constraints queried before proposing action?
+
+If the AI can write during research → Hard Fail vs Neo8.
+
+Section 4 — Review Queue & HITL Enforcement
+4.1 Review Queue Mechanics
+
+Describe exactly what happens when an action enters review:
+
+Where does it queue?
+
+DB table?
+
+Workflow engine?
+
+Message queue?
+
+Is state persisted?
+
+Can it be resumed safely after restart?
+
+Answer clearly:
+
+What happens if no one approves?
+
+Is silence treated as approval?
+
+Is there a timeout?
+
+Is there escalation?
+
+4.2 Approval UX & Edit Loop
+
+For reviewed actions:
+
+What context does the reviewer see?
+
+Intent
+
+Reasoning summary
+
+Old vs New values (diff)
+
+Can reviewers:
+
+Approve?
+
+Reject?
+
+Edit before execution?
+
+If approval is binary only → flag as UX-driven operational risk.
+
+Section 5 — Execution Layer Audit
+5.1 Executor Separation
+
+Is there a distinct Executor layer?
+
+Is execution handled by:
+
+Deterministic workflows (n8n / code)?
+
+Or an LLM calling tools directly?
+
+Can execution logic be reasoned about without LLM interpretation?
+
+If LLM directly executes API calls → Critical Neo8 violation.
+
+5.2 Idempotency & Replay Protection
+
+Answer explicitly:
+
+Are idempotency keys enforced?
+
+Can the same action fire twice?
+
+What happens on retry, timeout, or partial failure?
+
+If duplicate execution is possible → quantify blast radius.
+
+Section 6 — Ledger, Audit Trail & Chain of Thought
+6.1 Action Ledger
+
+Does an immutable ledger exist?
+
+For every action:
+
+Who initiated it?
+
+Which agent version?
+
+Which workflow version?
+
+Which system was modified?
+
+What was the payload?
+
+If logs exist:
+
+Are they queryable?
+
+Are they tamper-resistant?
+
+6.2 Reasoning Transparency
+
+Is Chain of Thought / reasoning trace stored?
+
+Where?
+
+Linked to which transaction ID?
+
+Accessible for post-incident review?
+
+If reasoning is lost → flag as regulatory and forensic failure.
+
+Section 7 — Safety & Failure Modes
+7.1 Goal Drift Scenarios
+
+Test and document:
+
+“Clean up records”
+
+“Fix billing”
+
+“Handle renewal”
+
+“Close inactive accounts”
+
+For each:
+
+What could the AI do wrong?
+
+What would stop it today?
+
+What damage would occur if it failed?
+
+7.2 Kill Switches
+
+Answer clearly:
+
+Is there a global kill switch?
+
+Can actions be halted mid-queue?
+
+Can execution be frozen without redeploy?
+
+If not → Operational Red Alert.
+
+Section 8 — Gap Analysis vs Neo8
+
+Provide a brutally honest gap table:
+
+Neo8 Requirement	Exists?	Partial?	Missing?	Risk Level
+Dual-Agent Model				
+Read-Only Research				
+HITL Gates				
+Immutable Ledger				
+Soft Delete Only				
+Idempotency				
+Escalation Paths				
+Section 9 — Readiness Verdict
+
+Conclude with:
+
+Current Phase:
+
+Shadow
+
+Draft
+
+Bounded Autonomy
+
+What must be fixed before Level 4 autonomy
+
+What would fail a SOC2 / ISO / Enterprise customer audit
+
+One-page “If this breaks, how bad does it get?” summary
+
+No hedging. No optimism. Just facts.
+
+Tone & Standard
+
+Assume this system will be blamed when something goes wrong.
+
+Write as if regulators, lawyers, and enterprise security teams will read this.
+
+If something is unclear, mark it as UNKNOWN = RISK.
