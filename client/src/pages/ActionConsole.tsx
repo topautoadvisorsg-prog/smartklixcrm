@@ -98,9 +98,56 @@ const EXPECTED_ACTIONS: ExpectedAction[] = [
   { keywords: ["job", "work order"], tool: "create_job", label: "Job" },
 ];
 
+// Resolution tools - if these were executed, the corresponding create action may not be needed
+const RESOLUTION_TOOLS: Record<string, string[]> = {
+  "create_contact": ["search_contacts"], // If search_contacts was executed, contact creation may be resolved
+};
+
+// Check if an intent was resolved through prior tool execution + user confirmation
+function isIntentResolved(
+  tool: string,
+  conversationContext: ChatMessage[]
+): boolean {
+  const resolutionTools = RESOLUTION_TOOLS[tool];
+  if (!resolutionTools) return false;
+  
+  // Check if any resolution tool was executed in the conversation
+  for (const msg of conversationContext) {
+    if (msg.role === "assistant" && msg.executedActions) {
+      const hasResolutionTool = msg.executedActions.some(action => 
+        resolutionTools.includes(action.tool)
+      );
+      
+      if (hasResolutionTool) {
+        // Check if there was a subsequent user confirmation (yes, ok, confirm, use, etc.)
+        const msgIndex = conversationContext.findIndex(m => m.id === msg.id);
+        for (let i = msgIndex + 1; i < conversationContext.length; i++) {
+          const nextMsg = conversationContext[i];
+          if (nextMsg.role === "user") {
+            const content = nextMsg.content.toLowerCase().trim();
+            // Short affirmative responses indicate user confirmed using existing entity
+            if (["yes", "ok", "okay", "sure", "yep", "yeah", "confirm", "use", "that one", "1", "2"].some(
+              affirm => content === affirm || content.startsWith(affirm + " ") || content.startsWith(affirm + ",")
+            )) {
+              return true; // Intent was resolved via search + user confirmation
+            }
+          }
+          // Stop at assistant response with staged actions (new workflow)
+          if (nextMsg.role === "assistant" && nextMsg.stagedActions && nextMsg.stagedActions.length > 0) {
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
 function detectMissingActions(
   userMessages: string[],
-  stagedTools: string[]
+  stagedTools: string[],
+  conversationContext?: ChatMessage[]
 ): { missing: string[]; isComplete: boolean } {
   const combinedInput = userMessages.join(" ").toLowerCase();
   const missing: string[] = [];
@@ -109,7 +156,12 @@ function detectMissingActions(
     const isRequested = expected.keywords.some(kw => combinedInput.includes(kw.toLowerCase()));
     const isStaged = stagedTools.some(t => t === expected.tool || t.includes(expected.tool.replace("create_", "")));
     
-    if (isRequested && !isStaged) {
+    // Check if intent was resolved through prior search + user confirmation
+    const wasResolved = conversationContext 
+      ? isIntentResolved(expected.tool, conversationContext)
+      : false;
+    
+    if (isRequested && !isStaged && !wasResolved) {
       missing.push(expected.label);
     }
   }
@@ -359,21 +411,31 @@ export default function ActionConsole() {
                     // that triggered this proposal, not the entire conversation history
                     const msgIndex = messages.findIndex(m => m.id === msg.id);
                     const recentUserMessages: string[] = [];
+                    const recentMessages: ChatMessage[] = []; // Only messages in current workflow window
+                    let windowStartIndex = 0;
                     
                     // Walk backwards from this message to find the triggering user message(s)
-                    // Stop at the previous assistant response with staged actions (new workflow)
+                    // Stop at any previous proposal (staged, queued, approved, OR rejected)
                     for (let i = msgIndex - 1; i >= 0; i--) {
                       const prevMsg = messages[i];
                       if (prevMsg.role === "user") {
                         recentUserMessages.unshift(prevMsg.content);
-                      } else if (prevMsg.role === "assistant" && prevMsg.stagedActions && prevMsg.stagedActions.length > 0) {
-                        // Hit a previous proposal - stop here to avoid old requests
+                      } else if (prevMsg.role === "assistant" && prevMsg.proposalStatus && 
+                                 ["staged", "queued", "approved", "rejected"].includes(prevMsg.proposalStatus)) {
+                        // Hit a previous proposal (any status) - stop here to avoid old requests
+                        windowStartIndex = i + 1;
                         break;
                       }
                     }
                     
+                    // Build conversation context for ONLY this workflow window
+                    for (let i = windowStartIndex; i <= msgIndex; i++) {
+                      recentMessages.push(messages[i]);
+                    }
+                    
                     const stagedTools = msg.stagedActions?.map(a => a.tool) || [];
-                    const { missing, isComplete } = detectMissingActions(recentUserMessages, stagedTools);
+                    // Pass only current workflow context to detect resolved intents
+                    const { missing, isComplete } = detectMissingActions(recentUserMessages, stagedTools, recentMessages);
                     
                     return (
                     <div className="mt-4 pt-4 border-t-2 border-warning/30">
