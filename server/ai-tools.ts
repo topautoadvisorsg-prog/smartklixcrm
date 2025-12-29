@@ -803,6 +803,90 @@ export const aiToolDefinitions: AIToolDefinition[] = [
         }
       }
     }
+  },
+  {
+    type: "function",
+    tier: "gated",
+    function: {
+      name: "send_email",
+      description: "Send an email to a contact. Use this to send estimates, payment links, follow-ups, or any communication. EXTERNAL tool - executed via Neo8/n8n.",
+      parameters: {
+        type: "object",
+        properties: {
+          contactId: {
+            type: "string",
+            description: "The ID of the contact to email"
+          },
+          to: {
+            type: "string",
+            description: "Email address to send to (usually the contact's email)"
+          },
+          subject: {
+            type: "string",
+            description: "Email subject line"
+          },
+          body: {
+            type: "string",
+            description: "Email body content (plain text or HTML)"
+          },
+          estimateId: {
+            type: "string",
+            description: "Optional: ID of estimate to attach/reference in email"
+          },
+          invoiceId: {
+            type: "string",
+            description: "Optional: ID of invoice to attach/reference in email"
+          },
+          paymentLinkUrl: {
+            type: "string",
+            description: "Optional: Payment link URL to include in email"
+          }
+        },
+        required: ["contactId", "to", "subject", "body"]
+      }
+    }
+  },
+  {
+    type: "function",
+    tier: "gated",
+    function: {
+      name: "stripe_create_payment_link",
+      description: "Create a Stripe payment link for a contact to pay online. Use this when user requests a payment link, online payment, or wants to collect payment. EXTERNAL tool - executed via Neo8/n8n → Stripe.",
+      parameters: {
+        type: "object",
+        properties: {
+          contactId: {
+            type: "string",
+            description: "The ID of the contact this payment is for"
+          },
+          amount: {
+            type: "number",
+            description: "Payment amount in dollars (e.g., 425.00)"
+          },
+          description: {
+            type: "string",
+            description: "Description of what the payment is for"
+          },
+          customerEmail: {
+            type: "string",
+            description: "Email address for the customer (for Stripe receipt)"
+          },
+          customerName: {
+            type: "string",
+            description: "Customer name for the payment"
+          },
+          estimateId: {
+            type: "string",
+            description: "Optional: ID of the estimate this payment is for"
+          },
+          invoiceId: {
+            type: "string",
+            description: "Optional: ID of the invoice this payment is for"
+          }
+        },
+        required: ["contactId", "amount", "description"]
+      }
+    }
   }
 ];
 
