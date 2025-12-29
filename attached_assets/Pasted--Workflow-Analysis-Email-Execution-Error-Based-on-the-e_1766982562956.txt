@@ -1,0 +1,116 @@
+ Workflow Analysis - Email Execution Error
+Based on the error and your CRM payload, here's what's happening:
+
+The Problem
+Error: "Cannot read properties of undefined (reading 'disabled')"
+
+What this means: A node in your n8n workflow is trying to access a field called disabled that doesn't exist in the incoming data.
+
+⚠️ Critical Issue: Wrong Workflow Context
+The workflows I have access to are:
+
+Google Drive folder creation
+Google Drive file upload
+What you're testing:
+
+Email execution workflow (action: "send_email")
+Payment/estimate workflow
+I do NOT see an email execution workflow in the current context.
+
+What's Likely Happening
+The error reading 'disabled' typically occurs in n8n when:
+
+A Switch/IF node is checking for a disabled field that doesn't exist in your payload
+A node is trying to access $json.disabled but the field isn't in the CRM webhook data
+A conditional node expects certain fields that aren't in the args object
+Your Payload Structure
+{
+  "action": "send_email",
+  "args": {
+    "to": "jovan.connect@gmail.com",
+    "body": "Dear Big Boss...",
+    "subject": "Estimate and Payment Link",
+    "contactId": "c6ef7098-..."
+  },
+  "metadata": {...}
+}
+Fields present: action, args.to, args.body, args.subject, args.contactId, metadata
+
+Field NOT present: disabled (or args.disabled)
+
+How to Debug (Step-by-Step)
+Since I cannot see your email workflow, you need to:
+
+Step 1: Open the Failed Execution
+Go to n8n → Executions
+Find the failed execution for estimate 5a27cd78-49d0-4ad7-9dfa-c3bfeab2f35a
+Click "Debug in editor" (green button)
+Step 2: Find the Red Node
+Look for the node highlighted in red (that's where it failed)
+Click on that node
+Check the Input tab to see what data it received
+Check the Parameters tab to see what it's trying to access
+Step 3: Look for These Common Issues
+A. Switch/IF Node Checking disabled:
+
+// Bad - if your payload doesn't have this field:
+{{ $json.disabled }}
+{{ $json.args.disabled }}
+{{ $json.body.disabled }}
+B. Conditional Logic:
+
+// Check if a node has logic like:
+IF {{ $json.disabled === false }}
+  → This will fail if 'disabled' doesn't exist
+C. Email Node Configuration:
+
+// Check if email node is trying to access:
+{{ $json.disabled }} // for "skip if disabled" logic
+Step 4: Report Back
+Once you find the red node, tell me:
+
+Node name (e.g., "Check If Email Enabled", "Send Email", etc.)
+Node type (Switch, IF, Send Email, HTTP Request, etc.)
+What expression/field it's trying to access (copy the exact expression)
+Input data (what the node received from the previous node)
+Likely Fixes (Once You Identify the Node)
+Fix 1: Remove disabled Check
+If a node is checking for disabled but your CRM doesn't send it:
+
+// Change from:
+{{ $json.disabled === false }}
+
+// To:
+{{ $json.action === 'send_email' }}
+Fix 2: Add Default Value
+If the field is optional:
+
+// Change from:
+{{ $json.disabled }}
+
+// To:
+{{ $json.disabled ?? false }}  // defaults to false if not present
+Fix 3: Update Conditional Logic
+If it's in a Switch/IF node:
+
+Remove the disabled condition entirely
+Or make it optional with a fallback
+What I Need From You
+To help you fix this, please share:
+
+Screenshot or name of the red/failed node
+The expression that's failing (from the node's parameters)
+The input data the node received (from the Input tab)
+OR
+
+Export/share the email execution workflow so I can:
+
+Identify which node is checking for disabled
+Propose the exact fix
+Validate the entire email flow end-to-end
+Current Status
+✅ CRM Side: Working perfectly - webhooks dispatched successfully
+❌ n8n Side: Email workflow has a configuration error (accessing undefined disabled field)
+⚠️ My Limitation: I cannot see the email workflow to audit it directly
+
+Next Step: Debug in editor → Find red node → Report back what you see, and I'll give you the exact fix.
