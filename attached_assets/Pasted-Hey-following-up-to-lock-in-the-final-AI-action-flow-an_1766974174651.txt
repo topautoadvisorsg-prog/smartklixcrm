@@ -1,0 +1,159 @@
+Hey — following up to lock in the final AI action flow and expectations inside Smart Clicks CRM, based on what you already built.
+
+We’re not redesigning your system. We’re clarifying and finalizing behavior.
+
+1. Intake Hub (Registration Only)
+
+The Intake Hub:
+
+Receives inputs (forms, phone, webhooks, manual, etc.)
+
+Logs the incoming data
+
+Assigns IDs / metadata
+
+That’s it.
+
+The Intake Hub does not decide, does not act, and does not mutate CRM data.
+It’s just intake and logging.
+
+2. Action AI (Inside Smart Clicks CRM)
+
+The Action AI:
+
+Reads Intake data
+
+Reads CRM data
+
+Reasons about what should happen
+
+When the AI decides an action is needed (create/update/follow-up/etc), it creates a draft proposal.
+
+Important clarification:
+
+This proposal is a real draft
+
+It represents exactly what would be written to the CRM
+
+It includes before/after state (diff)
+
+Nothing is injected yet
+
+Once the draft is created:
+
+It is written to the ledger
+
+It is placed into the Review Queue
+
+The AI never executes.
+
+3. Review Queue — Architect
+
+The Architect reviews:
+
+Intake input
+
+AI draft proposal
+
+Requested action/tool
+
+Before/after diff
+
+Architect decisions:
+
+Approve
+
+Reject with explanation
+
+Results:
+
+If approved → ledger entry → moves to Execution Queue
+
+If rejected → sent back to the Action AI with the rejection reason
+
+Escalation rule:
+
+If the AI is rejected twice, it does NOT retry again
+
+It is automatically escalated to the Operator
+
+It is clearly flagged as “AI failed review”
+
+4. Execution Queue — Operator (Final Authority)
+
+The Operator is the final stage and final authority.
+
+At this point:
+
+The draft is already complete
+
+No further preparation is required
+
+Operator can:
+
+Execute as-is
+
+Edit then execute
+
+Reject
+
+When the Operator executes:
+
+The draft is injected into the CRM
+
+The action becomes real
+
+This is the final state
+
+This execution:
+
+Is logged to the ledger
+
+Is the authoritative record of what actually happened
+
+5. Automation (n8n)
+
+n8n is execution only.
+
+It:
+
+Receives jobs from Smart Clicks CRM
+
+Executes emails, SMS, Stripe, workflows, etc.
+
+Requires a valid action / ledger reference
+
+n8n:
+
+Does not reason
+
+Does not approve
+
+Does not initiate actions
+
+6. What We’re Doing Next
+
+Concrete next steps:
+
+Lock this state flow:
+Intake → Draft Proposal → Review → Execution
+
+Ensure:
+
+Drafts are complete and executable
+
+Operator execution injects directly (no extra steps)
+
+Enforce:
+
+Two AI rejections → automatic operator takeover
+
+Keep ledger logging mandatory at:
+
+Draft creation
+
+Review decision
+
+Final execution
+
+If anything here conflicts with current behavior, call it out explicitly so we resolve it cleanly.

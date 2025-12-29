@@ -124,6 +124,24 @@ The CRM enforces a strict governance flow for all AI actions:
 
 This flow ensures no AI action bypasses review, and all write steps are logged.
 
+### Neo8 Governance Hardening (December 2025)
+Production-grade safety features per Neo8 alignment document:
+
+**P0 - Critical Safety Features:**
+- **Idempotency Keys**: `idempotencyKey` column on assist_queue and automation_ledger; ready-execution checks for duplicates before executing (returns 409 if already executed)
+- **Global Kill Switch**: `killSwitchActive` flag in ai_settings; `/api/ai/kill-switch/activate` and `/deactivate` endpoints; all executions return 503 when active
+- **Reasoning Traces**: `reasoningSummary` field captures AI decision rationale, propagated from staged bundles → assist_queue → automation_ledger for full audit trail
+
+**P1 - Operational Safety Features:**
+- **Rejection Escalation**: `rejectionCount` tracks MA rejections; after 2 rejections, entry is escalated to operator for human review
+- **Handle Manually**: `/api/ready-execution/:id/handle-manually` allows operators to resolve entries outside AI system with audit notes
+- **Soft-Delete Only**: `BLOCKED_TOOLS` list in ai-tools.ts prevents hard-delete operations; executeAITool throws GOVERNANCE_VIOLATION error if attempted
+
+**Key Kill Switch Endpoints:**
+- `GET /api/ai/kill-switch`: Check current status
+- `POST /api/ai/kill-switch/activate`: Emergency stop all AI executions
+- `POST /api/ai/kill-switch/deactivate`: Resume AI executions
+
 ### Multi-Company Support
 The `companyInstructions` table enables per-company AI configuration, custom behavior, channel settings, pipeline stages, and tool permission overrides.
 
