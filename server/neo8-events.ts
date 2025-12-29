@@ -144,7 +144,7 @@ export async function dispatchIntakeToNeo8Flow(
   payload: Record<string, unknown>
 ): Promise<{ success: boolean; error?: string }> {
   const neo8FlowUrl = process.env.NEO8FLOW_URL;
-  const tenantToken = process.env.TENANT_TOKEN || process.env.INTERNAL_API_TOKEN;
+  const tenantToken = process.env.N8N_INTERNAL_TOKEN;
   
   if (!neo8FlowUrl || neo8FlowUrl === "__SET_AT_DEPLOY__") {
     console.warn("[Neo8Flow] NEO8FLOW_URL not configured, skipping intake dispatch");
@@ -224,7 +224,7 @@ export async function dispatchExternalAction(
   }
 
   const neo8FlowUrl = process.env.NEO8FLOW_URL || process.env.VITE_N8N_WEBHOOK_BASE_URL;
-  const tenantToken = process.env.TENANT_TOKEN || process.env.INTERNAL_API_TOKEN;
+  const tenantToken = process.env.N8N_INTERNAL_TOKEN;
   
   if (!neo8FlowUrl || neo8FlowUrl === "__SET_AT_DEPLOY__") {
     console.error("[Neo8] NEO8FLOW_URL not configured - cannot dispatch EXTERNAL action");
