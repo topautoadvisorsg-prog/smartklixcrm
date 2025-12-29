@@ -1,0 +1,66 @@
+System
+07:13 PM
+ActionAI Console Online. I am the operational brain. I can propose actions, drafts, and record updates based on your commands. All output requires governance approval.
+
+Operator
+07:13 PM
+Hey, create a new customer for me. Name: John Rivera Email: john.rivera@testmail.com  Phone: 555-201-8899  Then make an estimate for $250 for a service and send him a payment link by email so he can pay it.
+
+ActionAI Engine
+07:13 PM
+Thank you for the clarification. Here's the full plan for your request:
+
+1. **Search for Existing Customer**: I'll first check if a contact for "John Rivera" (email: john.rivera@testmail.com, phone: 555-201-8899) already exists in the system to avoid duplication.
+2. **Create the Customer**: If no matching contact is found, I'll create a new contact for John Rivera with the provided details.
+3. **Create the Estimate**: After confirming the customer, I'll create an estimate for $250 for the requested service.
+4. **Generate a Payment Link**: I'll create a payment link for John Rivera to pay the $250.
+5. **Send an Email**: I'll send an email to John with the estimate and the payment link.
+
+Let me proceed with the first step: searching for existing contacts to ensure John Rivera doesn't already exist.
+
+Completed:
+search_contacts (executed)
+Operator
+07:14 PM
+ok
+
+ActionAI Engine
+07:14 PM
+It looks like there is already an existing contact named **John Rivera** with the following details:
+
+- **Email**: john@test.com  
+- **Phone**: 555-201-8899  
+
+Would you like me to:
+1. Use this existing contact and proceed with creating the estimate and payment link, or
+2. Create a new contact with the email `john.rivera@testmail.com` and phone `555-201-8899`?  
+
+Let me know how you'd like to proceed!
+
+Operator
+07:14 PM
+yes
+
+ActionAI Engine
+07:14 PM
+Thank you for confirming! I will proceed with using the existing contact for **John Rivera** and continue with the requested actions:
+
+1. **Create an Estimate**: I’ll create a $250 service estimate for John Rivera.
+2. **Generate a Payment Link**: I’ll create a payment link for the estimate.
+3. **Send an Email**: I’ll send John an email with the estimate and payment link.
+
+Let me prepare the proposal for you.
+
+Pending Approval (1 action)
+➕
+Create estimate for job #undefined
+
+Tool: create_estimate
+
+Incomplete Proposal
+
+You requested: Contact, Payment Link, Email but they're not staged.
+
+Ask the AI to include all items, or reject and try again.
+
+Send Anyway (Incomplete)
