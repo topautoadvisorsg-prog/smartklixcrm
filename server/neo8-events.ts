@@ -181,21 +181,21 @@ export async function dispatchIntakeToNeo8Flow(
 }
 
 export const EXTERNAL_TOOL_WEBHOOK_PATHS: Record<string, string> = {
-  "send_email": "/send-email",
-  "send_sms": "/send-sms",
-  "send_whatsapp": "/send-whatsapp",
-  "send_estimate": "/send-estimate",
-  "send_invoice": "/send-invoice",
-  "record_payment": "/record-payment",
-  "start_job": "/start-job",
-  "complete_job": "/complete-job",
-  "accept_estimate": "/accept-estimate",
-  "reject_estimate": "/reject-estimate",
-  "google_docs_create": "/google-docs/create",
-  "google_docs_update": "/google-docs/update",
-  "google_sheets_append": "/google-sheets/append",
-  "google_calendar_create": "/google-calendar/create",
-  "stripe_create_payment_link": "/stripe/create-payment-link",
+  "send_email": "/outreach/trigger",
+  "send_sms": "/outreach/trigger",
+  "send_whatsapp": "/outreach/trigger",
+  "send_estimate": "/outreach/trigger",
+  "send_invoice": "/outreach/trigger",
+  "record_payment": "/payment/create",
+  "start_job": "/jobs/update",
+  "complete_job": "/jobs/update",
+  "accept_estimate": "/estimates/update",
+  "reject_estimate": "/estimates/update",
+  "google_docs_create": "/google/docs/create",
+  "google_docs_update": "/google/docs/update",
+  "google_sheets_append": "/google/sheets/append",
+  "google_calendar_create": "/google/calendar/create",
+  "stripe_create_payment_link": "/payment/create",
 };
 
 export interface ExternalActionDispatchResult {
