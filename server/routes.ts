@@ -97,6 +97,68 @@ function createStagedBundle(
   return id;
 }
 
+// MULTI-STEP WORKFLOW ENFORCEMENT
+// Detect required actions from user message and ensure all are staged
+interface RequiredAction {
+  tool: string;
+  keywords: string[];
+  description: string;
+}
+
+const ACTION_DETECTION_RULES: RequiredAction[] = [
+  { tool: "create_contact", keywords: ["create contact", "create customer", "new contact", "new customer", "add contact", "add customer"], description: "contact creation" },
+  { tool: "create_estimate", keywords: ["estimate", "quote", "$ for", "dollars for", "$"], description: "estimate creation" },
+  { tool: "stripe_create_payment_link", keywords: ["payment link", "pay link", "stripe link", "payment url"], description: "payment link" },
+  { tool: "send_email", keywords: ["send email", "email them", "email to", "email with", "include payment link", "email the"], description: "email sending" },
+  { tool: "create_invoice", keywords: ["create invoice", "invoice for", "send invoice"], description: "invoice creation" },
+  { tool: "send_estimate", keywords: ["send estimate", "send the estimate", "email estimate"], description: "estimate sending" },
+  { tool: "send_invoice", keywords: ["send invoice", "send the invoice", "email invoice"], description: "invoice sending" },
+  { tool: "create_job", keywords: ["create job", "new job", "create work order"], description: "job creation" },
+];
+
+function detectRequiredActions(message: string): string[] {
+  const lowerMessage = message.toLowerCase();
+  const requiredTools: string[] = [];
+  
+  for (const rule of ACTION_DETECTION_RULES) {
+    for (const keyword of rule.keywords) {
+      if (lowerMessage.includes(keyword)) {
+        if (!requiredTools.includes(rule.tool)) {
+          requiredTools.push(rule.tool);
+        }
+        break;
+      }
+    }
+  }
+  
+  return requiredTools;
+}
+
+function getMissingActions(requiredTools: string[], stagedTools: string[]): string[] {
+  return requiredTools.filter(tool => !stagedTools.includes(tool));
+}
+
+function buildEnforcementMessage(missingTools: string[]): string {
+  const toolDescriptions = missingTools.map(tool => {
+    const rule = ACTION_DETECTION_RULES.find(r => r.tool === tool);
+    return rule ? `- ${tool} (${rule.description})` : `- ${tool}`;
+  }).join('\n');
+  
+  return `CRITICAL ENFORCEMENT: Your proposal is INCOMPLETE. You MUST stage these missing actions NOW:
+
+${toolDescriptions}
+
+You are NOT ALLOWED to:
+- Present a partial proposal
+- Ask for more information
+- Skip any of these actions
+- Respond with text only
+
+Your ONLY acceptable response is to call ALL the missing tool functions listed above with appropriate arguments. Stage them NOW.`;
+}
+
+const MAX_ENFORCEMENT_RETRIES = 2;
+
 const gptActionsRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
@@ -2771,18 +2833,39 @@ After creating estimate, ALWAYS propose sending payment request.
         origin: "ai", // Actions must be staged for approval, not auto-executed
       };
 
+      // Detect required actions from the ORIGINAL user message
+      const requiredActions = detectRequiredActions(validated.message);
+      
+      // Track all staged tools across retries
+      let allStagedTools: string[] = [];
+      let allToolCalls: Array<{ name: string; status: string; arguments: string; result?: unknown }> = [];
+      let finalMessage = "";
+      let retryCount = 0;
+      
+      // Build conversation history for enforcement retries
+      let conversationHistory = [...validated.conversationHistory];
+      
       // Create MasterArchitect instance with conversation history and context
-      const architect = new MasterArchitect(
+      let architect = new MasterArchitect(
         agentMode, 
         systemInstructions, 
         null,
-        validated.conversationHistory,
+        conversationHistory,
         validated.context === "read_chat" ? "read_chat" : "crm_chat",
         maContext
       );
       
       // Execute through unified pipeline
-      const result = await architect.execute(validated.message, null, null);
+      let result = await architect.execute(validated.message, null, null);
+      finalMessage = result.message;
+      
+      // Collect tool calls
+      if (result.toolCalls) {
+        allToolCalls = [...result.toolCalls];
+        allStagedTools = result.toolCalls
+          .filter(tc => tc.status === "staged")
+          .map(tc => tc.name);
+      }
 
       // Debug logging for AI tool calls
       console.log(`[ActionConsole] Message: "${validated.message.substring(0, 50)}..."`);
@@ -2793,6 +2876,60 @@ After creating estimate, ALWAYS propose sending payment request.
         });
       } else {
         console.log(`[ActionConsole]   No tools called - AI responded with text only`);
+      }
+      
+      // MULTI-STEP ENFORCEMENT LOOP
+      // Only apply to ActionAI contexts (not read_chat)
+      if (validated.context !== "read_chat" && requiredActions.length > 0) {
+        let missingActions = getMissingActions(requiredActions, allStagedTools);
+        
+        while (missingActions.length > 0 && retryCount < MAX_ENFORCEMENT_RETRIES) {
+          retryCount++;
+          console.log(`[Enforcement] Retry ${retryCount}: Missing actions: ${missingActions.join(", ")}`);
+          
+          // Build enforcement message
+          const enforcementMessage = buildEnforcementMessage(missingActions);
+          
+          // Add previous AI response and enforcement to conversation
+          conversationHistory.push(
+            { role: "assistant" as const, content: result.message },
+            { role: "user" as const, content: enforcementMessage }
+          );
+          
+          // Create new architect with updated history
+          architect = new MasterArchitect(
+            agentMode,
+            systemInstructions,
+            null,
+            conversationHistory,
+            validated.context === "read_chat" ? "read_chat" : "crm_chat",
+            maContext
+          );
+          
+          // Re-execute with enforcement
+          result = await architect.execute(enforcementMessage, null, null);
+          finalMessage = result.message;
+          
+          // Collect new tool calls
+          if (result.toolCalls) {
+            allToolCalls = [...allToolCalls, ...result.toolCalls];
+            const newStagedTools = result.toolCalls
+              .filter(tc => tc.status === "staged")
+              .map(tc => tc.name);
+            allStagedTools = Array.from(new Set([...allStagedTools, ...newStagedTools]));
+          }
+          
+          console.log(`[Enforcement] After retry ${retryCount}: Staged tools: ${allStagedTools.join(", ")}`);
+          
+          // Check for remaining missing actions
+          missingActions = getMissingActions(requiredActions, allStagedTools);
+        }
+        
+        if (missingActions.length > 0) {
+          console.log(`[Enforcement] FAILED after ${retryCount} retries. Still missing: ${missingActions.join(", ")}`);
+        } else {
+          console.log(`[Enforcement] SUCCESS: All required actions staged after ${retryCount} retries`);
+        }
       }
 
       // Log the interaction in audit log
@@ -2805,37 +2942,45 @@ After creating estimate, ALWAYS propose sending payment request.
           source: "crm_chat",
           context: validated.context,
           message: validated.message,
-          response: result.message,
-          actions: result.toolCalls?.length || 0,
+          response: finalMessage,
+          actions: allToolCalls.length,
           mode: result.mode,
+          enforcementRetries: retryCount,
         },
       });
 
       // Process actions and store staged ones server-side
-      const processedActions = result.toolCalls?.map((tc) => ({
+      const processedActions = allToolCalls.map((tc) => ({
         tool: tc.name,
         status: tc.status,
         args: JSON.parse(tc.arguments),
         result: tc.result,
-      })) || [];
+      }));
       
-      // Extract staged actions and store them server-side
-      const stagedActions = processedActions.filter(a => a.status === "staged");
+      // Extract staged actions and store them server-side (deduplicate by tool name)
+      const stagedActionsMap = new Map<string, { tool: string; args: Record<string, unknown> }>();
+      for (const action of processedActions) {
+        if (action.status === "staged") {
+          stagedActionsMap.set(action.tool, { tool: action.tool, args: action.args as Record<string, unknown> });
+        }
+      }
+      const stagedActions = Array.from(stagedActionsMap.values());
+      
       let stagedBundleId: string | undefined;
       if (stagedActions.length > 0) {
         stagedBundleId = createStagedBundle(
-          stagedActions.map(a => ({ tool: a.tool, args: a.args as Record<string, unknown> })),
+          stagedActions,
           validated.message
         );
       }
 
       // Detect if AI is ready for proposal (conversation mode → proposal mode transition)
-      const readyForProposal = result.message.includes("---READY_FOR_PROPOSAL---");
+      const readyForProposal = finalMessage.includes("---READY_FOR_PROPOSAL---");
       
       // Clean up the markers from the message for display
-      let cleanMessage = result.message;
+      let cleanMessage = finalMessage;
       if (readyForProposal) {
-        cleanMessage = result.message
+        cleanMessage = finalMessage
           .replace(/---READY_FOR_PROPOSAL---/g, "")
           .replace(/---END_READY---/g, "")
           .trim();
@@ -2843,10 +2988,13 @@ After creating estimate, ALWAYS propose sending payment request.
 
       res.json({
         message: cleanMessage,
-        actions: processedActions,
+        actions: processedActions.filter((a, idx, arr) => 
+          arr.findIndex(x => x.tool === a.tool && x.status === a.status) === idx
+        ),
         stagedBundleId, // Client uses this ID to accept/reject
         mode: result.mode,
         readyForProposal, // True when AI has gathered all info and is asking for permission to propose
+        enforcementRetries: retryCount, // For debugging
       });
     } catch (error) {
       console.error("Internal chat error:", error);
