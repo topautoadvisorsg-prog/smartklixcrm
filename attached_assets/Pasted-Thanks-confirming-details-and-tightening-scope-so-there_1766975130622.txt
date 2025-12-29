@@ -1,0 +1,89 @@
+Thanks — confirming details and tightening scope so there’s no confusion.
+
+---
+
+## 1. CRM API Base URL (Confirmed)
+
+n8n will use the following CRM API base URL:
+
+**[https://4401f3bc-48c3-4dba-afa3-d5df7e041174-00-1q7lzoe1sw8kv.kirk.replit.dev/api](https://4401f3bc-48c3-4dba-afa3-d5df7e041174-00-1q7lzoe1sw8kv.kirk.replit.dev/api)**
+
+We understand this is the current Replit dev URL and will be swapped to the production domain later.
+
+Please confirm the API is already accepting authenticated requests at this endpoint using the Bearer token below.
+
+---
+
+## 2. API Authentication (n8n → CRM)
+
+Please create the following secret in Replit:
+
+* **`N8N_INTERNAL_TOKEN`**
+
+  * Secure random value
+  * Used by n8n as:
+    `Authorization: Bearer <token>`
+  * Intended for internal n8n → CRM execution-only API calls
+
+Once created, confirm it’s being validated by the CRM API middleware.
+
+---
+
+## 3. Webhook Authentication (n8n → CRM)
+
+Please also create:
+
+* **`N8N_WEBHOOK_SECRET`**
+
+  * Used to validate incoming webhooks from n8n
+  * Header: `x-webhook-signature`
+
+Confirm the CRM is validating all n8n-originated webhooks against this secret.
+
+---
+
+## 4. Google Calendar (Already Set Up)
+
+Google Calendar is **already integrated on the CRM side**.
+
+No major build work should be required here.
+
+What we need to confirm is:
+
+* Which Calendar ID(s) n8n should reference
+* What endpoints/actions already exist for:
+
+  * Creating events
+  * Updating events
+  * Linking events to jobs/appointments
+
+n8n will trigger calendar actions **through the CRM**, not directly against Google.
+
+---
+
+## 5. Next Step
+
+Once the two secrets are created and you confirm the calendar-related endpoints/IDs, I’ll finish wiring the n8n workflows using the confirmed values.
+
+If there are any **n8n-specific internal endpoints** you want me to use (execution-only), just point me to them.
+
+Thanks.
+
+---
+
+That’s it.
+This version:
+
+* Uses the **real API URL**
+* Clearly states **Google Calendar is already done**
+* Avoids asking him to rebuild anything
+* Tells him exactly what confirmation is needed
+* Is short, direct, and sendable
+
+If you want next, I can:
+
+* Write the **exact n8n HTTP node config**
+* Define the **calendar → job/appointment mapping**
+* Or lock down **token scopes + rate limits**
+
+This one’s good to ship.
