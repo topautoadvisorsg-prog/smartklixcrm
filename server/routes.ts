@@ -1102,20 +1102,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             appointmentId?: string;
           } = {};
           
+          // Helper to check if a value is a placeholder
+          const isPlaceholderValue = (val: string): boolean => {
+            const lower = val.toLowerCase();
+            // Match: new, placeholder, TBD-*, pending, temp, etc.
+            return lower === 'new' || 
+                   lower.includes('placeholder') || 
+                   lower.startsWith('tbd') ||
+                   lower === 'pending' ||
+                   lower === 'temp' ||
+                   lower.includes('tbd-') ||
+                   lower.includes('_id') && !val.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+          };
+          
           // Helper to resolve placeholder IDs in action args
           const resolveEntityIds = (args: unknown): unknown => {
             if (!args || typeof args !== 'object') return args;
             const resolved = { ...args as Record<string, unknown> };
             
-            // Placeholder patterns to resolve
-            const placeholderPatterns = ['new', 'placeholder', 'placeholder_contact_id', 'placeholder_estimate_id', 'placeholder_invoice_id', 'placeholder_job_id'];
-            
             // Resolve contactId
             if (resolved.contactId && typeof resolved.contactId === 'string') {
-              const isPlaceholder = placeholderPatterns.some(p => 
-                resolved.contactId === p || (resolved.contactId as string).toLowerCase().includes('placeholder')
-              );
-              if (isPlaceholder && createdEntities.contactId) {
+              if (isPlaceholderValue(resolved.contactId) && createdEntities.contactId) {
                 console.log(`[Ready Execution] Resolving contactId: "${resolved.contactId}" → "${createdEntities.contactId}"`);
                 resolved.contactId = createdEntities.contactId;
               }
@@ -1123,10 +1130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Resolve estimateId
             if (resolved.estimateId && typeof resolved.estimateId === 'string') {
-              const isPlaceholder = placeholderPatterns.some(p => 
-                resolved.estimateId === p || (resolved.estimateId as string).toLowerCase().includes('placeholder')
-              );
-              if (isPlaceholder && createdEntities.estimateId) {
+              if (isPlaceholderValue(resolved.estimateId) && createdEntities.estimateId) {
                 console.log(`[Ready Execution] Resolving estimateId: "${resolved.estimateId}" → "${createdEntities.estimateId}"`);
                 resolved.estimateId = createdEntities.estimateId;
               }
@@ -1134,10 +1138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Resolve invoiceId
             if (resolved.invoiceId && typeof resolved.invoiceId === 'string') {
-              const isPlaceholder = placeholderPatterns.some(p => 
-                resolved.invoiceId === p || (resolved.invoiceId as string).toLowerCase().includes('placeholder')
-              );
-              if (isPlaceholder && createdEntities.invoiceId) {
+              if (isPlaceholderValue(resolved.invoiceId) && createdEntities.invoiceId) {
                 console.log(`[Ready Execution] Resolving invoiceId: "${resolved.invoiceId}" → "${createdEntities.invoiceId}"`);
                 resolved.invoiceId = createdEntities.invoiceId;
               }
@@ -1145,10 +1146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Resolve jobId
             if (resolved.jobId && typeof resolved.jobId === 'string') {
-              const isPlaceholder = placeholderPatterns.some(p => 
-                resolved.jobId === p || (resolved.jobId as string).toLowerCase().includes('placeholder')
-              );
-              if (isPlaceholder && createdEntities.jobId) {
+              if (isPlaceholderValue(resolved.jobId) && createdEntities.jobId) {
                 console.log(`[Ready Execution] Resolving jobId: "${resolved.jobId}" → "${createdEntities.jobId}"`);
                 resolved.jobId = createdEntities.jobId;
               }
