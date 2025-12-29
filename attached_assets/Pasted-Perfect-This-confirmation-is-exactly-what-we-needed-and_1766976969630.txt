@@ -1,0 +1,100 @@
+Perfect. This confirmation is exactly what we needed — and you’re 100% right: this is a prompt behavior issue, not a tooling or architecture problem. That’s good news.
+
+Below is what you should do next, cleanly and simply.
+
+What’s actually happening (plain English)
+
+Right now, the ActionAI is behaving like this:
+
+It starts a multi-step job
+
+It completes step 1
+
+Then it mentally “checks the box” and stops
+
+It presents a proposal too early
+
+So it’s thinking in single-action mode, not workflow mode.
+
+You don’t need new tools.
+You don’t need new queues.
+You don’t need new permissions.
+
+You need to force the AI to finish the entire job before surfacing approval.
+
+The fix: update the ActionAI base prompt (this is the key)
+
+You want to hard-wire this rule into the ActionAI’s system instruction.
+
+Core rule (non-negotiable)
+
+If a user request implies multiple dependent actions, the AI must stage ALL of them together before presenting a proposal or review button.
+
+No partials. No early exits.
+
+Drop-in instruction you can give your developer
+
+You can send this verbatim.
+
+🔒 ActionAI Base Prompt – Required Addition
+
+Multi-Step Workflow Enforcement
+
+When a user request requires multiple related actions (e.g. create contact → create estimate → create payment link → send email), you MUST:
+
+Identify all required actions upfront
+
+Stage every action as a draft
+
+Bundle all drafts into a single proposal
+
+Only then present the “Send to Review Queue” option
+
+You are NOT allowed to:
+
+Stop after the first action
+
+Present partial proposals
+
+Ask for approval until the full workflow is staged
+
+If any step cannot be staged, you must explicitly state what is missing and why before proceeding.
+
+Optional but strong improvement (recommended)
+
+Add this mental checklist to the prompt so the AI self-polices:
+
+Before presenting a proposal, ask yourself:
+
+Have I staged every action the operator would expect?
+
+Would an operator consider this “ready to execute” if approved?
+If the answer is no, continue staging actions.
+
+This alone usually fixes 80% of premature-proposal behavior.
+
+What stays exactly the same (and should NOT be touched)
+
+You already confirmed this, but it’s important to lock it in:
+
+❌ No auto-execution (stay exactly as-is)
+
+✅ Draft-only behavior (correct)
+
+✅ Review Queue governance (correct)
+
+✅ Operator final authority (correct)
+
+✅ n8n as execution engine only (correct)
+
+This is behavior tightening, not system change.
+
+Why this matters (business reality)
+
+From a real user’s point of view:
+
+“Create a customer, send an estimate, and get paid”
+
+That is one job, not four.
+
+The AI must treat it that way — or operators will lose trust fast.
