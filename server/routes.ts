@@ -2453,11 +2453,24 @@ After creating estimate, ALWAYS propose sending payment request.
         );
       }
 
+      // Detect if AI is ready for proposal (conversation mode → proposal mode transition)
+      const readyForProposal = result.message.includes("---READY_FOR_PROPOSAL---");
+      
+      // Clean up the markers from the message for display
+      let cleanMessage = result.message;
+      if (readyForProposal) {
+        cleanMessage = result.message
+          .replace(/---READY_FOR_PROPOSAL---/g, "")
+          .replace(/---END_READY---/g, "")
+          .trim();
+      }
+
       res.json({
-        message: result.message,
+        message: cleanMessage,
         actions: processedActions,
         stagedBundleId, // Client uses this ID to accept/reject
         mode: result.mode,
+        readyForProposal, // True when AI has gathered all info and is asking for permission to propose
       });
     } catch (error) {
       console.error("Internal chat error:", error);

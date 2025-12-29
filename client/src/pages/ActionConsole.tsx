@@ -26,6 +26,7 @@ interface ChatMessage {
   executedActions?: Array<ActionItem>;
   stagedBundleId?: string;
   queueEntryId?: string;
+  readyForProposal?: boolean;
 }
 
 interface ConversationHistoryItem {
@@ -144,7 +145,8 @@ export default function ActionConsole() {
         message: string; 
         actions?: Array<{ tool: string; status: string; args: unknown; result?: unknown }>; 
         stagedBundleId?: string;
-        mode?: string 
+        mode?: string;
+        readyForProposal?: boolean;
       }>;
     },
     onSuccess: (response) => {
@@ -169,6 +171,7 @@ export default function ActionConsole() {
         stagedActions: hasStagedActions ? stagedActions : undefined,
         actions: hasQueuedActions ? queuedActions : undefined,
         stagedBundleId: response.stagedBundleId,
+        readyForProposal: response.readyForProposal,
       };
       setMessages((prev) => [...prev, aiMessage]);
       
@@ -268,6 +271,38 @@ export default function ActionConsole() {
                   </div>
 
                   <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                  {msg.readyForProposal && (
+                    <div className="mt-4 pt-4 border-t-2 border-primary/30">
+                      <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                        <span className="text-xs font-bold uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
+                          <Zap className="w-4 h-4" />
+                          Ready to Generate Proposal
+                        </span>
+                        <p className="text-sm text-muted-foreground mt-2 mb-4">
+                          I have gathered all the necessary information. Click below to generate the proposal for your review.
+                        </p>
+                        <Button
+                          size="sm"
+                          className="h-10 px-6 bg-primary hover:bg-primary/90 font-semibold"
+                          onClick={() => {
+                            const confirmMessage: ChatMessage = {
+                              id: Date.now().toString(),
+                              role: "user",
+                              content: "Yes, proceed with the proposal.",
+                              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                            };
+                            setMessages((prev) => [...prev, confirmMessage]);
+                            sendMutation.mutate("Yes, proceed with the proposal.");
+                          }}
+                          disabled={sendMutation.isPending}
+                        >
+                          <Zap className="w-4 h-4 mr-2" />
+                          Generate Proposal
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {msg.executedActions && msg.executedActions.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-glass-border">
