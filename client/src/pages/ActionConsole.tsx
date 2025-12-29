@@ -82,6 +82,41 @@ function getToolIcon(tool: string): string {
   return "⚡";
 }
 
+// PROPOSAL COMPLETENESS CHECK - Detects if user requested items that aren't staged
+interface ExpectedAction {
+  keywords: string[];
+  tool: string;
+  label: string;
+}
+
+const EXPECTED_ACTIONS: ExpectedAction[] = [
+  { keywords: ["contact", "customer", "client"], tool: "create_contact", label: "Contact" },
+  { keywords: ["estimate", "quote", "$", "price", "cost"], tool: "create_estimate", label: "Estimate" },
+  { keywords: ["payment link", "pay link", "payment url"], tool: "stripe_create_payment_link", label: "Payment Link" },
+  { keywords: ["email", "send email", "email them", "email him", "email her"], tool: "send_email", label: "Email" },
+  { keywords: ["invoice", "bill"], tool: "create_invoice", label: "Invoice" },
+  { keywords: ["job", "work order"], tool: "create_job", label: "Job" },
+];
+
+function detectMissingActions(
+  userMessages: string[],
+  stagedTools: string[]
+): { missing: string[]; isComplete: boolean } {
+  const combinedInput = userMessages.join(" ").toLowerCase();
+  const missing: string[] = [];
+
+  for (const expected of EXPECTED_ACTIONS) {
+    const isRequested = expected.keywords.some(kw => combinedInput.includes(kw.toLowerCase()));
+    const isStaged = stagedTools.some(t => t === expected.tool || t.includes(expected.tool.replace("create_", "")));
+    
+    if (isRequested && !isStaged) {
+      missing.push(expected.label);
+    }
+  }
+
+  return { missing, isComplete: missing.length === 0 };
+}
+
 export default function ActionConsole() {
   const { toast } = useToast();
   const [input, setInput] = useState("");
@@ -319,7 +354,28 @@ export default function ActionConsole() {
                     </div>
                   )}
 
-                  {msg.stagedActions && msg.stagedActions.length > 0 && msg.proposalStatus === "staged" && (
+                  {msg.stagedActions && msg.stagedActions.length > 0 && msg.proposalStatus === "staged" && (() => {
+                    // Check for incomplete proposals - only look at the MOST RECENT user message
+                    // that triggered this proposal, not the entire conversation history
+                    const msgIndex = messages.findIndex(m => m.id === msg.id);
+                    const recentUserMessages: string[] = [];
+                    
+                    // Walk backwards from this message to find the triggering user message(s)
+                    // Stop at the previous assistant response with staged actions (new workflow)
+                    for (let i = msgIndex - 1; i >= 0; i--) {
+                      const prevMsg = messages[i];
+                      if (prevMsg.role === "user") {
+                        recentUserMessages.unshift(prevMsg.content);
+                      } else if (prevMsg.role === "assistant" && prevMsg.stagedActions && prevMsg.stagedActions.length > 0) {
+                        // Hit a previous proposal - stop here to avoid old requests
+                        break;
+                      }
+                    }
+                    
+                    const stagedTools = msg.stagedActions?.map(a => a.tool) || [];
+                    const { missing, isComplete } = detectMissingActions(recentUserMessages, stagedTools);
+                    
+                    return (
                     <div className="mt-4 pt-4 border-t-2 border-warning/30">
                       <div className="bg-warning/5 border border-warning/20 rounded-xl p-4">
                         <span className="text-xs font-bold uppercase tracking-widest text-warning mb-3 flex items-center gap-2">
@@ -341,12 +397,37 @@ export default function ActionConsole() {
                             </div>
                           ))}
                         </div>
+                        
+                        {/* INCOMPLETE PROPOSAL WARNING */}
+                        {!isComplete && (
+                          <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-sm font-medium text-destructive">Incomplete Proposal</p>
+                                <p className="text-xs text-destructive/80 mt-1">
+                                  You requested: <strong>{missing.join(", ")}</strong> but {missing.length === 1 ? "it's" : "they're"} not staged.
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Ask the AI to include all items, or reject and try again.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
                         <div className="flex gap-2 mt-4">
                           <Button
                             size="sm"
-                            className="h-8 px-4 bg-primary hover:bg-primary/90"
+                            className={`h-8 px-4 ${isComplete ? "bg-primary hover:bg-primary/90" : "bg-destructive/80 hover:bg-destructive"}`}
                             disabled={!msg.stagedBundleId}
                             onClick={async () => {
+                              if (!isComplete) {
+                                const confirmSend = window.confirm(
+                                  `This proposal is missing: ${missing.join(", ")}. Are you sure you want to send an incomplete proposal to review?`
+                                );
+                                if (!confirmSend) return;
+                              }
                               if (!msg.stagedBundleId) {
                                 toast({ title: "Error", description: "No staged bundle ID found.", variant: "destructive" });
                                 return;
@@ -378,7 +459,7 @@ export default function ActionConsole() {
                             }}
                           >
                             <Check className="w-3 h-3 mr-1.5" />
-                            Send to Review Queue
+                            {isComplete ? "Send to Review Queue" : "Send Anyway (Incomplete)"}
                           </Button>
                         <Button
                           variant="outline"
@@ -406,7 +487,8 @@ export default function ActionConsole() {
                         </div>
                       </div>
                     </div>
-                  )}
+                  );
+                  })()}
 
                   {msg.stagedActions && msg.stagedActions.length > 0 && msg.proposalStatus === "approved" && (
                     <div className="mt-3 pt-3 border-t border-glass-border">
