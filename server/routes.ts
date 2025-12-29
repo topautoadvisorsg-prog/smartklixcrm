@@ -1064,18 +1064,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (assistEntry) {
         // P0 HARDENING: Idempotency check for assist_queue - prevent duplicate execution
         if (assistEntry.idempotencyKey) {
-          const ledgerEntries = await storage.getAutomationLedgerEntries({ limit: 1000 });
-          const existingExecuted = ledgerEntries.find(
-            e => e.idempotencyKey === assistEntry.idempotencyKey && e.status === "executed"
-          );
-          if (existingExecuted) {
+          const existingEntry = await storage.getAutomationLedgerByIdempotencyKey(assistEntry.idempotencyKey);
+          if (existingEntry && existingEntry.status === "executed") {
             console.log(`[IDEMPOTENCY] Duplicate assist_queue execution blocked for key ${assistEntry.idempotencyKey}`);
             return res.status(409).json({
               error: "Duplicate execution blocked",
               message: "An action with this idempotency key has already been executed.",
               idempotencyKey: assistEntry.idempotencyKey,
-              existingLedgerId: existingExecuted.id,
-              existingExecutedAt: existingExecuted.updatedAt,
+              existingLedgerId: existingEntry.id,
+              existingExecutedAt: existingEntry.updatedAt,
             });
           }
         }
@@ -1193,25 +1190,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         });
         
-        await storage.createAutomationLedgerEntry({
-          agentName: "Human",
-          actionType: "HUMAN_EXECUTION_DECISION",
-          entityType: "assist_queue",
-          entityId: assistEntry.id,
-          mode: "execute",
-          status: "executed",
-          diffJson: {
-            decision: "confirmed",
-            userRequest: assistEntry.userRequest,
-            toolsCalled: assistEntry.toolsCalled,
-            executionResults,
-          },
-          reason: null,
-          assistQueueId: assistEntry.id,
-          idempotencyKey: assistEntry.idempotencyKey, // P0: Propagate for deduplication
-          reasoningSummary: assistEntry.reasoningSummary, // P0: Preserve audit trail
-          executionTraceId: assistEntry.id, // Link the execution chain
-        });
+        // P0 FIX: Check if ledger entry already exists for this idempotency key (created at proposal time)
+        // If so, update it instead of creating a duplicate
+        if (assistEntry.idempotencyKey) {
+          const existingEntry = await storage.getAutomationLedgerByIdempotencyKey(assistEntry.idempotencyKey);
+          if (existingEntry) {
+            // Update existing ledger entry to executed status
+            await storage.updateAutomationLedgerEntry(existingEntry.id, {
+              status: "executed",
+              diffJson: {
+                ...(existingEntry.diffJson as Record<string, unknown> || {}),
+                decision: "confirmed",
+                executionResults,
+                executedAt: new Date().toISOString(),
+              },
+            });
+            console.log(`[Ready Execution] Updated existing ledger entry ${existingEntry.id} to executed`);
+          } else {
+            // No existing entry, create new one
+            await storage.createAutomationLedgerEntry({
+              agentName: "Human",
+              actionType: "HUMAN_EXECUTION_DECISION",
+              entityType: "assist_queue",
+              entityId: assistEntry.id,
+              mode: "execute",
+              status: "executed",
+              diffJson: {
+                decision: "confirmed",
+                userRequest: assistEntry.userRequest,
+                toolsCalled: assistEntry.toolsCalled,
+                executionResults,
+              },
+              reason: null,
+              assistQueueId: assistEntry.id,
+              idempotencyKey: assistEntry.idempotencyKey,
+              reasoningSummary: assistEntry.reasoningSummary,
+              executionTraceId: assistEntry.id,
+            });
+          }
+        } else {
+          // No idempotency key, create new entry (legacy flow)
+          await storage.createAutomationLedgerEntry({
+            agentName: "Human",
+            actionType: "HUMAN_EXECUTION_DECISION",
+            entityType: "assist_queue",
+            entityId: assistEntry.id,
+            mode: "execute",
+            status: "executed",
+            diffJson: {
+              decision: "confirmed",
+              userRequest: assistEntry.userRequest,
+              toolsCalled: assistEntry.toolsCalled,
+              executionResults,
+            },
+            reason: null,
+            assistQueueId: assistEntry.id,
+          });
+        }
 
         console.log(`[Ready Execution] Assist queue entry completed: ${executionResults.length} actions executed`);
 
