@@ -383,9 +383,23 @@ export const assistQueue = pgTable("assist_queue", {
   gatedActionType: text("gated_action_type"), // Tool name like "send_invoice", "send_estimate", "record_payment"
   finalizationPayload: jsonb("finalization_payload"), // Arguments to execute when approved
   architectApprovedAt: timestamp("architect_approved_at"), // When Master Architect approved
+  // P0 HARDENING: Idempotency & Governance
+  idempotencyKey: varchar("idempotency_key").unique(), // UUID-based deduplication key
+  reasoningSummary: text("reasoning_summary"), // AI decision rationale for audit trail
+  // P1 HARDENING: Rejection escalation
+  rejectionCount: integer("rejection_count").notNull().default(0), // Twice-rejected → escalate
+  escalatedToOperator: boolean("escalated_to_operator").notNull().default(false), // Flagged for operator review
+  escalatedAt: timestamp("escalated_at"), // When escalation happened
+  // Manual handling tracking
+  handledManually: boolean("handled_manually").notNull().default(false), // Operator rejected and handled outside AI
+  manualHandlingNote: text("manual_handling_note"), // Operator notes for manual resolution
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  idempotencyKeyIdx: index("assist_queue_idempotency_key_idx").on(table.idempotencyKey),
+  statusIdx: index("assist_queue_status_idx").on(table.status),
+  escalatedIdx: index("assist_queue_escalated_idx").on(table.escalatedToOperator),
+}));
 
 export const aiReflection = pgTable("ai_reflection", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -544,6 +558,13 @@ export const aiSettings = pgTable("ai_settings", {
   // Global settings
   companyKnowledge: text("company_knowledge"),
   globalEnabled: boolean("global_enabled").notNull().default(true),
+  
+  // P0 HARDENING: Global Kill Switch
+  killSwitchActive: boolean("kill_switch_active").notNull().default(false), // Halts all execution, dispatch, queue promotion
+  killSwitchActivatedAt: timestamp("kill_switch_activated_at"), // When kill switch was triggered
+  killSwitchActivatedBy: varchar("kill_switch_activated_by").references(() => users.id), // Who triggered it
+  killSwitchReason: text("kill_switch_reason"), // Why it was activated
+  
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -1152,6 +1173,11 @@ export const automationLedger = pgTable("automation_ledger", {
   diffJson: jsonb("diff_json"),
   reason: text("reason"),
   assistQueueId: varchar("assist_queue_id"),
+  // P0 HARDENING: Idempotency & Audit Trail
+  idempotencyKey: varchar("idempotency_key").unique(), // UUID-based deduplication key
+  reasoningSummary: text("reasoning_summary"), // AI decision rationale for forensics
+  // Execution tracing
+  executionTraceId: varchar("execution_trace_id"), // Links intake → proposal → execution
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
   agentNameIdx: index("automation_ledger_agent_name_idx").on(table.agentName),
@@ -1160,6 +1186,8 @@ export const automationLedger = pgTable("automation_ledger", {
   modeIdx: index("automation_ledger_mode_idx").on(table.mode),
   statusIdx: index("automation_ledger_status_idx").on(table.status),
   timestampIdx: index("automation_ledger_timestamp_idx").on(table.timestamp),
+  idempotencyKeyIdx: index("automation_ledger_idempotency_key_idx").on(table.idempotencyKey),
+  executionTraceIdx: index("automation_ledger_trace_id_idx").on(table.executionTraceId),
 }));
 
 export const insertAutomationLedgerSchema = createInsertSchema(automationLedger).omit({

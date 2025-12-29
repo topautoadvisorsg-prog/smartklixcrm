@@ -329,6 +329,7 @@ export interface IStorage {
   // Automation Ledger
   getAutomationLedgerEntries(filters?: { agentName?: string; actionType?: string; mode?: string; status?: string; limit?: number }): Promise<AutomationLedger[]>;
   getAutomationLedgerEntry(id: string): Promise<AutomationLedger | undefined>;
+  getAutomationLedgerByIdempotencyKey(idempotencyKey: string): Promise<AutomationLedger | undefined>;
   createAutomationLedgerEntry(entry: InsertAutomationLedger): Promise<AutomationLedger>;
   updateAutomationLedgerEntry(id: string, updates: Partial<InsertAutomationLedger>): Promise<AutomationLedger | undefined>;
 
@@ -2935,6 +2936,12 @@ export class DbStorage implements IStorage {
   async getAutomationLedgerEntry(id: string): Promise<AutomationLedger | undefined> {
     if (!db) return undefined;
     const result = await db.select().from(automationLedger).where(eq(automationLedger.id, id));
+    return result[0];
+  }
+
+  async getAutomationLedgerByIdempotencyKey(idempotencyKey: string): Promise<AutomationLedger | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(automationLedger).where(eq(automationLedger.idempotencyKey, idempotencyKey));
     return result[0];
   }
 

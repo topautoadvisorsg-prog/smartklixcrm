@@ -62,6 +62,7 @@ interface StagedActionBundle {
   id: string;
   actions: Array<{ tool: string; args: Record<string, unknown> }>;
   userRequest?: string;
+  reasoningSummary?: string; // P0 HARDENING: AI decision rationale for audit trail
   createdAt: Date;
   expiresAt: Date;
 }
@@ -78,12 +79,17 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-function createStagedBundle(actions: Array<{ tool: string; args: Record<string, unknown> }>, userRequest?: string): string {
+function createStagedBundle(
+  actions: Array<{ tool: string; args: Record<string, unknown> }>, 
+  userRequest?: string,
+  reasoningSummary?: string
+): string {
   const id = `staged-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const bundle: StagedActionBundle = {
     id,
     actions,
     userRequest,
+    reasoningSummary, // P0 HARDENING: Store AI rationale
     createdAt: new Date(),
     expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minute expiry
   };
@@ -854,10 +860,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let dispatchStatus: "dispatched" | "dispatch_failed" | "no_payload" | "crm_executed" = "no_payload";
       let dispatchError: string | null = null;
 
+      // P0 HARDENING: Check Kill Switch FIRST
+      const aiSettings = await storage.getAiSettings();
+      if (aiSettings?.killSwitchActive) {
+        console.log(`[KILL SWITCH] Execution blocked for entry ${req.params.id} - kill switch active`);
+        return res.status(503).json({
+          error: "AI execution halted",
+          message: "Global kill switch is active. All AI execution is paused.",
+          killSwitchReason: aiSettings.killSwitchReason,
+          killSwitchActivatedAt: aiSettings.killSwitchActivatedAt,
+        });
+      }
+
       // Try to find in automation_ledger first
       let entry = await storage.getAutomationLedgerEntry(req.params.id);
       
       if (entry) {
+        // P0 HARDENING: Idempotency check - prevent duplicate execution
+        if (entry.idempotencyKey) {
+          const existingExecuted = await storage.getAutomationLedgerByIdempotencyKey(entry.idempotencyKey);
+          if (existingExecuted && existingExecuted.id !== entry.id && existingExecuted.status === "executed") {
+            console.log(`[IDEMPOTENCY] Duplicate execution blocked for key ${entry.idempotencyKey}`);
+            return res.status(409).json({
+              error: "Duplicate execution blocked",
+              message: "An action with this idempotency key has already been executed.",
+              idempotencyKey: entry.idempotencyKey,
+              existingLedgerId: existingExecuted.id,
+              existingExecutedAt: existingExecuted.updatedAt,
+            });
+          }
+        }
+
         // Found in automation_ledger
         if (entry.status !== "ai_validated") {
           return res.status(400).json({ 
@@ -1029,6 +1062,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assistEntry = await storage.getAssistQueueEntry(req.params.id);
       
       if (assistEntry) {
+        // P0 HARDENING: Idempotency check for assist_queue - prevent duplicate execution
+        if (assistEntry.idempotencyKey) {
+          const ledgerEntries = await storage.getAutomationLedgerEntries({ limit: 1000 });
+          const existingExecuted = ledgerEntries.find(
+            e => e.idempotencyKey === assistEntry.idempotencyKey && e.status === "executed"
+          );
+          if (existingExecuted) {
+            console.log(`[IDEMPOTENCY] Duplicate assist_queue execution blocked for key ${assistEntry.idempotencyKey}`);
+            return res.status(409).json({
+              error: "Duplicate execution blocked",
+              message: "An action with this idempotency key has already been executed.",
+              idempotencyKey: assistEntry.idempotencyKey,
+              existingLedgerId: existingExecuted.id,
+              existingExecutedAt: existingExecuted.updatedAt,
+            });
+          }
+        }
+
         // Found in assist_queue - check status
         if (assistEntry.status !== "approved") {
           return res.status(400).json({ 
@@ -1157,6 +1208,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
           reason: null,
           assistQueueId: assistEntry.id,
+          idempotencyKey: assistEntry.idempotencyKey, // P0: Propagate for deduplication
+          reasoningSummary: assistEntry.reasoningSummary, // P0: Preserve audit trail
+          executionTraceId: assistEntry.id, // Link the execution chain
         });
 
         console.log(`[Ready Execution] Assist queue entry completed: ${executionResults.length} actions executed`);
@@ -1284,6 +1338,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("[Ready Execution Reject] Error:", error);
       res.status(500).json({ error: "Failed to reject action" });
+    }
+  });
+
+  // P1 HARDENING: Handle Manually - Operator takes over outside the AI system
+  // This is distinct from "reject" - it means the operator handled the request themselves
+  app.post("/api/ready-execution/:id/handle-manually", async (req, res) => {
+    try {
+      const userId = (req as unknown as { userId?: string }).userId || null;
+      const { note, resolution } = req.body as { note?: string; resolution?: string };
+      
+      if (!note) {
+        return res.status(400).json({ error: "Manual handling note is required" });
+      }
+
+      // Try to find in assist_queue first (most common case)
+      const assistEntry = await storage.getAssistQueueEntry(req.params.id);
+      
+      if (assistEntry) {
+        // Mark as handled manually
+        await storage.updateAssistQueueEntry(req.params.id, {
+          status: "handled_manually",
+          handledManually: true,
+          manualHandlingNote: note,
+          completedAt: new Date(),
+        });
+
+        // Create audit log
+        await storage.createAuditLogEntry({
+          userId,
+          action: "OPERATOR_MANUAL_HANDLING",
+          entityType: "assist_queue",
+          entityId: assistEntry.id,
+          details: {
+            outcome: "handled_manually",
+            assistQueueId: assistEntry.id,
+            userRequest: assistEntry.userRequest,
+            manualNote: note,
+            resolution: resolution || "Manual handling completed",
+          },
+        });
+        
+        // Create ledger entry
+        await storage.createAutomationLedgerEntry({
+          agentName: "Human (Operator)",
+          actionType: "OPERATOR_MANUAL_HANDLING",
+          entityType: "assist_queue",
+          entityId: assistEntry.id,
+          mode: "manual",
+          status: "handled_manually",
+          diffJson: {
+            decision: "handled_manually",
+            userRequest: assistEntry.userRequest,
+            toolsCalled: assistEntry.toolsCalled,
+            manualNote: note,
+            resolution: resolution || "Manual handling completed",
+          },
+          reason: `Operator handled manually: ${note}`,
+          assistQueueId: assistEntry.id,
+        });
+
+        console.log(`[Ready Execution] Entry ${req.params.id} handled manually by operator`);
+
+        return res.json({ 
+          success: true, 
+          status: "handled_manually",
+          message: "Entry marked as handled manually by operator",
+          handledManually: true,
+        });
+      }
+
+      // Also check automation_ledger
+      const ledgerEntry = await storage.getAutomationLedgerEntry(req.params.id);
+      
+      if (ledgerEntry) {
+        await storage.updateAutomationLedgerEntry(req.params.id, {
+          status: "handled_manually",
+          reason: `Operator handled manually: ${note}`,
+        });
+
+        await storage.createAuditLogEntry({
+          userId,
+          action: "OPERATOR_MANUAL_HANDLING",
+          entityType: ledgerEntry.entityType,
+          entityId: ledgerEntry.entityId || null,
+          details: {
+            outcome: "handled_manually",
+            automationLedgerId: ledgerEntry.id,
+            manualNote: note,
+            resolution: resolution || "Manual handling completed",
+          },
+        });
+
+        console.log(`[Ready Execution] Ledger entry ${req.params.id} handled manually by operator`);
+
+        return res.json({ 
+          success: true, 
+          status: "handled_manually",
+          source: "ledger",
+          message: "Entry marked as handled manually by operator",
+          handledManually: true,
+        });
+      }
+
+      return res.status(404).json({ error: "Entry not found in either ledger or assist queue" });
+    } catch (error) {
+      console.error("[Ready Execution Handle Manually] Error:", error);
+      res.status(500).json({ error: "Failed to mark entry as handled manually" });
     }
   });
 
@@ -2028,6 +2189,88 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
+  // ========================================
+  // GLOBAL KILL SWITCH (P0 HARDENING)
+  // ========================================
+
+  app.get("/api/ai/kill-switch", async (_req, res) => {
+    try {
+      const settings = await storage.getAiSettings();
+      res.json({ 
+        active: settings?.killSwitchActive ?? false,
+        activatedAt: settings?.killSwitchActivatedAt ?? null,
+        activatedBy: settings?.killSwitchActivatedBy ?? null,
+        reason: settings?.killSwitchReason ?? null,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get kill switch status" });
+    }
+  });
+
+  app.post("/api/ai/kill-switch/activate", async (req, res) => {
+    try {
+      const userId = (req as unknown as { userId?: string }).userId || null;
+      const { reason } = req.body as { reason?: string };
+      
+      const settings = await storage.updateAiSettings({
+        killSwitchActive: true,
+        killSwitchActivatedAt: new Date(),
+        killSwitchActivatedBy: userId,
+        killSwitchReason: reason || "Emergency kill switch activated",
+      });
+      
+      await storage.createAuditLogEntry({
+        userId,
+        action: "kill_switch_activated",
+        entityType: "ai_settings",
+        entityId: "default",
+        details: { reason: reason || "Emergency kill switch activated" },
+      });
+      
+      console.log(`[KILL SWITCH] Activated by ${userId || "system"}: ${reason || "No reason provided"}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Kill switch activated - all AI execution halted",
+        active: true,
+        activatedAt: settings.killSwitchActivatedAt,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to activate kill switch" });
+    }
+  });
+
+  app.post("/api/ai/kill-switch/deactivate", async (req, res) => {
+    try {
+      const userId = (req as unknown as { userId?: string }).userId || null;
+      
+      const settings = await storage.updateAiSettings({
+        killSwitchActive: false,
+        killSwitchActivatedAt: null,
+        killSwitchActivatedBy: null,
+        killSwitchReason: null,
+      });
+      
+      await storage.createAuditLogEntry({
+        userId,
+        action: "kill_switch_deactivated",
+        entityType: "ai_settings",
+        entityId: "default",
+        details: {},
+      });
+      
+      console.log(`[KILL SWITCH] Deactivated by ${userId || "system"}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Kill switch deactivated - AI execution resumed",
+        active: false,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to deactivate kill switch" });
+    }
+  });
+
   // AI Voice Dispatch Config endpoints - dispatch metadata only (behavior lives on external voice server)
   app.get("/api/ai/voice-dispatch/config", async (_req, res) => {
     try {
@@ -2532,6 +2775,13 @@ After creating estimate, ALWAYS propose sending payment request.
       // Remove from staged store (one-time use)
       stagedActionsStore.delete(stagedBundleId);
 
+      // P0 HARDENING: Generate idempotency key for deduplication
+      const idempotencyKey = `proposal-${stagedBundleId}-${Date.now()}`;
+      
+      // P0 HARDENING: Extract reasoning summary from bundle (if AI provided it)
+      const reasoningSummary = bundle.reasoningSummary || 
+        `AI proposed ${bundle.actions.length} action(s): ${bundle.actions.map(a => a.tool).join(", ")}. User request: ${bundle.userRequest || "N/A"}`;
+
       // 1. Create AssistQueue entry (for Review Queue / MA validation)
       const queueEntry = await storage.createAssistQueueEntry({
         userId: null,
@@ -2542,6 +2792,8 @@ After creating estimate, ALWAYS propose sending payment request.
         toolsCalled: bundle.actions.map(a => ({ tool: a.tool, args: a.args })),
         toolResults: null, // Not executed yet
         requiresApproval: true,
+        idempotencyKey, // P0: For deduplication
+        reasoningSummary, // P0: Audit trail
       });
 
       // 2. Write to Ledger (status: proposed) - First ledger entry
@@ -2559,6 +2811,9 @@ After creating estimate, ALWAYS propose sending payment request.
         },
         reason: "User approved staged actions for review",
         assistQueueId: queueEntry.id,
+        idempotencyKey, // P0: For deduplication
+        reasoningSummary, // P0: Audit trail
+        executionTraceId: queueEntry.id, // Link intake → proposal → execution
       });
 
       console.log(`[Governance] Proposal ${queueEntry.id} created and sent to Review Queue`);
@@ -4747,14 +5002,20 @@ After creating estimate, ALWAYS propose sending payment request.
           entry: updated,
         });
       } else {
-        // Rejected by MA
+        // Rejected by MA - P1 HARDENING: Track rejection count for escalation
+        const currentRejectionCount = (entry.rejectionCount || 0) + 1;
+        const shouldEscalate = currentRejectionCount >= 2;
+        
         const updated = await storage.updateAssistQueueEntry(req.params.id, {
-          status: "rejected",
+          status: shouldEscalate ? "escalated" : "rejected",
           rejectedAt: new Date(),
           error: validationReason,
+          rejectionCount: currentRejectionCount,
+          escalatedToOperator: shouldEscalate,
+          escalatedAt: shouldEscalate ? new Date() : undefined,
         });
 
-        // Update ledger to rejected
+        // Update ledger to rejected/escalated
         const ledgerEntries = await storage.getAutomationLedgerEntries({ limit: 1000 });
         const existingLedger = ledgerEntries.find(
           e => e.assistQueueId === req.params.id && e.status === "proposed"
@@ -4762,34 +5023,48 @@ After creating estimate, ALWAYS propose sending payment request.
         
         if (existingLedger) {
           await storage.updateAutomationLedgerEntry(existingLedger.id, {
-            status: "rejected",
-            reason: validationReason,
+            status: shouldEscalate ? "escalated" : "rejected",
+            reason: shouldEscalate 
+              ? `ESCALATED: AI failed review ${currentRejectionCount} times. Last reason: ${validationReason}` 
+              : validationReason,
           });
         }
 
-        // Create rejection record
+        // Create rejection/escalation record
         await storage.createAutomationLedgerEntry({
           agentName: "Master Architect",
-          actionType: "AI_VALIDATION_RECORDED",
+          actionType: shouldEscalate ? "AI_ESCALATED_TO_OPERATOR" : "AI_VALIDATION_RECORDED",
           entityType: "assist_queue",
           entityId: req.params.id,
           mode: "assist",
-          status: "rejected",
+          status: shouldEscalate ? "escalated" : "rejected",
           diffJson: {
-            decision: "rejected",
+            decision: shouldEscalate ? "escalated" : "rejected",
             userRequest: entry.userRequest,
+            rejectionCount: currentRejectionCount,
+            escalatedToOperator: shouldEscalate,
           },
-          reason: validationReason,
+          reason: shouldEscalate 
+            ? `AI failed review ${currentRejectionCount} times - escalated to operator for manual handling` 
+            : validationReason,
           assistQueueId: req.params.id,
         });
 
-        console.log(`[MA Validation] Proposal ${req.params.id} rejected: ${validationReason}`);
+        if (shouldEscalate) {
+          console.log(`[MA Validation] Proposal ${req.params.id} ESCALATED TO OPERATOR after ${currentRejectionCount} rejections`);
+        } else {
+          console.log(`[MA Validation] Proposal ${req.params.id} rejected (${currentRejectionCount}/2): ${validationReason}`);
+        }
 
         res.json({
           success: true,
-          decision: "rejected",
-          message: validationReason,
+          decision: shouldEscalate ? "escalated" : "rejected",
+          message: shouldEscalate 
+            ? `AI proposal escalated to operator after ${currentRejectionCount} failed reviews`
+            : validationReason,
           entry: updated,
+          escalatedToOperator: shouldEscalate,
+          rejectionCount: currentRejectionCount,
         });
       }
     } catch (error) {

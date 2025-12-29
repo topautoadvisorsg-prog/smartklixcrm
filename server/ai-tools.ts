@@ -820,6 +820,27 @@ export function isGatedTool(toolName: string): boolean {
 // List of gated tool names for quick reference
 export const GATED_TOOLS = ["send_invoice", "send_estimate", "record_payment"] as const;
 
+// P1 HARDENING: Blocked tools - AI can NEVER call these (hard deletes not allowed)
+// Soft-delete only enforcement - AI should archive/flag instead of delete
+export const BLOCKED_TOOLS = [
+  "delete_contact",
+  "delete_job", 
+  "delete_estimate",
+  "delete_invoice",
+  "delete_payment",
+  "delete_appointment",
+  "delete_note",
+  "drop_database",
+  "delete_all_contacts",
+  "purge_records",
+  "hard_delete",
+] as const;
+
+// Check if a tool is blocked (hard-delete operations)
+export function isBlockedTool(toolName: string): boolean {
+  return (BLOCKED_TOOLS as readonly string[]).includes(toolName);
+}
+
 const createContactSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email required").optional(),
@@ -1055,6 +1076,14 @@ export interface ExecuteToolOptions {
 
 export async function executeAITool(toolName: string, args: unknown, options: ExecuteToolOptions = {}): Promise<ToolResult> {
   const { userId, finalizationMode = "semi_autonomous", assistQueueId } = options;
+  
+  // P1 HARDENING: BLOCKED tools are absolutely forbidden (hard deletes not allowed)
+  // AI should use archive/flag operations instead - this is a HARD ERROR
+  if (isBlockedTool(toolName)) {
+    const errorMessage = `[GOVERNANCE VIOLATION] BLOCKED action "${toolName}" cannot be executed. Hard-delete operations are forbidden. Use archive/flag operations for soft-delete instead.`;
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
   
   // GOVERNANCE GUARDRAIL: EXTERNAL tools MUST go through Neo-8, not direct execution
   // This is a HARD ERROR - no exceptions, no bypasses
