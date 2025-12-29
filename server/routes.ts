@@ -109,7 +109,7 @@ const ACTION_DETECTION_RULES: RequiredAction[] = [
   { tool: "create_contact", keywords: ["create contact", "create customer", "new contact", "new customer", "add contact", "add customer"], description: "contact creation" },
   { tool: "create_estimate", keywords: ["estimate", "quote", "$ for", "dollars for", "$"], description: "estimate creation" },
   { tool: "stripe_create_payment_link", keywords: ["payment link", "pay link", "stripe link", "payment url"], description: "payment link" },
-  { tool: "send_email", keywords: ["send email", "email them", "email to", "email with", "include payment link", "email the"], description: "email sending" },
+  { tool: "send_email", keywords: ["send email", "email them", "email to", "email with", "and email", "with email", "via email", "by email", "include payment link in email", "email the", "email it"], description: "email sending" },
   { tool: "create_invoice", keywords: ["create invoice", "invoice for", "send invoice"], description: "invoice creation" },
   { tool: "send_estimate", keywords: ["send estimate", "send the estimate", "email estimate"], description: "estimate sending" },
   { tool: "send_invoice", keywords: ["send invoice", "send the invoice", "email invoice"], description: "invoice sending" },
@@ -1214,6 +1214,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
             
+            // Resolve placeholders in email body text
+            if (resolved.body && typeof resolved.body === 'string') {
+              let body = resolved.body;
+              
+              // Replace estimate ID placeholders in body
+              if (createdEntities.estimateId) {
+                const estimatePlaceholders = [
+                  /\[Estimate ID Placeholder\]/gi,
+                  /\[Estimate ID\]/gi,
+                  /\[estimateId\]/gi,
+                  /pending_revision/gi,
+                  /TBD-ESTIMATE-ID/gi,
+                ];
+                for (const pattern of estimatePlaceholders) {
+                  if (pattern.test(body)) {
+                    console.log(`[Ready Execution] Resolving estimate placeholder in body`);
+                    body = body.replace(pattern, createdEntities.estimateId);
+                  }
+                }
+              }
+              
+              // Note: paymentLinkUrl resolution happens on n8n side since stripe_create_payment_link is EXTERNAL
+              // n8n workflow should inject the actual URL after creating it
+              // Add metadata flag to tell n8n to inject payment link
+              if (createdEntities.estimateId && /payment.?link/i.test(body)) {
+                resolved._injectPaymentLink = true;
+                resolved._estimateId = createdEntities.estimateId;
+              }
+              
+              resolved.body = body;
+            }
+            
             return resolved;
           };
           
@@ -1246,6 +1278,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           };
           
+          // Pre-scan for bundled Stripe+Email pattern
+          // If both stripe_create_payment_link and send_email are in the bundle,
+          // we'll combine them so n8n can create the payment link first and inject it into the email
+          const hasStripePaymentLink = toolsCalled.some(a => a.tool === "stripe_create_payment_link");
+          const hasSendEmail = toolsCalled.some(a => a.tool === "send_email");
+          const stripeEmailBundle = hasStripePaymentLink && hasSendEmail;
+          
+          if (stripeEmailBundle) {
+            console.log(`[Ready Execution] Detected Stripe+Email bundle - will combine for n8n sequencing`);
+          }
+          
+          // Track if we've already dispatched the bundled Stripe+Email
+          let stripeEmailDispatched = false;
+          
           for (const action of toolsCalled) {
             const actionType = classifyAction(action.tool);
             
@@ -1254,6 +1300,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (actionType === "EXTERNAL") {
               hasExternalActions = true;
+              
+              // Handle bundled Stripe+Email pattern
+              if (stripeEmailBundle && (action.tool === "stripe_create_payment_link" || action.tool === "send_email")) {
+                if (stripeEmailDispatched) {
+                  // Already dispatched the bundle, skip this action
+                  console.log(`[Ready Execution] Skipping "${action.tool}" - already included in bundled dispatch`);
+                  executionResults.push({
+                    tool: action.tool,
+                    status: "dispatched_to_neo8",
+                    result: { bundled: true, note: "Included in combined Stripe+Email dispatch" },
+                  });
+                  continue;
+                }
+                
+                // First one we encounter - dispatch the combined bundle
+                stripeEmailDispatched = true;
+                
+                // Find both actions and their args
+                const stripeAction = toolsCalled.find(a => a.tool === "stripe_create_payment_link");
+                const emailAction = toolsCalled.find(a => a.tool === "send_email");
+                
+                const stripeArgs = resolveEntityIds(stripeAction?.args);
+                const emailArgs = resolveEntityIds(emailAction?.args);
+                
+                console.log(`[Ready Execution] Dispatching bundled Stripe+Email to Neo8 outreach`);
+                
+                // Send to outreach/trigger with combined payload
+                // n8n will create payment link first, then inject URL into email body
+                const bundledPayload = {
+                  action: "send_email_with_payment_link",
+                  stripeArgs: stripeArgs,
+                  emailArgs: emailArgs,
+                  estimateId: createdEntities.estimateId,
+                };
+                
+                try {
+                  const dispatchResult = await dispatchExternalAction(
+                    "send_email", // Route to outreach trigger
+                    bundledPayload,
+                    { 
+                      assistQueueId: assistEntry.id,
+                      userId: userId || undefined,
+                    }
+                  );
+                  
+                  if (dispatchResult.success) {
+                    executionResults.push({
+                      tool: "stripe_create_payment_link",
+                      status: "dispatched_to_neo8",
+                      result: { bundled: true },
+                    });
+                    executionResults.push({
+                      tool: "send_email",
+                      status: "dispatched_to_neo8",
+                      result: dispatchResult.responseData,
+                    });
+                  } else {
+                    executionResults.push({
+                      tool: action.tool,
+                      status: "dispatch_failed",
+                      error: dispatchResult.error,
+                    });
+                    dispatchError = dispatchResult.error || null;
+                  }
+                } catch (err) {
+                  const errorMessage = err instanceof Error ? err.message : "Neo8 dispatch failed";
+                  executionResults.push({
+                    tool: action.tool,
+                    status: "dispatch_failed",
+                    error: errorMessage,
+                  });
+                  dispatchError = errorMessage;
+                }
+                continue;
+              }
+              
+              // Regular EXTERNAL action dispatch
               console.log(`[Ready Execution] Dispatching EXTERNAL action "${action.tool}" to Neo8 (from assist_queue)`);
               
               try {
