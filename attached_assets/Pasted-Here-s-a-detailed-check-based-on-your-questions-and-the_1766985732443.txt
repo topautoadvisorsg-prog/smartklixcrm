@@ -1,0 +1,30 @@
+Here’s a detailed check based on your questions and the current n8n workflow:
+
+NEO8FLOW_URL Configuration
+In your workflow, the CRM base URL is set in the Global Config node as crmBaseUrl.
+Example value: https://4401f3bc-48c3-4dba-afa3-d5df7e041174-00-1q7lzoe1sw8kv.kirk.replit.dev/api
+This value is referenced throughout the workflow for all CRM-related HTTP requests.
+To confirm: Make sure your CRM is sending webhooks to the correct n8n webhook endpoint (e.g., /outreach/trigger for manual outreach).
+Authentication Token (X-INTERNAL-TOKEN)
+The workflow expects an internal token, stored as internalToken in the Global Config node.
+All HTTP requests from n8n to the CRM use this token in the Authorization header as Bearer {{ internalToken }}.
+For inbound webhooks (from CRM to n8n), the CRM should send the token in the X-INTERNAL-TOKEN header (or as configured in your webhook node’s authentication).
+Your webhook nodes (e.g., CRM Manual Trigger SENDGRID) are set to use Header Auth, so the CRM must send the correct token in the header.
+Dispatching to n8n for Email and Stripe Payment Link Actions
+The workflow supports both email (Send Email (SendGrid)) and payment link (Stripe) actions.
+The Route by Action Type node routes the incoming action to the correct node (SMS, Email, Invite).
+For payment links, the CRM Action: Send Payment webhook triggers the payment flow, which includes Stripe customer lookup, payment object creation, and sending the payment link.
+The latest execution was successful, indicating that both email and payment link actions are being processed end-to-end.
+Summary of What to Check:
+
+NEO8FLOW_URL in your CRM should match the n8n webhook endpoint (e.g., https://your-n8n-domain/webhook/outreach/trigger).
+The CRM must send the X-INTERNAL-TOKEN header with the value matching internalToken in your n8n Global Config.
+Both email and Stripe payment link actions are supported and working in the current workflow.
+If you’re still seeing issues:
+
+Double-check the webhook URL and token in your CRM.
+Review the n8n execution logs for any failed nodes or authentication errors.
+If the workflow stops at the outreach configuration, it’s likely due to a mismatch in the webhook URL or missing/incorrect token.
+Let me know if you need help with a specific node or error message!
+
+Did this answer solve your question?
