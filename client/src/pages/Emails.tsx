@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   Mail, Search, Send, Plus, User, Building2, 
   CheckCircle, Eye, MousePointer, AlertCircle, Clock,
-  Shield, FileText, X
+  Shield, FileText, X, Reply, Forward, ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,11 +30,18 @@ interface EmailRecord {
   recipient: string;
   subject: string;
   preview: string;
+  fullBody: string;
+  bodyHtml: string | null;
   timestamp: string;
+  rawTimestamp: string | null;
   status: EmailStatus;
   templateId?: string;
   contactId?: string;
   direction?: "incoming" | "outgoing";
+  threadId?: string;
+  messageId?: string;
+  fromAddress: string;
+  toAddresses: string[];
 }
 
 interface APIEmail {
@@ -90,17 +97,25 @@ function formatTimeAgo(dateString: string | null): string {
 function transformAPIEmail(email: APIEmail): EmailRecord {
   const isIncoming = email.direction === "incoming";
   const isCompany = email.provider === "sendgrid";
+  const plainText = email.bodyText || email.bodyHtml?.replace(/<[^>]*>/g, '') || "";
   return {
     id: email.id,
     identity: isCompany ? "company" : "personal",
     senderName: isIncoming ? email.fromAddress : (isCompany ? "System Dispatch" : "You"),
     recipient: email.toAddresses?.[0] || "Unknown",
     subject: email.subject || "(No Subject)",
-    preview: email.bodyText?.slice(0, 200) || email.bodyHtml?.replace(/<[^>]*>/g, '').slice(0, 200) || "",
+    preview: plainText.slice(0, 200),
+    fullBody: plainText,
+    bodyHtml: email.bodyHtml,
     timestamp: formatTimeAgo(isIncoming ? email.receivedAt : email.sentAt || email.createdAt),
+    rawTimestamp: isIncoming ? email.receivedAt : email.sentAt || email.createdAt,
     status: email.status as EmailStatus,
     contactId: email.contactId || undefined,
     direction: email.direction,
+    threadId: email.threadId || undefined,
+    messageId: email.messageId || undefined,
+    fromAddress: email.fromAddress,
+    toAddresses: email.toAddresses || [],
   };
 }
 
@@ -128,6 +143,9 @@ export default function Emails() {
   // Friction Rule Dialog
   const [showFrictionDialog, setShowFrictionDialog] = useState(false);
   const [pendingIdentity, setPendingIdentity] = useState<IdentityType | null>(null);
+  
+  // Email Detail View State
+  const [selectedEmail, setSelectedEmail] = useState<EmailRecord | null>(null);
 
   // Fetch real emails from API
   const { data: apiEmails = [], isLoading, error } = useQuery<APIEmail[]>({
@@ -184,6 +202,31 @@ export default function Emails() {
       setPendingIdentity(null);
     }
     setShowFrictionDialog(false);
+  };
+
+  // Email action handlers
+  const handleEmailClick = (email: EmailRecord) => {
+    setSelectedEmail(email);
+  };
+
+  const handleReply = (email: EmailRecord) => {
+    setSelectedEmail(null);
+    setSelectedIdentity("personal");
+    // For incoming emails, reply to the sender; for outgoing, reply to the first recipient
+    const replyTo = email.direction === "incoming" ? email.fromAddress : (email.toAddresses[0] || email.fromAddress);
+    setDraftTo(replyTo);
+    setDraftSubject(email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`);
+    setDraftBody(`\n\n--- Original Message ---\nFrom: ${email.fromAddress}\nDate: ${email.rawTimestamp ? new Date(email.rawTimestamp).toLocaleString() : 'Unknown'}\nSubject: ${email.subject}\n\n${email.fullBody}`);
+    setIsComposeOpen(true);
+  };
+
+  const handleForward = (email: EmailRecord) => {
+    setSelectedEmail(null);
+    setSelectedIdentity("personal");
+    setDraftTo("");
+    setDraftSubject(email.subject.startsWith("Fwd:") ? email.subject : `Fwd: ${email.subject}`);
+    setDraftBody(`\n\n--- Forwarded Message ---\nFrom: ${email.fromAddress}\nTo: ${email.toAddresses.join(", ")}\nDate: ${email.rawTimestamp ? new Date(email.rawTimestamp).toLocaleString() : 'Unknown'}\nSubject: ${email.subject}\n\n${email.fullBody}`);
+    setIsComposeOpen(true);
   };
 
   // Dispatch handler - sends to backend which writes to ledger and forwards to Neo8
@@ -402,6 +445,7 @@ export default function Emails() {
                     {filteredEmails.map((email) => (
                       <Card
                         key={email.id}
+                        onClick={() => handleEmailClick(email)}
                         className={cn(
                           "p-5 transition-all hover:bg-accent/50 cursor-pointer",
                           email.status === "failed" && "bg-destructive/5 border-destructive/30",
@@ -686,6 +730,138 @@ export default function Emails() {
               Clear Draft & Switch
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Detail Dialog */}
+      <Dialog open={!!selectedEmail} onOpenChange={(open) => !open && setSelectedEmail(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          {selectedEmail && (
+            <>
+              <DialogHeader className="border-b border-border pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setSelectedEmail(null)}
+                      className="p-2"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </Button>
+                    <div>
+                      <DialogTitle className="text-lg">{selectedEmail.subject}</DialogTitle>
+                      <DialogDescription className="mt-1">
+                        {selectedEmail.direction === "incoming" ? "Received" : "Sent"} {selectedEmail.timestamp}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleReply(selectedEmail)}
+                      className="gap-2"
+                    >
+                      <Reply className="w-4 h-4" />
+                      Reply
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleForward(selectedEmail)}
+                      className="gap-2"
+                    >
+                      <Forward className="w-4 h-4" />
+                      Forward
+                    </Button>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="py-4 border-b border-border space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-muted-foreground w-16">From:</span>
+                  <span className="text-sm">{selectedEmail.fromAddress}</span>
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-[10px] ml-2",
+                      selectedEmail.identity === "personal" ? "text-blue-500" : "text-purple-500"
+                    )}
+                  >
+                    via {selectedEmail.identity === "personal" ? "Gmail" : "SendGrid"}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-muted-foreground w-16">To:</span>
+                  <span className="text-sm">{selectedEmail.toAddresses.join(", ")}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-muted-foreground w-16">Date:</span>
+                  <span className="text-sm">
+                    {selectedEmail.rawTimestamp ? new Date(selectedEmail.rawTimestamp).toLocaleString() : "Unknown"}
+                  </span>
+                </div>
+                {selectedEmail.threadId && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted-foreground w-16">Thread:</span>
+                    <span className="text-xs font-mono text-muted-foreground">{selectedEmail.threadId}</span>
+                  </div>
+                )}
+                {selectedEmail.messageId && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted-foreground w-16">Msg ID:</span>
+                    <span className="text-xs font-mono text-muted-foreground truncate max-w-md">{selectedEmail.messageId}</span>
+                  </div>
+                )}
+              </div>
+
+              <ScrollArea className="flex-1 mt-4">
+                <div className="pr-4">
+                  {selectedEmail.bodyHtml ? (
+                    <div 
+                      className="prose prose-sm dark:prose-invert max-w-none"
+                      dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml }}
+                    />
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">
+                      {selectedEmail.fullBody || "(No content)"}
+                    </pre>
+                  )}
+                </div>
+              </ScrollArea>
+
+              <DialogFooter className="border-t border-border pt-4 mt-4">
+                <div className="flex justify-between w-full items-center">
+                  <Badge variant="secondary" className="gap-1">
+                    {getStatusIcon(selectedEmail.status)}
+                    {selectedEmail.status}
+                  </Badge>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleReply(selectedEmail)}
+                      className="gap-2"
+                    >
+                      <Reply className="w-4 h-4" />
+                      Reply
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleForward(selectedEmail)}
+                      className="gap-2"
+                    >
+                      <Forward className="w-4 h-4" />
+                      Forward
+                    </Button>
+                  </div>
+                </div>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

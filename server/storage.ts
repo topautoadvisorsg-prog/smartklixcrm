@@ -2525,7 +2525,8 @@ export class DbStorage implements IStorage {
       query = query.where(and(...conditions)) as typeof query;
     }
     const results = await query;
-    results.sort((a, b) => (b.receivedAt?.getTime() || b.createdAt.getTime()) - (a.receivedAt?.getTime() || a.createdAt.getTime()));
+    // Sort by createdAt (when email was mirrored to CRM) to show newest imports first
+    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     if (filters?.limit) return results.slice(0, filters.limit);
     return results;
   }
