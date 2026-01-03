@@ -6889,15 +6889,65 @@ After creating estimate, ALWAYS propose sending payment request.
         assistQueueId: null,
       });
 
-      // In production, this would forward to Neo8 webhook
-      // For now, we log the intent and return success
       console.log("[Email Dispatch] Authorized:", dispatchPayload);
 
-      res.status(200).json({ 
-        success: true, 
-        message: `Email dispatch authorized via ${identity === "personal" ? "Gmail" : "SendGrid"}`,
-        dispatchId: dispatchPayload.dispatched_at,
-      });
+      // Forward to Neo8 Gmail webhook
+      const n8nWebhookUrl = "https://smartg23.app.n8n.cloud/webhook/google/gmail";
+      const n8nToken = process.env.N8N_INTERNAL_TOKEN;
+      
+      if (!n8nToken) {
+        console.error("[Email Dispatch] N8N_INTERNAL_TOKEN not configured");
+        return res.status(500).json({ error: "Email dispatch not configured - missing N8N token" });
+      }
+
+      try {
+        const n8nResponse = await fetch(n8nWebhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-INTERNAL-TOKEN": n8nToken,
+          },
+          body: JSON.stringify({
+            action: "send_email",
+            args: {
+              to: dispatchPayload.target,
+              subject: dispatchPayload.subject,
+              body: dispatchPayload.body,
+              templateId: dispatchPayload.template_id,
+              contactId: dispatchPayload.contact_id,
+              identityProvider: dispatchPayload.identity_provider,
+            },
+            metadata: {
+              dispatchedAt: dispatchPayload.dispatched_at,
+              source: "crm_email_dispatch",
+            },
+          }),
+        });
+
+        const n8nResult = await n8nResponse.text();
+        console.log("[Email Dispatch] n8n response:", n8nResponse.status, n8nResult);
+
+        if (!n8nResponse.ok) {
+          console.error("[Email Dispatch] n8n webhook failed:", n8nResult);
+          return res.status(502).json({ 
+            error: "Email dispatch failed at n8n", 
+            details: n8nResult 
+          });
+        }
+
+        res.status(200).json({ 
+          success: true, 
+          message: `Email dispatched via ${identity === "personal" ? "Gmail" : "SendGrid"}`,
+          dispatchId: dispatchPayload.dispatched_at,
+          n8nStatus: n8nResponse.status,
+        });
+      } catch (n8nError) {
+        console.error("[Email Dispatch] Failed to call n8n:", n8nError);
+        return res.status(502).json({ 
+          error: "Failed to reach email service", 
+          details: n8nError instanceof Error ? n8nError.message : "Unknown error" 
+        });
+      }
     } catch (error) {
       console.error("Failed to dispatch email:", error);
       res.status(500).json({ error: "Failed to dispatch email" });
