@@ -6990,12 +6990,20 @@ After creating estimate, ALWAYS propose sending payment request.
   });
 
   // Email Mirror - n8n callback to save inbound/outbound emails to the emails table
+  // Helper to extract email from "Name <email>" format or plain email
+  function extractEmail(input: string): string {
+    const match = input.match(/<([^>]+)>/);
+    if (match) return match[1].trim();
+    // If no angle brackets, assume it's already a plain email
+    return input.trim();
+  }
+
   const emailMirrorSchema = z.object({
     contactId: z.string().optional(),
     direction: z.enum(["inbound", "outbound"]),
     provider: z.enum(["gmail", "sendgrid"]),
-    from: z.string().email(),
-    to: z.string().email(),
+    from: z.string().min(1),
+    to: z.string().min(1),
     subject: z.string().optional(),
     body: z.string().optional(),
     bodyHtml: z.string().optional(),
@@ -7009,14 +7017,18 @@ After creating estimate, ALWAYS propose sending payment request.
       logN8NRequest("/api/emails/mirror", "POST", req.body);
       const validated = emailMirrorSchema.parse(req.body);
       
+      // Extract clean email addresses (strip "Name <email>" format)
+      const fromEmail = extractEmail(validated.from);
+      const toEmail = extractEmail(validated.to);
+      
       // Find or create a system email account for this provider
       let emailAccount = await storage.getEmailAccountByAddress(
-        validated.direction === "inbound" ? validated.to : validated.from
+        validated.direction === "inbound" ? toEmail : fromEmail
       );
       
       if (!emailAccount) {
         // Create a system email account for this provider
-        const systemEmail = validated.direction === "inbound" ? validated.to : validated.from;
+        const systemEmail = validated.direction === "inbound" ? toEmail : fromEmail;
         emailAccount = await storage.createEmailAccount({
           displayName: `${validated.provider.charAt(0).toUpperCase() + validated.provider.slice(1)} Mirror`,
           emailAddress: systemEmail,
@@ -7057,8 +7069,8 @@ After creating estimate, ALWAYS propose sending payment request.
         messageId: validated.messageId || null,
         threadId: validated.threadId || null,
         direction: validated.direction === "inbound" ? "incoming" : "outgoing",
-        fromAddress: validated.from,
-        toAddresses: [validated.to],
+        fromAddress: fromEmail,
+        toAddresses: [toEmail],
         subject: validated.subject || "(No Subject)",
         bodyHtml: validated.bodyHtml || null,
         bodyText: validated.body || null,
@@ -7071,8 +7083,8 @@ After creating estimate, ALWAYS propose sending payment request.
 
       // Create lightweight activity log entry
       const activitySummary = validated.direction === "inbound"
-        ? `Email received from ${validated.from}: ${validated.subject || "(No Subject)"}`
-        : `Email sent to ${validated.to}: ${validated.subject || "(No Subject)"}`;
+        ? `Email received from ${fromEmail}: ${validated.subject || "(No Subject)"}`
+        : `Email sent to ${toEmail}: ${validated.subject || "(No Subject)"}`;
 
       if (validated.contactId) {
         await storage.createNote({
@@ -7106,8 +7118,8 @@ After creating estimate, ALWAYS propose sending payment request.
         emailId: emailRecord.id,
         direction: validated.direction,
         provider: validated.provider,
-        from: validated.from,
-        to: validated.to,
+        from: fromEmail,
+        to: toEmail,
         subject: validated.subject,
         contactId: validated.contactId,
         contactName: linkedContact?.name || null,
