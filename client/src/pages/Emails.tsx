@@ -21,7 +21,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 
 type IdentityType = "personal" | "company";
-type EmailStatus = "sent" | "delivered" | "opened" | "clicked" | "failed" | "scheduled";
+type EmailStatus = "sent" | "delivered" | "opened" | "clicked" | "failed" | "scheduled" | "synced";
 
 interface EmailRecord {
   id: string;
@@ -34,6 +34,31 @@ interface EmailRecord {
   status: EmailStatus;
   templateId?: string;
   contactId?: string;
+  direction?: "incoming" | "outgoing";
+}
+
+interface APIEmail {
+  id: string;
+  accountId: string;
+  messageId: string | null;
+  threadId: string | null;
+  direction: "incoming" | "outgoing";
+  fromAddress: string;
+  toAddresses: string[];
+  ccAddresses: string[];
+  bccAddresses: string[];
+  subject: string | null;
+  bodyHtml: string | null;
+  bodyText: string | null;
+  status: string;
+  contactId: string | null;
+  jobId: string | null;
+  company: string | null;
+  receivedAt: string | null;
+  sentAt: string | null;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface EmailTemplate {
@@ -43,50 +68,38 @@ interface EmailTemplate {
   category: "invoice" | "onboarding" | "notification" | "service";
 }
 
-const mockEmails: EmailRecord[] = [
-  {
-    id: "MSG-1029",
+function formatTimeAgo(dateString: string | null): string {
+  if (!dateString) return "Unknown";
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+function transformAPIEmail(email: APIEmail): EmailRecord {
+  const isIncoming = email.direction === "incoming";
+  return {
+    id: email.id,
     identity: "personal",
-    senderName: "Sarah Architect",
-    recipient: "Acme Corp, +2 others",
-    subject: "Re: Project Scope Review - Q3",
-    preview: "Hello, a free text body. The project Scope computation information on our end points to the amounts of...",
-    timestamp: "2h ago",
-    status: "opened"
-  },
-  {
-    id: "MSG-1028",
-    identity: "company",
-    senderName: "System Dispatch",
-    recipient: "finance@acmecorp.com",
-    subject: "[ALERT] Invoice #INV-9942 Overdue",
-    preview: "Dear Client, Your invoice is now 5 days overdue. Please remit payment immediately to avoid service interruption.",
-    timestamp: "4h ago",
-    status: "clicked",
-    templateId: "INV_OVERDUE_V2"
-  },
-  {
-    id: "MSG-1027",
-    identity: "company",
-    senderName: "System Dispatch",
-    recipient: "invalid.email@example.com",
-    subject: "[Auto] Welcome Onboarding",
-    preview: "Welcome to the platform! Click here to set up your account credentials.",
-    timestamp: "5h ago",
-    status: "failed",
-    templateId: "ONBOARD_V1"
-  },
-  {
-    id: "MSG-1026",
-    identity: "personal",
-    senderName: "Sarah Architect",
-    recipient: "Marcus Vane",
-    subject: "Quick question about the site access",
-    preview: "Hey Marcus, are we still good for the 10am arrival tomorrow? I need to let the team know.",
-    timestamp: "Yesterday",
-    status: "sent"
-  }
-];
+    senderName: isIncoming ? email.fromAddress : "You",
+    recipient: email.toAddresses?.[0] || "Unknown",
+    subject: email.subject || "(No Subject)",
+    preview: email.bodyText?.slice(0, 200) || email.bodyHtml?.replace(/<[^>]*>/g, '').slice(0, 200) || "",
+    timestamp: formatTimeAgo(isIncoming ? email.receivedAt : email.sentAt || email.createdAt),
+    status: email.status as EmailStatus,
+    contactId: email.contactId || undefined,
+    direction: email.direction,
+  };
+}
 
 const emailTemplates: EmailTemplate[] = [
   { id: "INV_OVERDUE_V2", name: "Invoice Overdue Warning (v2)", description: "Automated overdue invoice reminder", category: "invoice" },
@@ -113,8 +126,17 @@ export default function Emails() {
   const [showFrictionDialog, setShowFrictionDialog] = useState(false);
   const [pendingIdentity, setPendingIdentity] = useState<IdentityType | null>(null);
 
+  // Fetch real emails from API
+  const { data: apiEmails = [], isLoading, error } = useQuery<APIEmail[]>({
+    queryKey: ["/api/emails"],
+    refetchInterval: 30000,
+  });
+
+  // Transform API emails to display format
+  const emails: EmailRecord[] = apiEmails.map(transformAPIEmail);
+
   // Filter emails based on active filter and search
-  const filteredEmails = mockEmails.filter(email => {
+  const filteredEmails = emails.filter(email => {
     const matchesFilter = 
       activeFilter === "all" ||
       (activeFilter === "personal" && email.identity === "personal") ||
@@ -132,10 +154,10 @@ export default function Emails() {
 
   // Stats
   const stats = {
-    total: mockEmails.length,
-    personal: mockEmails.filter(e => e.identity === "personal").length,
-    company: mockEmails.filter(e => e.identity === "company").length,
-    failed: mockEmails.filter(e => e.status === "failed").length,
+    total: emails.length,
+    personal: emails.filter(e => e.identity === "personal").length,
+    company: emails.filter(e => e.identity === "company").length,
+    failed: emails.filter(e => e.status === "failed").length,
   };
 
   // Identity switching with friction rule
@@ -355,10 +377,22 @@ export default function Emails() {
                 </div>
 
                 {/* Email Feed */}
-                {filteredEmails.length === 0 ? (
+                {isLoading ? (
+                  <Card className="p-8 text-center">
+                    <Mail className="w-12 h-12 mx-auto text-muted-foreground mb-4 animate-pulse" />
+                    <p className="text-muted-foreground">Loading emails...</p>
+                  </Card>
+                ) : error ? (
+                  <Card className="p-8 text-center">
+                    <AlertCircle className="w-12 h-12 mx-auto text-destructive mb-4" />
+                    <p className="text-destructive">Failed to load emails</p>
+                  </Card>
+                ) : filteredEmails.length === 0 ? (
                   <Card className="p-8 text-center">
                     <Mail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No emails match your filters.</p>
+                    <p className="text-muted-foreground">
+                      {emails.length === 0 ? "No emails yet. Send an email or wait for incoming messages." : "No emails match your filters."}
+                    </p>
                   </Card>
                 ) : (
                   <div className="space-y-4">
