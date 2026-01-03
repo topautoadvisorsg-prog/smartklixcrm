@@ -6817,7 +6817,24 @@ After creating estimate, ALWAYS propose sending payment request.
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
       };
       const emails = await storage.getEmails(filters);
-      res.json(emails);
+      
+      // Enrich emails with account info for identity/provider detection
+      const emailAccounts = await storage.getEmailAccounts();
+      const accountMap = new Map(emailAccounts.map(a => [a.id, a]));
+      
+      const enrichedEmails = emails.map(email => {
+        const account = accountMap.get(email.accountId);
+        const accountName = account?.displayName?.toLowerCase() || '';
+        // Infer provider from account displayName (set during mirror creation)
+        const provider = accountName.includes('sendgrid') ? 'sendgrid' : 'gmail';
+        return {
+          ...email,
+          accountDisplayName: account?.displayName || 'Unknown',
+          provider,
+        };
+      });
+      
+      res.json(enrichedEmails);
     } catch (error) {
       console.error("Failed to get emails:", error);
       res.status(500).json({ error: "Failed to get emails" });

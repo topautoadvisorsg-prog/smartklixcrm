@@ -59,6 +59,8 @@ interface APIEmail {
   isRead: boolean;
   createdAt: string;
   updatedAt: string;
+  accountDisplayName?: string;
+  provider?: "gmail" | "sendgrid";
 }
 
 interface EmailTemplate {
@@ -87,10 +89,11 @@ function formatTimeAgo(dateString: string | null): string {
 
 function transformAPIEmail(email: APIEmail): EmailRecord {
   const isIncoming = email.direction === "incoming";
+  const isCompany = email.provider === "sendgrid";
   return {
     id: email.id,
-    identity: "personal",
-    senderName: isIncoming ? email.fromAddress : "You",
+    identity: isCompany ? "company" : "personal",
+    senderName: isIncoming ? email.fromAddress : (isCompany ? "System Dispatch" : "You"),
     recipient: email.toAddresses?.[0] || "Unknown",
     subject: email.subject || "(No Subject)",
     preview: email.bodyText?.slice(0, 200) || email.bodyHtml?.replace(/<[^>]*>/g, '').slice(0, 200) || "",
