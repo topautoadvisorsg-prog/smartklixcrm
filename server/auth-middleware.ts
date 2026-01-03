@@ -2,12 +2,21 @@ import type { Request, Response, NextFunction } from "express";
 
 export function requireInternalToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
+  const xInternalToken = req.headers["x-internal-token"] as string | undefined;
   
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  let token: string | undefined;
+  
+  // Accept either Authorization: Bearer <token> OR X-INTERNAL-TOKEN: <token>
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  } else if (xInternalToken) {
+    token = xInternalToken;
+  }
+  
+  if (!token) {
     return res.status(401).json({ error: "Missing or invalid authorization header" });
   }
 
-  const token = authHeader.substring(7);
   const internalToken = process.env.N8N_INTERNAL_TOKEN;
 
   if (!internalToken || internalToken === "__SET_AT_DEPLOY__") {

@@ -420,6 +420,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // N8N callback endpoint: Search contact by email
+  app.get("/api/contacts/search", n8nWebhookRateLimiter, requireInternalToken, n8nVerification, async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      logN8NRequest("/api/contacts/search", "GET", { email });
+      
+      if (!email) {
+        const error = { error: "Email is required" };
+        logN8NResponse("/api/contacts/search", 400, error);
+        return res.status(400).json(error);
+      }
+
+      // Get all contacts and find by email (case-insensitive)
+      const contacts = await storage.getContacts();
+      const contact = contacts.find(c => 
+        c.email?.toLowerCase() === email.toLowerCase()
+      );
+      
+      if (!contact) {
+        const error = { error: "Contact not found" };
+        logN8NResponse("/api/contacts/search", 404, error);
+        return res.status(404).json(error);
+      }
+
+      logN8NResponse("/api/contacts/search", 200, contact);
+      res.json(contact);
+    } catch (error) {
+      logN8NError("/api/contacts/search", error);
+      const message = error instanceof Error ? error.message : "Failed to search contact";
+      const errorResponse = { error: message };
+      logN8NResponse("/api/contacts/search", 500, errorResponse);
+      res.status(500).json(errorResponse);
+    }
+  });
+
   app.get("/api/contacts/:id", async (req, res) => {
     try {
       const contact = await storage.getContact(req.params.id);
