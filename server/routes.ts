@@ -6989,6 +6989,149 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
+  // Email Mirror - n8n callback to save inbound/outbound emails to the emails table
+  const emailMirrorSchema = z.object({
+    contactId: z.string().optional(),
+    direction: z.enum(["inbound", "outbound"]),
+    provider: z.enum(["gmail", "sendgrid"]),
+    from: z.string().email(),
+    to: z.string().email(),
+    subject: z.string().optional(),
+    body: z.string().optional(),
+    bodyHtml: z.string().optional(),
+    threadId: z.string().optional(),
+    messageId: z.string().optional(),
+    timestamp: z.string().optional(),
+  });
+
+  app.post("/api/emails/mirror", n8nWebhookRateLimiter, requireInternalToken, n8nVerification, async (req, res) => {
+    try {
+      logN8NRequest("/api/emails/mirror", "POST", req.body);
+      const validated = emailMirrorSchema.parse(req.body);
+      
+      // Find or create a system email account for this provider
+      let emailAccount = await storage.getEmailAccountByAddress(
+        validated.direction === "inbound" ? validated.to : validated.from
+      );
+      
+      if (!emailAccount) {
+        // Create a system email account for this provider
+        const systemEmail = validated.direction === "inbound" ? validated.to : validated.from;
+        emailAccount = await storage.createEmailAccount({
+          displayName: `${validated.provider.charAt(0).toUpperCase() + validated.provider.slice(1)} Mirror`,
+          emailAddress: systemEmail,
+          status: "connected",
+          direction: "send_receive",
+        });
+        console.log(`[Email Mirror] Created system email account for ${systemEmail}`);
+      }
+
+      // Validate contactId if provided
+      let linkedContact = null;
+      if (validated.contactId) {
+        linkedContact = await storage.getContact(validated.contactId);
+        if (!linkedContact) {
+          const error = { error: "Contact not found", contactId: validated.contactId };
+          logN8NResponse("/api/emails/mirror", 404, error);
+          return res.status(404).json(error);
+        }
+      }
+
+      // Parse timestamp - handle both ISO strings and Unix timestamps
+      let emailTimestamp: Date | null = null;
+      if (validated.timestamp) {
+        // Try parsing as number first (Unix timestamp in ms), then as ISO string
+        const numTs = Number(validated.timestamp);
+        emailTimestamp = !isNaN(numTs) ? new Date(numTs) : new Date(validated.timestamp);
+        // Validate the date
+        if (isNaN(emailTimestamp.getTime())) {
+          emailTimestamp = new Date();
+        }
+      } else {
+        emailTimestamp = new Date();
+      }
+
+      // Save email to the emails table
+      const emailRecord = await storage.createEmail({
+        accountId: emailAccount.id,
+        messageId: validated.messageId || null,
+        threadId: validated.threadId || null,
+        direction: validated.direction === "inbound" ? "incoming" : "outgoing",
+        fromAddress: validated.from,
+        toAddresses: [validated.to],
+        subject: validated.subject || "(No Subject)",
+        bodyHtml: validated.bodyHtml || null,
+        bodyText: validated.body || null,
+        status: "synced",
+        contactId: validated.contactId || null,
+        receivedAt: validated.direction === "inbound" ? emailTimestamp : null,
+        sentAt: validated.direction === "outbound" ? emailTimestamp : null,
+        isRead: validated.direction === "outbound",
+      });
+
+      // Create lightweight activity log entry
+      const activitySummary = validated.direction === "inbound"
+        ? `Email received from ${validated.from}: ${validated.subject || "(No Subject)"}`
+        : `Email sent to ${validated.to}: ${validated.subject || "(No Subject)"}`;
+
+      if (validated.contactId) {
+        await storage.createNote({
+          title: validated.direction === "inbound" ? "Email Received" : "Email Sent",
+          content: activitySummary,
+          entityType: "contact",
+          entityId: validated.contactId,
+        });
+      }
+
+      // Also log to audit
+      await storage.createAuditLogEntry({
+        userId: null,
+        action: `email_${validated.direction}`,
+        entityType: "email",
+        entityId: emailRecord.id,
+        details: {
+          source: "n8n_mirror",
+          provider: validated.provider,
+          from: validated.from,
+          to: validated.to,
+          subject: validated.subject,
+          threadId: validated.threadId,
+          messageId: validated.messageId,
+          contactId: validated.contactId,
+        },
+      });
+
+      const response = {
+        id: emailRecord.id,
+        emailId: emailRecord.id,
+        direction: validated.direction,
+        provider: validated.provider,
+        from: validated.from,
+        to: validated.to,
+        subject: validated.subject,
+        contactId: validated.contactId,
+        contactName: linkedContact?.name || null,
+        timestamp: emailRecord.createdAt,
+        activityLogged: !!validated.contactId,
+      };
+      
+      logN8NResponse("/api/emails/mirror", 200, response);
+      console.log(`[Email Mirror] Saved ${validated.direction} email: ${validated.subject}`);
+      res.json(response);
+    } catch (error) {
+      logN8NError("/api/emails/mirror", error);
+      if (error instanceof z.ZodError) {
+        const errorResponse = { error: "Invalid request data", details: error.errors };
+        logN8NResponse("/api/emails/mirror", 400, errorResponse);
+        return res.status(400).json(errorResponse);
+      }
+      const message = error instanceof Error ? error.message : "Failed to mirror email";
+      const errorResponse = { error: message };
+      logN8NResponse("/api/emails/mirror", 500, errorResponse);
+      res.status(500).json(errorResponse);
+    }
+  });
+
   // ========== WHATSAPP MESSAGES ==========
   app.get("/api/whatsapp", async (req, res) => {
     try {

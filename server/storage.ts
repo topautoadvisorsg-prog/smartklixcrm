@@ -243,6 +243,7 @@ export interface IStorage {
   // Email Accounts
   getEmailAccounts(): Promise<EmailAccount[]>;
   getEmailAccount(id: string): Promise<EmailAccount | undefined>;
+  getEmailAccountByAddress(emailAddress: string): Promise<EmailAccount | undefined>;
   createEmailAccount(account: InsertEmailAccount): Promise<EmailAccount>;
   updateEmailAccount(id: string, account: Partial<InsertEmailAccount>): Promise<EmailAccount | undefined>;
   deleteEmailAccount(id: string): Promise<boolean>;
@@ -1332,6 +1333,13 @@ export class MemStorage implements IStorage {
 
   async getEmailAccount(id: string): Promise<EmailAccount | undefined> {
     return this.emailAccountsMap.get(id);
+  }
+
+  async getEmailAccountByAddress(emailAddress: string): Promise<EmailAccount | undefined> {
+    const lowerEmail = emailAddress.toLowerCase();
+    return Array.from(this.emailAccountsMap.values()).find(
+      a => a.emailAddress.toLowerCase() === lowerEmail
+    );
   }
 
   async createEmailAccount(account: InsertEmailAccount): Promise<EmailAccount> {
@@ -2472,6 +2480,14 @@ export class DbStorage implements IStorage {
   async getEmailAccount(id: string): Promise<EmailAccount | undefined> {
     if (!db) return undefined;
     const result = await db.select().from(emailAccounts).where(eq(emailAccounts.id, id));
+    return result[0];
+  }
+
+  async getEmailAccountByAddress(emailAddress: string): Promise<EmailAccount | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(emailAccounts).where(
+      sql`LOWER(${emailAccounts.emailAddress}) = LOWER(${emailAddress})`
+    );
     return result[0];
   }
 
