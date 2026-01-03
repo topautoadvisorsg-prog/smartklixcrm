@@ -1,0 +1,50 @@
+1️⃣ Complicated Workflows (Need Coordination & Cross-Node Logic)
+
+These workflows involve multiple steps, data dependencies, or coordination across systems. They are execution-heavy:
+
+Workflow	Why It's Complicated	Connections/Dependencies
+CRM Action: Send Payment	Multiple steps: fetch contact, check/create Stripe customer, generate payment link, update CRM, send notifications	Needs contact info from CRM, interacts with Stripe, sends email/SMS/WhatsApp via n8n, updates CRM
+CRM Payment Event Webhook	Handles async payment events (completed/failed/refunded) with possible human review	Receives Stripe webhook → logs → may trigger manual review queue in CRM
+CRM Manual Trigger SENDGRID	Multi-channel outreach (email, SMS, WhatsApp), routes by actionType, combines results, logs to CRM	Sends via SendGrid/Twilio → logs outcomes → may connect to other follow-ups (e.g., intakes, estimates)
+WhatsApp Outbound	Sends messages, tracks success/failure	Requires CRM contact info → Twilio API → reports back to CRM
+AI Receptionist Call Flow / Call End Processing	Server-side voice processing, conversation storage, extracts leads → sends to CRM intake	AI server handles conversation → sends summary to CRM intake system → MCP may act on extracted lead data
+
+Key Notes on Complicated Flows:
+
+These need careful sequencing.
+
+Must coordinate with CRM contact/job IDs.
+
+Must persist state (payment links, conversation data, outreach status) in CRM.
+
+MCP (Action AI) is executing these.
+
+Google Drive is read-only here (for reference, info, or Docs/Sheets updates by Information AI).
+
+2️⃣ Easy Workflows (Mostly Independent, Read/Write Light)
+
+These workflows are simpler, often single-step or internal, low coordination:
+
+Workflow	Why It's Easy	Connections/Dependencies
+Intake Form Handling	Receives form submission → stores in CRM intake_submissions	Submission only needs contactId/jobId linkage; delivery via email/SMS/WhatsApp is simple trigger
+Gmail Webhook	Send/reply emails (MCP not used yet)	Can be ignored for MCP workflows
+Calendar Webhook	Create/update/cancel events	Internal Google Calendar API calls; reads/writes info, but does not interact with payments/outreach
+Sheets Webhook	Append data	Info AI only; no CRM write-back required
+Docs Webhook	Read/write SOPs, documentation	Info AI only; MCP does not touch
+Google Drive (read-only)	Reads files for reference	Info AI only; MCP does not write/upload
+
+Key Notes on Easy Flows:
+
+Single triggers, minimal coordination.
+
+Mostly informational (read-only or standalone writes to Docs/Sheets).
+
+Can be executed independently without affecting payment, outreach, or intake workflows.
+
+✅ Important Governance & Role Separation:
+
+MCP (Action AI) handles execution: CRM writes, payment links, outreach.
+
+Information AI handles reference, reporting, Docs/Sheets updates.
+
+Google Drive is strictly informational—no writes or uploads from MCP.

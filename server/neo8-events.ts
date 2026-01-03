@@ -193,6 +193,8 @@ export const EXTERNAL_TOOL_WEBHOOK_PATHS: Record<string, string> = {
   "reject_estimate": "/estimates/update",
   "google_docs_create": "/google/docs/create",
   "google_docs_update": "/google/docs/update",
+  "google_sheets_create": "/google/sheets/create",
+  "google_sheets_update": "/google/sheets/update",
   "google_sheets_append": "/google/sheets/append",
   "google_calendar_create": "/google/calendar/create",
   "stripe_create_payment_link": "/payment/create",

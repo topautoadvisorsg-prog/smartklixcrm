@@ -35,8 +35,13 @@ interface ParameterProperty {
   enum?: string[];
   items?: {
     type: string;
+    description?: string;
     properties?: Record<string, ParameterProperty>;
     required?: string[];
+    items?: {
+      type: string;
+      description?: string;
+    };
   };
 }
 
@@ -887,6 +892,158 @@ export const aiToolDefinitions: AIToolDefinition[] = [
         required: ["contactId", "amount", "description"]
       }
     }
+  },
+  {
+    type: "function",
+    tier: "gated",
+    function: {
+      name: "google_docs_create",
+      description: "Create a new Google Doc. Use for creating SOPs, reports, or documentation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API. Information AI only.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "Title of the new Google Doc"
+          },
+          content: {
+            type: "string",
+            description: "Initial content/body of the document (plain text or markdown)"
+          },
+          folderId: {
+            type: "string",
+            description: "Optional: Google Drive folder ID to create the doc in"
+          }
+        },
+        required: ["title", "content"]
+      }
+    }
+  },
+  {
+    type: "function",
+    tier: "gated",
+    function: {
+      name: "google_docs_update",
+      description: "Update an existing Google Doc. Use for editing SOPs, adding content, or modifying documentation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API. Information AI only.",
+      parameters: {
+        type: "object",
+        properties: {
+          documentId: {
+            type: "string",
+            description: "The Google Docs document ID to update"
+          },
+          content: {
+            type: "string",
+            description: "New content to append or replace in the document"
+          },
+          mode: {
+            type: "string",
+            enum: ["append", "replace"],
+            description: "Whether to append to existing content or replace it entirely. Defaults to 'append'."
+          }
+        },
+        required: ["documentId", "content"]
+      }
+    }
+  },
+  {
+    type: "function",
+    tier: "gated",
+    function: {
+      name: "google_sheets_create",
+      description: "Create a new Google Sheet. Use for creating reports, data tracking, or spreadsheets. EXTERNAL tool - executed via Neo8/n8n → Google Sheets API. Information AI only.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "Title of the new Google Sheet"
+          },
+          headers: {
+            type: "array",
+            items: { type: "string" },
+            description: "Column headers for the first row"
+          },
+          initialData: {
+            type: "array",
+            items: {
+              type: "array",
+              items: { type: "string" }
+            },
+            description: "Optional: Initial rows of data (array of arrays)"
+          },
+          folderId: {
+            type: "string",
+            description: "Optional: Google Drive folder ID to create the sheet in"
+          }
+        },
+        required: ["title", "headers"]
+      }
+    }
+  },
+  {
+    type: "function",
+    tier: "gated",
+    function: {
+      name: "google_sheets_update",
+      description: "Update cells or rows in an existing Google Sheet. Use for modifying data, updating reports. EXTERNAL tool - executed via Neo8/n8n → Google Sheets API. Information AI only.",
+      parameters: {
+        type: "object",
+        properties: {
+          spreadsheetId: {
+            type: "string",
+            description: "The Google Sheets spreadsheet ID to update"
+          },
+          sheetName: {
+            type: "string",
+            description: "Name of the sheet/tab within the spreadsheet (e.g., 'Sheet1')"
+          },
+          range: {
+            type: "string",
+            description: "Cell range to update in A1 notation (e.g., 'A1:D5', 'B2:B10')"
+          },
+          values: {
+            type: "array",
+            items: {
+              type: "array",
+              items: { type: "string" }
+            },
+            description: "2D array of values to write to the range"
+          }
+        },
+        required: ["spreadsheetId", "range", "values"]
+      }
+    }
+  },
+  {
+    type: "function",
+    tier: "gated",
+    function: {
+      name: "google_sheets_append",
+      description: "Append rows to an existing Google Sheet. Use for adding new data entries to a spreadsheet. EXTERNAL tool - executed via Neo8/n8n → Google Sheets API. Information AI only.",
+      parameters: {
+        type: "object",
+        properties: {
+          spreadsheetId: {
+            type: "string",
+            description: "The Google Sheets spreadsheet ID to append to"
+          },
+          sheetName: {
+            type: "string",
+            description: "Name of the sheet/tab within the spreadsheet (e.g., 'Sheet1')"
+          },
+          rows: {
+            type: "array",
+            items: {
+              type: "array",
+              items: { type: "string" }
+            },
+            description: "Array of rows to append (each row is an array of cell values)"
+          }
+        },
+        required: ["spreadsheetId", "rows"]
+      }
+    }
   }
 ];
 
@@ -1127,6 +1284,8 @@ export const EXTERNAL_TOOLS: readonly string[] = [
   "reject_estimate",
   "google_docs_create",
   "google_docs_update",
+  "google_sheets_create",
+  "google_sheets_update",
   "google_sheets_append",
   "google_calendar_create",
   "stripe_create_payment_link",
