@@ -7015,6 +7015,50 @@ After creating estimate, ALWAYS propose sending payment request.
     return input.trim();
   }
 
+  // Helper to decode HTML entities
+  function decodeHtmlEntities(text: string): string {
+    if (!text) return text;
+    return text
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, ' ');
+  }
+
+  // Helper to strip Gmail quoted reply blocks and clean up email body
+  function cleanEmailBody(body: string): string {
+    if (!body) return body;
+    
+    // Decode HTML entities first
+    let cleaned = decodeHtmlEntities(body);
+    
+    // Remove Gmail quoted reply pattern: "On [date] [name] <email> wrote:"
+    // This pattern catches the start of quoted content
+    const quotePatterns = [
+      /On\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[^]*?wrote:\s*/gi,
+      /On\s+\d{1,2}\/\d{1,2}\/\d{2,4}[^]*?wrote:\s*/gi,
+      /On\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^]*?wrote:\s*/gi,
+    ];
+    
+    for (const pattern of quotePatterns) {
+      const match = cleaned.match(pattern);
+      if (match) {
+        // Keep only the content before the quoted section
+        const index = cleaned.indexOf(match[0]);
+        if (index > 0) {
+          cleaned = cleaned.substring(0, index).trim();
+        }
+      }
+    }
+    
+    // Remove leading/trailing whitespace and extra newlines
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+    
+    return cleaned;
+  }
+
   const emailMirrorSchema = z.object({
     contactId: z.string().optional(),
     direction: z.enum(["inbound", "outbound"]),
@@ -7037,6 +7081,11 @@ After creating estimate, ALWAYS propose sending payment request.
       // Extract clean email addresses (strip "Name <email>" format)
       const fromEmail = extractEmail(validated.from);
       const toEmail = extractEmail(validated.to);
+      
+      // Debug logging to trace from/to extraction
+      console.log(`[Email Mirror] Raw from: "${validated.from}" → Extracted: "${fromEmail}"`);
+      console.log(`[Email Mirror] Raw to: "${validated.to}" → Extracted: "${toEmail}"`);
+      console.log(`[Email Mirror] Direction: ${validated.direction}`);
       
       // Find or create a system email account for this provider
       let emailAccount = await storage.getEmailAccountByAddress(
@@ -7080,6 +7129,12 @@ After creating estimate, ALWAYS propose sending payment request.
         emailTimestamp = new Date();
       }
 
+      // Clean plain text body only - decode HTML entities and strip quoted reply blocks
+      // Leave HTML body untouched to preserve valid markup
+      const cleanedBodyText = validated.body ? cleanEmailBody(validated.body) : null;
+      
+      console.log(`[Email Mirror] Original body length: ${validated.body?.length || 0}, Cleaned: ${cleanedBodyText?.length || 0}`);
+      
       // Save email to the emails table
       const emailRecord = await storage.createEmail({
         accountId: emailAccount.id,
@@ -7090,7 +7145,7 @@ After creating estimate, ALWAYS propose sending payment request.
         toAddresses: [toEmail],
         subject: validated.subject || "(No Subject)",
         bodyHtml: validated.bodyHtml || null,
-        bodyText: validated.body || null,
+        bodyText: cleanedBodyText,
         status: "synced",
         contactId: validated.contactId || null,
         receivedAt: validated.direction === "inbound" ? emailTimestamp : null,

@@ -94,18 +94,54 @@ function formatTimeAgo(dateString: string | null): string {
   return date.toLocaleDateString();
 }
 
+function decodeHtmlEntities(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
+
+function cleanEmailBody(body: string): string {
+  if (!body) return body;
+  
+  let cleaned = decodeHtmlEntities(body);
+  
+  const quotePatterns = [
+    /On\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[^]*?wrote:\s*/gi,
+    /On\s+\d{1,2}\/\d{1,2}\/\d{2,4}[^]*?wrote:\s*/gi,
+    /On\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^]*?wrote:\s*/gi,
+  ];
+  
+  for (const pattern of quotePatterns) {
+    const match = cleaned.match(pattern);
+    if (match) {
+      const index = cleaned.indexOf(match[0]);
+      if (index > 0) {
+        cleaned = cleaned.substring(0, index).trim();
+      }
+    }
+  }
+  
+  return cleaned.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function transformAPIEmail(email: APIEmail): EmailRecord {
   const isIncoming = email.direction === "incoming";
   const isCompany = email.provider === "sendgrid";
-  const plainText = email.bodyText || email.bodyHtml?.replace(/<[^>]*>/g, '') || "";
+  const rawText = email.bodyText || email.bodyHtml?.replace(/<[^>]*>/g, '') || "";
+  const cleanedText = cleanEmailBody(rawText);
   return {
     id: email.id,
     identity: isCompany ? "company" : "personal",
     senderName: isIncoming ? email.fromAddress : (isCompany ? "System Dispatch" : "You"),
     recipient: email.toAddresses?.[0] || "Unknown",
     subject: email.subject || "(No Subject)",
-    preview: plainText.slice(0, 200),
-    fullBody: plainText,
+    preview: cleanedText.slice(0, 200),
+    fullBody: cleanedText,
     bodyHtml: email.bodyHtml,
     timestamp: formatTimeAgo(isIncoming ? email.receivedAt : email.sentAt || email.createdAt),
     rawTimestamp: isIncoming ? email.receivedAt : email.sentAt || email.createdAt,
