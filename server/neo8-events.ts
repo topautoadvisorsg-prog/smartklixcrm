@@ -236,7 +236,9 @@ export async function dispatchExternalAction(
     };
   }
 
-  const webhookUrl = `${neo8FlowUrl}/webhook${webhookPath}`;
+  // Use webhook-test for development, webhook for production
+  const webhookPrefix = process.env.NODE_ENV === "production" ? "/webhook" : "/webhook-test";
+  const webhookUrl = `${neo8FlowUrl}${webhookPrefix}${webhookPath}`;
   
   const payload = {
     action: toolName,
