@@ -157,6 +157,19 @@ Eight core N8N flows manage functionalities such as Lead Intake, Follow-Up, AI R
 ### Neo8 Integration Contracts
 The CRM manages intent, retries, approvals, memory, and escalation, while Neo8 (n8n) focuses on execution and callbacks. This separation ensures the Master Architect and Approval system remain within the CRM, enforcing gated tools and requiring approval.
 
+**Neo8 Callback Endpoint (January 2026):**
+- `POST /api/neo8/callback`: n8n calls this after completing external actions (e.g., Google Docs creation)
+- Requires `x-internal-token` header for authentication
+- Updates automation_ledger with results (documentUrl, status, etc.)
+- Status mapping: `success` → `executed`, `failed`/`partial` → `execution_failed`
+- Payload includes: `ledgerId`, `assistQueueId`, `action`, `status`, `result` object
+
+**Dispatch Payload (CRM → n8n):**
+- `action`: lowercase tool name (e.g., `create_doc`, `update_doc`)
+- `args`: tool-specific parameters
+- `metadata.ledgerId`: for correlation on callback
+- `metadata.callbackUrl`: CRM endpoint for n8n to POST results
+
 ### Action Classification (INTERNAL vs EXTERNAL)
 All actions are classified as either INTERNAL (direct CRM state mutations) or EXTERNAL (touching the outside world via Neo-8). INTERNAL actions are executed directly by the CRM and never sent to Neo-8. EXTERNAL actions are dispatched to Neo-8 for execution, which handles retries and callbacks, and the CRM never executes them directly. A `GOVERNANCE VIOLATION` error is thrown if an EXTERNAL tool is called without Neo-8 dispatch.
 
