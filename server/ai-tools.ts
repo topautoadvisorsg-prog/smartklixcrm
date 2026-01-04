@@ -815,17 +815,21 @@ export const aiToolDefinitions: AIToolDefinition[] = [
     tier: "immediate",
     function: {
       name: "resolve_document",
-      description: "READ-ONLY: Look up existing Google Docs by contact or job context. REQUIRES at least contactId OR jobId. Returns the documentId, title, and URL of documents previously created by the CRM. Use this BEFORE calling update_doc to get the correct documentId. If no documents found, you need to create_doc first.",
+      description: "READ-ONLY: Look up existing Google Docs by title, contact, or job. REQUIRES at least one of: title, contactId, or jobId. Use 'title' to find docs by name (e.g., 'Happy Gilmore'). Returns the documentId, title, and URL of documents. Use this BEFORE calling update_doc to get the correct documentId.",
       parameters: {
         type: "object",
         properties: {
+          title: {
+            type: "string",
+            description: "Document title to search for (case-insensitive partial match). Use this when operator mentions a doc by name."
+          },
           contactId: {
             type: "string",
-            description: "Contact ID to find documents for (required if no jobId)"
+            description: "Contact ID to find documents for"
           },
           jobId: {
             type: "string",
-            description: "Job ID to find documents for (required if no contactId)"
+            description: "Job ID to find documents for"
           },
           documentType: {
             type: "string",
@@ -2102,19 +2106,20 @@ export async function executeAITool(toolName: string, args: unknown, options: Ex
       }
 
       case "resolve_document": {
-        const params = args as { contactId?: string; jobId?: string; documentType?: string; limit?: number };
+        const params = args as { title?: string; contactId?: string; jobId?: string; documentType?: string; limit?: number };
         
-        // Require at least one context parameter
-        if (!params.contactId && !params.jobId) {
+        // Require at least one search parameter
+        if (!params.title && !params.contactId && !params.jobId) {
           return {
             success: false,
-            error: "At least one of contactId or jobId is required. Provide the context to find documents for."
+            error: "At least one of title, contactId, or jobId is required. Provide the document name or context to find it."
           };
         }
         
         const docLimit = params.limit || 5;
         
         const documents = await storage.getDocumentArtifacts({
+          title: params.title,
           contactId: params.contactId,
           jobId: params.jobId,
           documentType: params.documentType || "google_doc",
@@ -2126,9 +2131,11 @@ export async function executeAITool(toolName: string, args: unknown, options: Ex
             success: true,
             data: {
               found: false,
-              message: "No documents found for the specified context. Use google_docs_create to create a new document first.",
+              message: params.title 
+                ? `No documents found matching "${params.title}". The document may not exist yet or was created with a different name.`
+                : "No documents found for the specified context. Use google_docs_create to create a new document first.",
               documents: [],
-              context: { contactId: params.contactId, jobId: params.jobId },
+              searchCriteria: { title: params.title, contactId: params.contactId, jobId: params.jobId },
             }
           };
         }

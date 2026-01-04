@@ -119,7 +119,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db, isDatabaseConnected } from "./db";
-import { eq, like, or, and, sql, desc } from "drizzle-orm";
+import { eq, like, ilike, or, and, sql, desc } from "drizzle-orm";
 
 export interface IStorage {
   getUsers(): Promise<User[]>;
@@ -344,7 +344,7 @@ export interface IStorage {
   updateVoiceDispatchLog(id: string, updates: Partial<InsertVoiceDispatchLog>): Promise<VoiceDispatchLog | undefined>;
 
   // Document Artifacts
-  getDocumentArtifacts(filters?: { contactId?: string; jobId?: string; documentType?: string; limit?: number }): Promise<DocumentArtifact[]>;
+  getDocumentArtifacts(filters?: { contactId?: string; jobId?: string; documentType?: string; title?: string; limit?: number }): Promise<DocumentArtifact[]>;
   getDocumentArtifact(id: string): Promise<DocumentArtifact | undefined>;
   getDocumentArtifactByDocumentId(documentId: string): Promise<DocumentArtifact | undefined>;
   getLatestDocumentArtifact(contactId?: string, jobId?: string): Promise<DocumentArtifact | undefined>;
@@ -1700,7 +1700,7 @@ export class MemStorage implements IStorage {
   }
 
   // Document Artifacts - placeholder for MemStorage
-  async getDocumentArtifacts(_filters?: { contactId?: string; jobId?: string; documentType?: string; limit?: number }): Promise<DocumentArtifact[]> {
+  async getDocumentArtifacts(_filters?: { contactId?: string; jobId?: string; documentType?: string; title?: string; limit?: number }): Promise<DocumentArtifact[]> {
     return [];
   }
   async getDocumentArtifact(_id: string): Promise<DocumentArtifact | undefined> {
@@ -3040,12 +3040,14 @@ export class DbStorage implements IStorage {
   // ========================================
   // Document Artifacts
   // ========================================
-  async getDocumentArtifacts(filters?: { contactId?: string; jobId?: string; documentType?: string; limit?: number }): Promise<DocumentArtifact[]> {
+  async getDocumentArtifacts(filters?: { contactId?: string; jobId?: string; documentType?: string; title?: string; limit?: number }): Promise<DocumentArtifact[]> {
     if (!db) return [];
     const conditions = [];
     if (filters?.contactId) conditions.push(eq(documentArtifacts.contactId, filters.contactId));
     if (filters?.jobId) conditions.push(eq(documentArtifacts.jobId, filters.jobId));
     if (filters?.documentType) conditions.push(eq(documentArtifacts.documentType, filters.documentType));
+    // Case-insensitive title search using ILIKE
+    if (filters?.title) conditions.push(ilike(documentArtifacts.title, `%${filters.title}%`));
     
     const query = db.select().from(documentArtifacts);
     if (conditions.length > 0) {
