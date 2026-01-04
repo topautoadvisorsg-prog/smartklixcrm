@@ -898,7 +898,7 @@ export const aiToolDefinitions: AIToolDefinition[] = [
     tier: "gated",
     function: {
       name: "google_docs_create",
-      description: "Create a new Google Doc. Use for creating SOPs, reports, or documentation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API.",
+      description: "Create a new Google Doc with a title only. Returns the documentId needed for update_doc. Use update_doc to add content after creation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API.",
       parameters: {
         type: "object",
         properties: {
@@ -906,16 +906,12 @@ export const aiToolDefinitions: AIToolDefinition[] = [
             type: "string",
             description: "Title of the new Google Doc"
           },
-          content: {
-            type: "string",
-            description: "Initial content/body of the document (plain text or markdown)"
-          },
           folderId: {
             type: "string",
             description: "Optional: Google Drive folder ID to create the doc in"
           }
         },
-        required: ["title", "content"]
+        required: ["title"]
       }
     }
   },
@@ -924,17 +920,17 @@ export const aiToolDefinitions: AIToolDefinition[] = [
     tier: "gated",
     function: {
       name: "google_docs_update",
-      description: "Update an existing Google Doc. Use for editing SOPs, adding content, or modifying documentation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API.",
+      description: "Add or update content in a Google Doc. Use this for ALL content operations - both initial content after create_doc and subsequent edits. Requires the documentId from create_doc. EXTERNAL tool - executed via Neo8/n8n → Google Docs API.",
       parameters: {
         type: "object",
         properties: {
           documentId: {
             type: "string",
-            description: "The Google Docs document ID to update (required)"
+            description: "The Google Docs document ID to update (from create_doc response)"
           },
           content: {
             type: "string",
-            description: "New content to append or replace in the document"
+            description: "Content to add or update in the document"
           },
           mode: {
             type: "string",
