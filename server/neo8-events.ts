@@ -250,8 +250,8 @@ export async function dispatchExternalAction(
     };
   }
 
-  // Use webhook-test for development, webhook for production
-  const webhookPrefix = process.env.NODE_ENV === "production" ? "/webhook" : "/webhook-test";
+  // Always use production webhook - n8n workflows are configured with /webhook endpoints
+  const webhookPrefix = "/webhook";
   const webhookUrl = `${neo8FlowUrl}${webhookPrefix}${webhookPath}`;
   
   // Generate callback URL for n8n to report results back to CRM
