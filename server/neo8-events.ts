@@ -193,11 +193,25 @@ export const EXTERNAL_TOOL_WEBHOOK_PATHS: Record<string, string> = {
   "reject_estimate": "/estimates/update",
   "google_docs_create": "/google/docs",
   "google_docs_update": "/google/docs",
+  "google_docs_append": "/google/docs",
+  "google_docs_export": "/google/docs",
   "google_sheets_create": "/google/sheets/create",
   "google_sheets_update": "/google/sheets/update",
   "google_sheets_append": "/google/sheets/append",
   "google_calendar_create": "/google/calendar/create",
   "stripe_create_payment_link": "/payment/create",
+};
+
+// Map CRM tool names to n8n action names (lowercase, underscore format for Switch routing)
+export const TOOL_TO_N8N_ACTION: Record<string, string> = {
+  "google_docs_create": "create_doc",
+  "google_docs_update": "update_doc",
+  "google_docs_append": "append_content",
+  "google_docs_export": "export_doc",
+  "google_sheets_create": "create_sheet",
+  "google_sheets_update": "update_sheet",
+  "google_sheets_append": "append_sheet",
+  "google_calendar_create": "create_event",
 };
 
 export interface ExternalActionDispatchResult {
@@ -248,8 +262,11 @@ export async function dispatchExternalAction(
       : "http://localhost:5000";
   const callbackUrl = `${crmBaseUrl}/api/neo8/callback`;
   
+  // Map CRM tool name to n8n action name for Switch routing
+  const n8nActionName = TOOL_TO_N8N_ACTION[toolName] || toolName;
+  
   const payload = {
-    action: toolName,
+    action: n8nActionName,
     args,
     metadata: {
       ...metadata,

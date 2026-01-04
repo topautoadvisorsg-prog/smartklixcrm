@@ -898,7 +898,7 @@ export const aiToolDefinitions: AIToolDefinition[] = [
     tier: "gated",
     function: {
       name: "google_docs_create",
-      description: "Create a new Google Doc. Use for creating SOPs, reports, or documentation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API. Information AI only.",
+      description: "Create a new Google Doc. Use for creating SOPs, reports, or documentation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API.",
       parameters: {
         type: "object",
         properties: {
@@ -924,13 +924,13 @@ export const aiToolDefinitions: AIToolDefinition[] = [
     tier: "gated",
     function: {
       name: "google_docs_update",
-      description: "Update an existing Google Doc. Use for editing SOPs, adding content, or modifying documentation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API. Information AI only.",
+      description: "Update an existing Google Doc. Use for editing SOPs, adding content, or modifying documentation. EXTERNAL tool - executed via Neo8/n8n → Google Docs API.",
       parameters: {
         type: "object",
         properties: {
           documentId: {
             type: "string",
-            description: "The Google Docs document ID to update"
+            description: "The Google Docs document ID to update (required)"
           },
           content: {
             type: "string",
