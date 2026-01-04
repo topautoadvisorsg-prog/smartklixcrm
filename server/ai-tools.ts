@@ -1300,6 +1300,7 @@ export const INTERNAL_TOOLS: readonly string[] = [
   "assign_technician",
   "update_job_status",
   "get_system_help",
+  "resolve_document", // Read-only lookup of documents created via CRM
 ] as const;
 
 export const EXTERNAL_TOOLS: readonly string[] = [
