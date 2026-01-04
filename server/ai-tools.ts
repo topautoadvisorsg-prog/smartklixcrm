@@ -76,6 +76,7 @@ export const READ_ONLY_TOOLS = new Set([
   "query_automation_ledger",
   "query_review_queue",
   "query_ready_execution",
+  "resolve_document", // Internal lookup for document artifacts
 ]);
 
 // Check if a tool is read-only (safe to execute immediately)
@@ -811,6 +812,36 @@ export const aiToolDefinitions: AIToolDefinition[] = [
   },
   {
     type: "function",
+    tier: "immediate",
+    function: {
+      name: "resolve_document",
+      description: "READ-ONLY: Look up existing Google Docs by contact or job context. REQUIRES at least contactId OR jobId. Returns the documentId, title, and URL of documents previously created by the CRM. Use this BEFORE calling update_doc to get the correct documentId. If no documents found, you need to create_doc first.",
+      parameters: {
+        type: "object",
+        properties: {
+          contactId: {
+            type: "string",
+            description: "Contact ID to find documents for (required if no jobId)"
+          },
+          jobId: {
+            type: "string",
+            description: "Job ID to find documents for (required if no contactId)"
+          },
+          documentType: {
+            type: "string",
+            enum: ["google_doc", "google_sheet"],
+            description: "Type of document to look for (default: google_doc)"
+          },
+          limit: {
+            type: "number",
+            description: "Maximum number of documents to return (default: 5)"
+          }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
     tier: "gated",
     function: {
       name: "send_email",
@@ -920,13 +951,13 @@ export const aiToolDefinitions: AIToolDefinition[] = [
     tier: "gated",
     function: {
       name: "google_docs_update",
-      description: "Add or update content in a Google Doc. Use this for ALL content operations - both initial content after create_doc and subsequent edits. Requires the documentId from create_doc. EXTERNAL tool - executed via Neo8/n8n → Google Docs API.",
+      description: "Add or update content in a Google Doc. IMPORTANT: Use resolve_document first to get the documentId if you don't have it. This handles ALL content operations. EXTERNAL tool - executed via Neo8/n8n → Google Docs API.",
       parameters: {
         type: "object",
         properties: {
           documentId: {
             type: "string",
-            description: "The Google Docs document ID to update (from create_doc response)"
+            description: "The Google Docs document ID to update. Get this from resolve_document or a prior create_doc response."
           },
           content: {
             type: "string",
@@ -2066,6 +2097,61 @@ export async function executeAITool(toolName: string, args: unknown, options: Ex
               status: e.status,
               createdAt: e.createdAt,
             })),
+          }
+        };
+      }
+
+      case "resolve_document": {
+        const params = args as { contactId?: string; jobId?: string; documentType?: string; limit?: number };
+        
+        // Require at least one context parameter
+        if (!params.contactId && !params.jobId) {
+          return {
+            success: false,
+            error: "At least one of contactId or jobId is required. Provide the context to find documents for."
+          };
+        }
+        
+        const docLimit = params.limit || 5;
+        
+        const documents = await storage.getDocumentArtifacts({
+          contactId: params.contactId,
+          jobId: params.jobId,
+          documentType: params.documentType || "google_doc",
+          limit: docLimit,
+        });
+        
+        if (documents.length === 0) {
+          return {
+            success: true,
+            data: {
+              found: false,
+              message: "No documents found for the specified context. Use google_docs_create to create a new document first.",
+              documents: [],
+              context: { contactId: params.contactId, jobId: params.jobId },
+            }
+          };
+        }
+        
+        return {
+          success: true,
+          data: {
+            found: true,
+            count: documents.length,
+            documents: documents.map(d => ({
+              documentId: d.documentId,
+              title: d.title,
+              documentUrl: d.documentUrl,
+              documentType: d.documentType,
+              createdAt: d.createdAt,
+              contactId: d.contactId,
+              jobId: d.jobId,
+            })),
+            latest: {
+              documentId: documents[0].documentId,
+              title: documents[0].title,
+              documentUrl: documents[0].documentUrl,
+            }
           }
         };
       }

@@ -73,6 +73,8 @@ import {
   type InsertAutomationLedger,
   type VoiceDispatchLog,
   type InsertVoiceDispatchLog,
+  type DocumentArtifact,
+  type InsertDocumentArtifact,
   type WorkspaceFile,
   type InsertWorkspaceFile,
   users,
@@ -113,6 +115,7 @@ import {
   voiceDispatchLogs,
   paymentSlips,
   workspaceFiles,
+  documentArtifacts,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db, isDatabaseConnected } from "./db";
@@ -339,6 +342,14 @@ export interface IStorage {
   getVoiceDispatchLog(id: string): Promise<VoiceDispatchLog | undefined>;
   createVoiceDispatchLog(log: InsertVoiceDispatchLog): Promise<VoiceDispatchLog>;
   updateVoiceDispatchLog(id: string, updates: Partial<InsertVoiceDispatchLog>): Promise<VoiceDispatchLog | undefined>;
+
+  // Document Artifacts
+  getDocumentArtifacts(filters?: { contactId?: string; jobId?: string; documentType?: string; limit?: number }): Promise<DocumentArtifact[]>;
+  getDocumentArtifact(id: string): Promise<DocumentArtifact | undefined>;
+  getDocumentArtifactByDocumentId(documentId: string): Promise<DocumentArtifact | undefined>;
+  getLatestDocumentArtifact(contactId?: string, jobId?: string): Promise<DocumentArtifact | undefined>;
+  createDocumentArtifact(artifact: InsertDocumentArtifact): Promise<DocumentArtifact>;
+  updateDocumentArtifact(id: string, updates: Partial<InsertDocumentArtifact>): Promise<DocumentArtifact | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -1687,6 +1698,26 @@ export class MemStorage implements IStorage {
     this.eventsOutboxMap.set(id, updated);
     return updated;
   }
+
+  // Document Artifacts - placeholder for MemStorage
+  async getDocumentArtifacts(_filters?: { contactId?: string; jobId?: string; documentType?: string; limit?: number }): Promise<DocumentArtifact[]> {
+    return [];
+  }
+  async getDocumentArtifact(_id: string): Promise<DocumentArtifact | undefined> {
+    return undefined;
+  }
+  async getDocumentArtifactByDocumentId(_documentId: string): Promise<DocumentArtifact | undefined> {
+    return undefined;
+  }
+  async getLatestDocumentArtifact(_contactId?: string, _jobId?: string): Promise<DocumentArtifact | undefined> {
+    return undefined;
+  }
+  async createDocumentArtifact(_artifact: InsertDocumentArtifact): Promise<DocumentArtifact> {
+    throw new Error("MemStorage does not support document artifacts");
+  }
+  async updateDocumentArtifact(_id: string, _updates: Partial<InsertDocumentArtifact>): Promise<DocumentArtifact | undefined> {
+    return undefined;
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -3002,6 +3033,65 @@ export class DbStorage implements IStorage {
     const result = await db.update(voiceDispatchLogs)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(voiceDispatchLogs.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // ========================================
+  // Document Artifacts
+  // ========================================
+  async getDocumentArtifacts(filters?: { contactId?: string; jobId?: string; documentType?: string; limit?: number }): Promise<DocumentArtifact[]> {
+    if (!db) return [];
+    const conditions = [];
+    if (filters?.contactId) conditions.push(eq(documentArtifacts.contactId, filters.contactId));
+    if (filters?.jobId) conditions.push(eq(documentArtifacts.jobId, filters.jobId));
+    if (filters?.documentType) conditions.push(eq(documentArtifacts.documentType, filters.documentType));
+    
+    const query = db.select().from(documentArtifacts);
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions)).orderBy(desc(documentArtifacts.createdAt)).limit(filters?.limit || 50);
+    }
+    return await query.orderBy(desc(documentArtifacts.createdAt)).limit(filters?.limit || 50);
+  }
+
+  async getDocumentArtifact(id: string): Promise<DocumentArtifact | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(documentArtifacts).where(eq(documentArtifacts.id, id));
+    return result[0];
+  }
+
+  async getDocumentArtifactByDocumentId(documentId: string): Promise<DocumentArtifact | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(documentArtifacts).where(eq(documentArtifacts.documentId, documentId));
+    return result[0];
+  }
+
+  async getLatestDocumentArtifact(contactId?: string, jobId?: string): Promise<DocumentArtifact | undefined> {
+    if (!db) return undefined;
+    const conditions = [];
+    if (contactId) conditions.push(eq(documentArtifacts.contactId, contactId));
+    if (jobId) conditions.push(eq(documentArtifacts.jobId, jobId));
+    
+    if (conditions.length === 0) return undefined;
+    
+    const result = await db.select().from(documentArtifacts)
+      .where(and(...conditions))
+      .orderBy(desc(documentArtifacts.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async createDocumentArtifact(artifact: InsertDocumentArtifact): Promise<DocumentArtifact> {
+    if (!db) throw new Error("Database not connected");
+    const result = await db.insert(documentArtifacts).values(artifact).returning();
+    return result[0];
+  }
+
+  async updateDocumentArtifact(id: string, updates: Partial<InsertDocumentArtifact>): Promise<DocumentArtifact | undefined> {
+    if (!db) return undefined;
+    const result = await db.update(documentArtifacts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documentArtifacts.id, id))
       .returning();
     return result[0];
   }

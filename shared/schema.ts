@@ -1232,3 +1232,44 @@ export const insertVoiceDispatchLogSchema = createInsertSchema(voiceDispatchLogs
 });
 export type InsertVoiceDispatchLog = z.infer<typeof insertVoiceDispatchLogSchema>;
 export type VoiceDispatchLog = typeof voiceDispatchLogs.$inferSelect;
+
+// ========================================
+// DOCUMENT ARTIFACTS (Google Docs, Sheets, etc.)
+// ========================================
+// Stores document IDs from external services for ActionAI to auto-lookup
+// When n8n creates a doc, the callback stores the ID here
+// ActionAI can then reference documents by context (contactId, jobId) without manual input
+
+export const documentArtifacts = pgTable("document_artifacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Document identifiers from external service - UNIQUE to prevent duplicates on n8n retries
+  documentId: text("document_id").notNull().unique(), // Google Docs/Sheets document ID
+  documentUrl: text("document_url"), // Full URL to the document
+  title: text("title").notNull(),
+  documentType: text("document_type").notNull().default("google_doc"), // google_doc, google_sheet, etc.
+  // Context linking - which entity is this doc associated with?
+  contactId: varchar("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  jobId: varchar("job_id").references(() => jobs.id, { onDelete: "set null" }),
+  // Provenance - how was this doc created?
+  ledgerId: varchar("ledger_id").references(() => automationLedger.id),
+  assistQueueId: varchar("assist_queue_id"),
+  createdBy: text("created_by").default("action_ai"), // action_ai, manual, import
+  // Metadata
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  documentIdUniqueIdx: uniqueIndex("document_artifacts_document_id_unique_idx").on(table.documentId),
+  contactIdIdx: index("document_artifacts_contact_id_idx").on(table.contactId),
+  jobIdIdx: index("document_artifacts_job_id_idx").on(table.jobId),
+  documentTypeIdx: index("document_artifacts_type_idx").on(table.documentType),
+  createdAtIdx: index("document_artifacts_created_at_idx").on(table.createdAt),
+}));
+
+export const insertDocumentArtifactSchema = createInsertSchema(documentArtifacts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertDocumentArtifact = z.infer<typeof insertDocumentArtifactSchema>;
+export type DocumentArtifact = typeof documentArtifacts.$inferSelect;

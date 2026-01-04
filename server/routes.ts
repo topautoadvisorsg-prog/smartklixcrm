@@ -1812,8 +1812,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     action: z.string(),
     status: z.enum(["success", "failed", "partial"]),
     result: z.object({
+      // Support both flat and nested document structure from n8n
       documentId: z.string().optional(),
       documentUrl: z.string().optional(),
+      document: z.object({
+        id: z.string().optional(),
+        url: z.string().optional(),
+        title: z.string().optional(),
+      }).optional(),
       sheetId: z.string().optional(),
       sheetUrl: z.string().optional(),
       emailSent: z.boolean().optional(),
@@ -1869,6 +1875,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: validated.status === "success" ? "completed" : "failed",
             completedAt: new Date(),
           });
+        }
+      }
+      
+      // Persist document artifacts for Google Docs operations
+      // Support both flat (result.documentId) and nested (result.document.id) payloads from n8n
+      const docId = validated.result?.documentId || validated.result?.document?.id;
+      const docUrl = validated.result?.documentUrl || validated.result?.document?.url;
+      const docTitle = validated.result?.document?.title;
+      
+      if (validated.status === "success" && docId) {
+        const diffJson = entry.diffJson as Record<string, unknown> || {};
+        const proposedActions = (diffJson.proposedActions || []) as Array<{ tool?: string; args?: Record<string, unknown> }>;
+        const createDocAction = proposedActions.find(a => a.tool === "google_docs_create");
+        const title = docTitle || createDocAction?.args?.title as string || "Untitled Document";
+        
+        try {
+          // Check if artifact already exists (handles n8n retries)
+          const existing = await storage.getDocumentArtifactByDocumentId(docId);
+          if (existing) {
+            // Upsert: update existing artifact
+            await storage.updateDocumentArtifact(existing.id, {
+              documentUrl: docUrl || existing.documentUrl,
+              title: title || existing.title,
+              ledgerId: validated.ledgerId,
+            });
+            console.log(`[Neo8 Callback] Updated document artifact: ${docId}`);
+          } else {
+            // Insert new artifact
+            await storage.createDocumentArtifact({
+              documentId: docId,
+              documentUrl: docUrl || null,
+              title,
+              documentType: "google_doc",
+              contactId: entry.entityType === "contact" ? entry.entityId : null,
+              jobId: entry.entityType === "job" ? entry.entityId : null,
+              ledgerId: validated.ledgerId,
+              assistQueueId: validated.assistQueueId || null,
+              createdBy: "action_ai",
+            });
+            console.log(`[Neo8 Callback] Created document artifact: ${docId}`);
+          }
+        } catch (err) {
+          console.error("[Neo8 Callback] Failed to persist document artifact:", err);
         }
       }
       
