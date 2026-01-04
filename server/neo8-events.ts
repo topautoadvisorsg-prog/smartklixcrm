@@ -240,13 +240,25 @@ export async function dispatchExternalAction(
   const webhookPrefix = process.env.NODE_ENV === "production" ? "/webhook" : "/webhook-test";
   const webhookUrl = `${neo8FlowUrl}${webhookPrefix}${webhookPath}`;
   
+  // Generate callback URL for n8n to report results back to CRM
+  const crmBaseUrl = process.env.REPLIT_DEV_DOMAIN 
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+    : process.env.REPLIT_DOMAINS 
+      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+      : "http://localhost:5000";
+  const callbackUrl = `${crmBaseUrl}/api/neo8/callback`;
+  
   const payload = {
     action: toolName,
     args,
     metadata: {
       ...metadata,
+      ledgerId: metadata?.ledgerId,
+      assistQueueId: metadata?.assistQueueId,
       timestamp: new Date().toISOString(),
       source: "crm_ready_execution",
+      callbackUrl,
+      // Note: n8n should use x-internal-token header for auth, not embed token in payload
     },
   };
 

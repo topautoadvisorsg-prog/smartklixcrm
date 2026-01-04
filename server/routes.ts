@@ -1801,6 +1801,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================
+  // NEO8 CALLBACK ENDPOINT
+  // ========================================
+  // n8n calls this endpoint after completing external actions (e.g., Google Docs creation)
+  // to update the ledger with results
+  const neo8CallbackSchema = z.object({
+    ledgerId: z.string().uuid(),
+    assistQueueId: z.string().uuid().optional(),
+    action: z.string(),
+    status: z.enum(["success", "failed", "partial"]),
+    result: z.object({
+      documentId: z.string().optional(),
+      documentUrl: z.string().optional(),
+      sheetId: z.string().optional(),
+      sheetUrl: z.string().optional(),
+      emailSent: z.boolean().optional(),
+      smsSent: z.boolean().optional(),
+      error: z.string().optional(),
+    }).passthrough().optional(),
+    error: z.string().optional(),
+    timestamp: z.string().optional(),
+  });
+
+  app.post("/api/neo8/callback", n8nWebhookRateLimiter, requireInternalToken, async (req, res) => {
+    try {
+      console.log("[Neo8 Callback] Received:", JSON.stringify(req.body, null, 2));
+      
+      const validated = neo8CallbackSchema.parse(req.body);
+      
+      // Find the ledger entry
+      const entry = await storage.getAutomationLedgerEntry(validated.ledgerId);
+      if (!entry) {
+        console.error(`[Neo8 Callback] Ledger entry not found: ${validated.ledgerId}`);
+        return res.status(404).json({ error: "Ledger entry not found" });
+      }
+      
+      // Deep merge n8n results into existing diffJson (preserves proposedActions and prior audit data)
+      const existingDiff = entry.diffJson as Record<string, unknown> || {};
+      const updatedDiff = {
+        ...existingDiff,
+        neo8Result: {
+          action: validated.action,
+          status: validated.status,
+          result: validated.result,
+          error: validated.error,
+          callbackReceivedAt: new Date().toISOString(),
+        },
+      };
+      
+      // Map callback status to allowed ledger statuses
+      // Allowed: queued, ai_validated, executed, execution_failed, dispatch_failed, rejected, handled_manually
+      const newStatus = validated.status === "success" 
+        ? "executed" 
+        : "execution_failed"; // both "failed" and "partial" map to execution_failed
+      
+      await storage.updateAutomationLedgerEntry(validated.ledgerId, {
+        status: newStatus,
+        diffJson: updatedDiff,
+      });
+      
+      // Update assist_queue if provided
+      if (validated.assistQueueId) {
+        const assistEntry = await storage.getAssistQueueEntry(validated.assistQueueId);
+        if (assistEntry) {
+          await storage.updateAssistQueueEntry(validated.assistQueueId, {
+            status: validated.status === "success" ? "completed" : "failed",
+            completedAt: new Date(),
+          });
+        }
+      }
+      
+      // Create audit log
+      await storage.createAuditLogEntry({
+        userId: null,
+        action: "NEO8_CALLBACK_RECEIVED",
+        entityType: entry.entityType,
+        entityId: entry.entityId || null,
+        details: {
+          ledgerId: validated.ledgerId,
+          action: validated.action,
+          status: validated.status,
+          result: validated.result,
+          error: validated.error,
+        },
+      });
+      
+      console.log(`[Neo8 Callback] Updated ledger ${validated.ledgerId} with status: ${newStatus}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Callback processed successfully",
+        ledgerId: validated.ledgerId,
+        newStatus,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("[Neo8 Callback] Validation error:", error.errors);
+        return res.status(400).json({ error: "Invalid callback payload", details: error.errors });
+      }
+      console.error("[Neo8 Callback] Error:", error);
+      res.status(500).json({ error: "Failed to process callback" });
+    }
+  });
+
   app.get("/api/estimates", async (_req, res) => {
     try {
       const estimates = await storage.getEstimates();
