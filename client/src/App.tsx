@@ -26,29 +26,14 @@ import Payments from "@/pages/Payments";
 import Calendar from "@/pages/Calendar";
 import Pipeline from "@/pages/Pipeline";
 import AdminChat from "@/pages/AdminChat";
-import ApprovalHub from "@/pages/MasterArchitect";
 import ChatWidget from "@/pages/ChatWidget";
-import ChatGPTActions from "@/pages/ChatGPTActions";
-import SystemWatcher from "@/pages/SystemWatcher";
-import CRMAgentConfig from "@/pages/CRMAgentConfig";
-import CRMAgentChat from "@/pages/CRMAgentChat";
-import AIReceptionistConfig from "@/pages/AIReceptionistConfig";
 import Settings from "@/pages/Settings";
 import PublicContact from "@/pages/PublicContact";
 import WidgetDemo from "@/pages/widget-demo";
-import Emails from "@/pages/Emails";
 import IntakeBuilder from "@/pages/IntakeBuilder";
 import Pricebook from "@/pages/Pricebook";
-import GoogleWorkspace from "@/pages/GoogleWorkspace";
-import WhatsApp from "@/pages/WhatsApp";
-import Marketplace from "@/pages/Marketplace";
-import Funnels from "@/pages/Funnels";
-import SocialMediaPlanner from "@/pages/SocialMediaPlanner";
 import InformationAIChat from "@/pages/InformationAIChat";
-import ActionConsole from "@/pages/ActionConsole";
-import ReadyExecution from "@/pages/ReadyExecution";
 import AutomationLedger from "@/pages/AutomationLedger";
-import ReviewQueue from "@/pages/ReviewQueue";
 import NotFound from "@/pages/not-found";
 
 function LegacyRedirect({ to, message }: { to: string; message: string }) {
@@ -84,37 +69,12 @@ function Router() {
       <Route path="/calendar" component={Calendar} />
       <Route path="/pipeline" component={Pipeline} />
       <Route path="/ai-assistant" component={AdminChat} />
-      <Route path="/approval-hub" component={() => <LegacyRedirect to="/review-queue" message="Approval Hub has been replaced by the Review Queue." />} />
       <Route path="/chat-widget" component={ChatWidget} />
-      <Route path="/chatgpt-actions" component={ChatGPTActions} />
-      <Route path="/crm-agent-config" component={CRMAgentConfig} />
-      <Route path="/crm-agent-chat" component={() => <LegacyRedirect to="/information-ai-chat" message="Chat with AI has been renamed to Information AI Chat." />} />
-      <Route path="/read-chat" component={() => <LegacyRedirect to="/information-ai-chat" message="Read Chat has been renamed to Information AI Chat." />} />
       <Route path="/information-ai-chat" component={InformationAIChat} />
-      <Route path="/action-console" component={ActionConsole} />
-      <Route path="/ready-execution" component={ReadyExecution} />
       <Route path="/automation-ledger" component={AutomationLedger} />
-      <Route path="/review-queue" component={ReviewQueue} />
-      <Route path="/gpt-actions" component={() => <LegacyRedirect to="/chatgpt-actions" message="GPT Actions has been merged into ChatGPT Actions." />} />
-      <Route path="/actiongpt-config" component={() => <LegacyRedirect to="/chatgpt-actions" message="ActionGPT Config has been renamed to ChatGPT Actions." />} />
-      <Route path="/master-architect" component={() => <LegacyRedirect to="/review-queue" message="Master Architect has been replaced by the Review Queue." />} />
-      <Route path="/ai-receptionist" component={AIReceptionistConfig} />
-      <Route path="/system-watcher" component={SystemWatcher} />
-      <Route path="/intelligence-bot" component={() => <LegacyRedirect to="/ai-assistant" message="Intelligence Bot has been renamed to AI Assistant." />} />
-      <Route path="/user-management" component={() => <LegacyRedirect to="/settings" message="User Management is now in Settings > Users tab." />} />
-      <Route path="/audit-log" component={() => <LegacyRedirect to="/settings" message="Audit Log is now in Settings > System tab." />} />
-      <Route path="/ai-memory" component={() => <LegacyRedirect to="/settings" message="AI Memory is now in Settings > AI Control tab." />} />
-      <Route path="/notes" component={() => <LegacyRedirect to="/contacts" message="Notes have been integrated into Contact and Job detail pages." />} />
-      <Route path="/metrics" component={() => <LegacyRedirect to="/" message="Metrics are now displayed on the Dashboard." />} />
       <Route path="/settings" component={Settings} />
       <Route path="/pricebook" component={Pricebook} />
-      <Route path="/emails" component={Emails} />
       <Route path="/intake-builder" component={IntakeBuilder} />
-      <Route path="/google-workspace" component={GoogleWorkspace} />
-      <Route path="/whatsapp" component={WhatsApp} />
-      <Route path="/marketplace" component={Marketplace} />
-      <Route path="/funnels" component={Funnels} />
-      <Route path="/social-media" component={SocialMediaPlanner} />
       <Route path="/public-contact" component={PublicContact} />
       <Route path="/widget-demo" component={WidgetDemo} />
       <Route component={NotFound} />

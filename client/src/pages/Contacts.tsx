@@ -13,9 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import StatusBadge from "@/components/StatusBadge";
 import CreateContactDialog from "@/components/CreateContactDialog";
-import SendSMSDialog from "@/components/SendSMSDialog";
-import SendEmailDialog from "@/components/SendEmailDialog";
-import CreatePaymentLinkDialog from "@/components/CreatePaymentLinkDialog";
 
 type Contact = {
   id: string;
@@ -142,9 +139,6 @@ function SentimentSparkline({ data }: { data: number[] }) {
 export default function Contacts() {
   const [, setLocation] = useLocation();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -389,11 +383,6 @@ export default function Contacts() {
                   <StatusBadge status={selectedContact.status} />
                 </div>
               </div>
-              
-              <Button onClick={() => setEmailDialogOpen(true)} data-testid="button-send-intake">
-                <Send className="w-4 h-4 mr-2" />
-                Send Intake Request
-              </Button>
             </header>
 
             {/* 3-Column Content Grid */}
@@ -575,45 +564,6 @@ export default function Contacts() {
                         </div>
                       </div>
 
-                      {/* Quick Actions */}
-                      <div className="pt-4 border-t border-border">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">
-                          Quick Actions
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setSmsDialogOpen(true)}
-                            className="justify-start"
-                            data-testid="button-quick-sms"
-                          >
-                            <MessageSquare className="w-4 h-4 mr-2" />
-                            SMS
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setEmailDialogOpen(true)}
-                            className="justify-start"
-                            data-testid="button-quick-email"
-                          >
-                            <Mail className="w-4 h-4 mr-2" />
-                            Email
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setPaymentDialogOpen(true)}
-                            className="justify-start col-span-2"
-                            data-testid="button-quick-payment"
-                          >
-                            <CreditCard className="w-4 h-4 mr-2" />
-                            Payment Link
-                          </Button>
-                        </div>
-                      </div>
-
                       <p className="text-[9px] text-muted-foreground/50 pt-2 border-t border-border">
                         Data reflected from the Ledger and Jobs modules. Edits must be made at the source.
                       </p>
@@ -629,40 +579,6 @@ export default function Contacts() {
 
       {/* Dialogs */}
       <CreateContactDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
-      
-      {selectedContact && (
-        <>
-          <SendSMSDialog 
-            open={smsDialogOpen} 
-            onOpenChange={setSmsDialogOpen}
-            contact={{ 
-              id: selectedContact.id, 
-              name: selectedContact.name || "Unknown", 
-              phone: selectedContact.phone || "" 
-            }}
-          />
-          
-          <SendEmailDialog 
-            open={emailDialogOpen} 
-            onOpenChange={setEmailDialogOpen}
-            contact={{ 
-              id: selectedContact.id, 
-              name: selectedContact.name || "Unknown", 
-              email: selectedContact.email || "" 
-            }}
-          />
-          
-          <CreatePaymentLinkDialog 
-            open={paymentDialogOpen} 
-            onOpenChange={setPaymentDialogOpen}
-            contact={{ 
-              id: selectedContact.id, 
-              name: selectedContact.name || "Unknown", 
-              email: selectedContact.email || "" 
-            }}
-          />
-        </>
-      )}
     </div>
   );
 }

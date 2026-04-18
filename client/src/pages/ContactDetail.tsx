@@ -16,9 +16,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/StatusBadge";
 import ActivityTimeline from "@/components/ActivityTimeline";
-import SendSMSDialog from "@/components/SendSMSDialog";
-import SendEmailDialog from "@/components/SendEmailDialog";
-import CreatePaymentLinkDialog from "@/components/CreatePaymentLinkDialog";
 import EditContactDialog from "@/components/EditContactDialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -36,9 +33,6 @@ export default function ContactDetail() {
   const contactId = params?.id;
   const { toast } = useToast();
   
-  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
@@ -340,36 +334,6 @@ export default function ContactDetail() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSmsDialogOpen(true)}
-              disabled={!contact.phone}
-              data-testid="button-send-sms"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Send SMS
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEmailDialogOpen(true)}
-              disabled={!contact.email}
-              data-testid="button-send-email"
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              Send Email
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaymentDialogOpen(true)}
-              disabled={!contact.email}
-              data-testid="button-create-payment-link"
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              Payment Link
-            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -813,42 +777,6 @@ export default function ContactDetail() {
       </div>
 
       {/* Dialogs */}
-      {contact.phone && (
-        <SendSMSDialog
-          open={smsDialogOpen}
-          onOpenChange={setSmsDialogOpen}
-          contact={{
-            id: contact.id,
-            name: contact.name || "Unknown Contact",
-            phone: contact.phone,
-          }}
-        />
-      )}
-
-      {contact.email && (
-        <SendEmailDialog
-          open={emailDialogOpen}
-          onOpenChange={setEmailDialogOpen}
-          contact={{
-            id: contact.id,
-            name: contact.name || "Unknown Contact",
-            email: contact.email,
-          }}
-        />
-      )}
-
-      {contact.email && (
-        <CreatePaymentLinkDialog
-          open={paymentDialogOpen}
-          onOpenChange={setPaymentDialogOpen}
-          contact={{
-            id: contact.id,
-            name: contact.name || "Unknown Contact",
-            email: contact.email,
-          }}
-        />
-      )}
-
       <EditContactDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
