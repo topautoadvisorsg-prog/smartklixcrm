@@ -27,6 +27,13 @@ export const contacts = pgTable("contacts", {
   avatar: text("avatar"),
   // Customer type: customer, lead, prospect
   customerType: text("customer_type").notNull().default("lead"),
+  // Niche/industry for agent routing (healthcare, construction, etc.)
+  niche: text("niche"),
+  // Preferred contact channel for agents (email, whatsapp, sms)
+  preferredChannel: text("preferred_channel").default("email"),
+  // Agent integration tracking
+  lastContactedAt: timestamp("last_contacted_at"),
+  nextFollowUpAt: timestamp("next_follow_up_at"),
   // Billing address fields
   billingAddress: text("billing_address"),
   billingCity: text("billing_city"),
@@ -44,6 +51,8 @@ export const contacts = pgTable("contacts", {
 }, (table) => ({
   stripeCustomerIdIdx: index("contacts_stripe_customer_id_idx").on(table.stripeCustomerId),
   customerTypeIdx: index("contacts_customer_type_idx").on(table.customerType),
+  nicheIdx: index("contacts_niche_idx").on(table.niche),
+  preferredChannelIdx: index("contacts_preferred_channel_idx").on(table.preferredChannel),
 }));
 
 // ========================================

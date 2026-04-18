@@ -44,6 +44,7 @@ import { requireInternalToken } from "./auth-middleware";
 // TEMP: master-architect removed
 import { chatService } from "./chat-service";
 // TEMP: webhook-verification removed
+import { dispatchAgentEvent, dispatchLeadCreated, dispatchJobStatusUpdated, dispatchInvoiceOverdue, dispatchAppointmentBooked } from "./agent-dispatcher";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { buildSystemInstructions } from "./ai-prompts";
