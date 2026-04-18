@@ -1,8 +1,9 @@
 # Smart Klix CRM - White-Label AI CRM Platform
-**Version:** 1.0.0
+**Version:** 2.0.0 (Agent-Ready Architecture)
 **Status:** Production-Ready Base Platform
-**Last Updated:** December 2025
+**Last Updated:** April 17, 2026
 **Clean Code Doctrine:** Enforced
+**Architecture:** Brain + Control Tower (External Agent Execution)
 
 ## Table of Contents
 - [Overview](#overview)
@@ -28,13 +29,46 @@
 ## Overview
 Smart Klix CRM is a production-grade, single-tenant, white-label AI CRM automation platform for field service management. It orchestrates the entire Lead to Estimate to Job to Invoice to Payment pipeline with integrated AI automation.
 
+### Architecture Philosophy (Updated April 2026)
+
+**CRM = Brain + Control Tower. External Agents Handle Execution.**
+
+The CRM is the **Source of Truth + Internal Intelligence Only**:
+- ✅ Manages all data (contacts, jobs, invoices, pipeline)
+- ✅ Makes decisions via simple validation functions
+- ✅ Logs everything (audit trail)
+- ✅ Sends events to external agents
+- ✅ Receives and processes agent reports
+
+**External Agents** handle all execution:
+- ✅ Send messages (SMS, email, WhatsApp)
+- ✅ Book appointments
+- ✅ Process payments
+- ✅ Execute workflows
+- ✅ Report back to CRM
+
 ### Key Features
-- **AI-Powered Automation:** Master Architect agent with Draft/Assist/Auto modes
+- **AI-Powered Decision Making:** Simple validator function for proposal review
 - **Complete Pipeline Management:** Visual kanban board with drag-and-drop
 - **Dual Chat Interfaces:** Public lead capture widget + admin intelligence bot
-- **N8N Workflow Integration:** External automation for SMS, email, payments
+- **External Agent Integration:** Webhook-based event dispatch to agents
 - **Comprehensive Analytics:** Real-time metrics and audit logging
 - **White-Label Ready:** Fully customizable branding per deployment
+
+### What Was Removed (Architectural Simplification)
+
+The following were removed to simplify the architecture:
+- ❌ Master Architect (complex AI orchestration - replaced with simple validator)
+- ❌ N8N internal integration (external agents handle this now)
+- ❌ Automation Ledger (complex state tracking - audit_log is sufficient)
+- ❌ AI Memory systems (embeddings, importance scores)
+- ❌ Internal messaging execution (email, SMS, WhatsApp sending)
+- ❌ Outbox dispatcher
+- ❌ Webhook verification system
+- ❌ Neo8 event system
+
+**Total removed:** ~9,500 lines across 32 files
+**Build status:** ✅ Successful
 
 ### Architecture Model
 **Single-Tenant Isolation:** Each customer deployment is independent with dedicated:
@@ -1181,14 +1215,133 @@ WhatsApp Business API restricts free-form messaging after 24h from last customer
 - ❌ **Bot builder**: Logic lives in Funnels or AI Voice
 - ❌ **Direct send**: CRM never sends directly
 
-## N8N Integration
+## External Agent Integration
 
 ### Overview
-Smart Klix integrates with N8N for external automation:
+
+The CRM communicates with external agents via webhooks. This is a simple, bidirectional system:
+
+1. **Outbound (CRM → Agents):** Events fire to wake up agents
+2. **Inbound (Agents → CRM):** Agents report back via existing intake hub
+
+### Outbound Webhook System
+
+**Configuration:**
+
+Set these environment variables:
+```bash
+AGENT_WEBHOOK_URL=https://your-agent-system.com/api/events
+AGENT_WEBHOOK_SECRET=your-secret-key
+```
+
+**Event Types:**
+
+| Event | Trigger | Purpose |
+|-------|---------|---------|
+| `lead_created` | New contact created | Initiate welcome sequence |
+| `lead_updated` | Contact data changed | Update agent context |
+| `pipeline_changed` | Contact moves stage | Execute stage-specific follow-up |
+| `appointment_booked` | New appointment scheduled | Send confirmation |
+| `appointment_cancelled` | Appointment cancelled | Notify parties |
+| `job_created` | New job created | Start job workflow |
+| `job_status_updated` | Job status changed | Update timeline |
+| `invoice_created` | New invoice created | Send payment request |
+| `invoice_overdue` | Invoice past due | Send payment reminder |
+| `intake_submitted` | New lead intake received | Qualify and route |
+| `no_response_detected` | Customer unresponsive | Re-engagement campaign |
+
+**Event Payload Structure:**
+
+```json
+{
+  "eventId": "evt_1234567890_abc123",
+  "eventType": "lead_created",
+  "timestamp": "2026-04-17T10:30:00.000Z",
+  "contact": {
+    "id": "uuid",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+1-555-555-5555",
+    "company": "ABC Corp",
+    "niche": "construction",
+    "status": "new",
+    "customerType": "lead",
+    "preferredChannel": "sms",
+    "lastContactedAt": null,
+    "nextFollowUpAt": "2026-04-18T10:30:00.000Z",
+    "tags": ["hot-lead", "commercial"]
+  },
+  "instruction": "New lead created. Initiate welcome sequence and qualify the lead.",
+  "context": {
+    "job": { /* optional job data */ },
+    "invoice": { /* optional invoice data */ },
+    "appointment": { /* optional appointment data */ }
+  }
+}
+```
+
+**Contact Fields for Agent Routing:**
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `niche` | string | Industry/vertical (healthcare, construction, etc.) |
+| `preferredChannel` | string | email, whatsapp, or sms |
+| `lastContactedAt` | timestamp | When was this contact last reached |
+| `nextFollowUpAt` | timestamp | When should agent follow up next |
+
+### Inbound Agent Reports
+
+Agents report back to the CRM's **existing intake hub** in JSON format.
+
+**Example Agent Report:**
+
+```json
+{
+  "contactId": "uuid",
+  "actionTaken": "SMS sent",
+  "response": "Customer replied: interested",
+  "nextAction": "Schedule appointment",
+  "timestamp": "2026-04-17T10:35:00.000Z",
+  "metadata": {
+    "messageId": "twilio_msg_123",
+    "status": "delivered"
+  }
+}
+```
+
+The intake hub receives this → processes it → updates contact record → logs to audit_log.
+
+### Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `server/agent-dispatcher.ts` | Outbound webhook dispatcher (321 lines) |
+| `server/validator.ts` | Simple decision function (309 lines) |
+| `shared/schema.ts` | Updated contacts table with agent fields |
+| `drizzle/005_agent_integration_fields.sql` | Database migration |
+
+### Security
+
+- Webhook secret sent via `X-Webhook-Secret` header
+- All outbound events logged to audit_log
+- Failed dispatches retried and logged
+- Placeholders used in development mode
+
+---
+
+## N8N Integration (DEPRECATED)
+
+**Note:** N8N integration has been replaced with the External Agent Integration system above.
+
+### Legacy Documentation (For Reference Only)
+
+Smart Klix previously integrated with N8N for external automation:
 - SMS/Email: Customer communications
 - Payment Links: Stripe/payment processing
 - Voice Calls: Inbound/outbound call handling
 - Calendar Sync: External calendar integration
+
+This has been replaced by the agent webhook system which is more flexible and simpler.
 
 ### Integration Flow
 ```
