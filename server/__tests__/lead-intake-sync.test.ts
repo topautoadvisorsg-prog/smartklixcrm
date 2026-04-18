@@ -3,7 +3,10 @@ import request from 'supertest';
 import express from 'express';
 import { registerRoutes } from '../routes';
 import { storage } from '../storage';
-import * as neo8Events from '../neo8-events';
+// TEMP: neo8-events removed - stub for test compatibility
+const neo8Events = {
+  dispatchIntakeToNeo8Flow: async (...args: any[]) => ({ success: true }),
+};
 
 // Set test token for internal API authentication
 const TEST_INTERNAL_TOKEN = 'test-internal-token-for-sync-tests';

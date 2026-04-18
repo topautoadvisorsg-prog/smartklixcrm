@@ -1,6 +1,7 @@
 import { storage } from "./storage";
 import type { Job, Estimate, Invoice } from "@shared/schema";
-import { dispatchNeo8Event, createNeo8Event, dispatchToN8nWebhook } from "./neo8-events";
+// TEMP: neo8-events removed - external execution now handled by OpenClaw
+// import { dispatchNeo8Event, createNeo8Event, dispatchToN8nWebhook } from "./neo8-events";
 import { randomUUID } from "crypto";
 import { classifyAction, isExternalAction } from "./ai-tools";
 

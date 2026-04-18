@@ -40,10 +40,10 @@ import {
 } from "./pipeline";
 import { aiToolDefinitions, executeAITool, classifyAction, isInternalAction, isExternalAction, isReadOnlyTool, INTERNAL_TOOLS, EXTERNAL_TOOLS } from "./ai-tools";
 import { requireInternalToken } from "./auth-middleware";
-import { neo8InboundResultSchema, dispatchNeo8Event, neo8OutboundEventSchema, dispatchIntakeToNeo8Flow, dispatchToN8nWebhook, dispatchExternalAction } from "./neo8-events";
-import { MasterArchitect, AgentMode, ToolPermission, MAContext } from "./master-architect";
+// TEMP: neo8-events removed
+// TEMP: master-architect removed
 import { chatService } from "./chat-service";
-import { webhookVerificationMiddleware } from "./webhook-verification";
+// TEMP: webhook-verification removed
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { buildSystemInstructions } from "./ai-prompts";

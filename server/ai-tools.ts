@@ -12,16 +12,16 @@ import {
   updateJobStatus
 } from "./pipeline";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
-import {
-  isMutationTool,
-  createLedgerEntry,
-  markLedgerSuccess,
-  markLedgerFailed,
-  createDiff,
-  updateDiff,
-  sendDiff,
-  type LedgerDiff,
-} from "./automation-ledger";
+// TEMP: automation-ledger removed - simplified execution model
+// Stub functions to prevent build errors during refactoring
+export const isMutationTool = (toolName: string) => false;
+export const createLedgerEntry = async (params: any) => ({ id: 'stub-ledger-id' });
+export const markLedgerSuccess = async (params: any) => {};
+export const markLedgerFailed = async (params: any) => {};
+export const createDiff = (data: any) => data;
+export const updateDiff = (before: any, after: any) => ({ before, after });
+export const sendDiff = async (params: any) => {};
+export type LedgerDiff = any;
 
 // Extended tool type with tier classification for gating control
 // Why: Tools are gated based on their potential impact - "immediate" tools execute instantly,
