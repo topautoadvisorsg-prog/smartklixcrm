@@ -1,11 +1,11 @@
-# Smart Klix CRM - White-Label AI CRM Platform
-**Version:** 2.1.0 (Proposal System + External Agent Integration)  
+﻿# Smart Klix CRM - White-Label AI CRM Platform
+**Version:** 2.2.0 (Agent Rename + Proposal Queue + Mass Email + Railway Deployment)  
 **Status:** Production-Ready Base Platform  
-**Last Updated:** April 20, 2026  
+**Last Updated:** May 9, 2026  
 **Clean Code Doctrine:** Enforced  
 **Architecture:** CRM Brain + External Agent Execution (Webhook-Based)
 
-> 📋 **SYSTEM AUDIT**: Comprehensive audit completed April 20, 2026. See [SYSTEM_AUDIT_COMPLETE.md](./SYSTEM_AUDIT_COMPLETE.md) for full system status, setup requirements, and agent deployment guide.
+> ðŸ“‹ **SYSTEM AUDIT**: Comprehensive audit completed April 20, 2026. See [SYSTEM_AUDIT_COMPLETE.md](./SYSTEM_AUDIT_COMPLETE.md) for full system status, setup requirements, and agent deployment guide.
 
 ## Table of Contents
 - [System Audit](#-critical-setup-requirements)
@@ -27,7 +27,7 @@
 - [Known Issues](#known-issues)
 
 ## Overview
-Smart Klix CRM is a production-grade, single-tenant, white-label AI CRM automation platform for field service management. It orchestrates the entire Lead → Estimate → Job → Invoice → Payment pipeline with integrated AI automation.
+Smart Klix CRM is a production-grade, single-tenant, white-label AI CRM automation platform for field service management. It orchestrates the entire Lead â†’ Estimate â†’ Job â†’ Invoice â†’ Payment pipeline with integrated AI automation.
 
 ### Architecture Philosophy (Updated April 20, 2026)
 
@@ -45,42 +45,42 @@ Core loop:
 **CRM = Brain + Control Tower. External Agents Handle Execution.**
 
 The CRM is the **Source of Truth + Internal Intelligence Only**:
-- ✅ Manages all data (contacts, jobs, invoices, pipeline)
-- ✅ Makes decisions via AI (OpenAI) + simple validation function
-- ✅ Logs everything (audit trail)
-- ✅ Sends proposals to external agents via webhook
-- ✅ Receives and processes agent reports
+- âœ… Manages all data (contacts, jobs, invoices, pipeline)
+- âœ… Makes decisions via AI (OpenAI) + simple validation function
+- âœ… Logs everything (audit trail)
+- âœ… Sends proposals to external agents via webhook
+- âœ… Receives and processes agent reports
 
 **External Agents** handle all execution:
-- ✅ Send messages (SMS, email, WhatsApp)
-- ✅ Book appointments
-- ✅ Process payments
-- ✅ Execute workflows
-- ✅ Report back to CRM
+- âœ… Send messages (SMS, email, WhatsApp)
+- âœ… Book appointments
+- âœ… Process payments
+- âœ… Execute workflows
+- âœ… Report back to CRM
 
 ### System Modules
 
-#### 1. CRM Core (✅ COMPLETE)
+#### 1. CRM Core (âœ… COMPLETE)
 - Contacts management with relationship tracking
 - Jobs lifecycle management
 - Contact-to-job relationship mapping
 - Status: Production-ready
 
-#### 2. Field Operations Module (✅ COMPLETE)
+#### 2. Field Operations Module (âœ… COMPLETE)
 - Field reports with type classification (progress | issue | completion | inspection)
 - Job status updates from field agents
 - Photo uploads (URL-based)
 - Real-time job tracking
 - Status: UI + Backend complete
 
-#### 3. Financial Tracking Module (✅ COMPLETE)
+#### 3. Financial Tracking Module (âœ… COMPLETE)
 - Income/expense tracking per job
 - Profit calculation per job/client
 - Job-level economics
 - Financial summaries
 - Status: Production-ready
 
-#### 4. Export System (✅ FUNCTIONAL)
+#### 4. Export System (âœ… FUNCTIONAL)
 - CSV exports for all data entities:
   - Contacts
   - Jobs
@@ -91,13 +91,13 @@ The CRM is the **Source of Truth + Internal Intelligence Only**:
 - Relational data included (names, not just IDs)
 - Status: Functional with guardrails
 
-#### 5. Lead Crawler System (⚠️ PLANNED)
+#### 5. Lead Crawler System (âš ï¸ PLANNED)
 - Automated business discovery
 - Niche-based filtering
 - CRM ingestion pipeline
 - Status: Conceptual design complete, implementation pending
 
-#### 6. Outreach System (⚠️ FUTURE PHASE)
+#### 6. Outreach System (âš ï¸ FUTURE PHASE)
 - Email/SMS automation
 - Agent-based workflows
 - Campaign management
@@ -118,7 +118,7 @@ The CRM is the **Source of Truth + Internal Intelligence Only**:
 
 ---
 
-## 🔴 CRITICAL SETUP REQUIREMENTS
+## ðŸ”´ CRITICAL SETUP REQUIREMENTS
 
 **Before deploying to production, you MUST configure the following:**
 
@@ -139,22 +139,32 @@ AGENT_INTERNAL_TOKEN=$(openssl rand -hex 32)
 
 **See [SYSTEM_AUDIT_COMPLETE.md](./SYSTEM_AUDIT_COMPLETE.md) for complete agent deployment guide.**
 
-### 2. PostgreSQL Database (REQUIRED)
+### 2. PostgreSQL Database (REQUIRED — Supabase)
 ```bash
-DATABASE_URL=postgresql://user:password@host:5432/smartklix_db
+DATABASE_URL=postgresql://postgres.[project]:[password]@aws-1-us-west-1.pooler.supabase.com:5432/postgres
 ```
+Uses Supabase session pooler. Enable `pgvector` extension in Supabase SQL Editor before first deploy.
 
 ### 3. External Service Accounts
-- **Twilio**: WhatsApp/SMS/Voice
-- **SendGrid/Resend**: Email
-- **Stripe**: Payments
-- **Google Cloud**: Calendar/Workspace
+- **Twilio**: SMS/Voice (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER)
+- **Resend**: Email (RESEND_API_KEY)
+- **Stripe**: Payments (STRIPE_SECRET_KEY)
+- **Firecrawl**: Web scraping (FIRECRAWL_API_KEY)
+- **Calendly**: Booking (CALENDLY_API_KEY)
+- **Retell AI**: AI phone receptionist (inbound/outbound calls)
+
+### 4. Deployment (Railway)
+Both services (CRM + External Agents) are deployed to Railway.
+- CRM: `https://smartklixcrm-production.up.railway.app`
+- External Agents: `https://web-production-a0d9f.up.railway.app`
+- Railway auto-redeploys on push to `main`
+- Bind server to `host: "0.0.0.0"` (not localhost) for Railway routing
 
 ---
 
 ### Architecture Model
 **Single-Tenant Isolation:** Each customer deployment is independent with dedicated:
-- PostgreSQL database (Neon-backed)
+- PostgreSQL database (Supabase-backed)
 - Secrets management
 - External agent webhook endpoint
 - Branding configuration
@@ -189,7 +199,7 @@ Smart Klix CRM is governed by an Event-Based Ledger Model.
 
 The Ledger is the single source of historical truth for every meaningful action, decision, and outcome in the system.
 
-This is not logging — it is a state evolution transcript.
+This is not logging â€” it is a state evolution transcript.
 
 ### Ledger Anchoring Rules (Critical)
 
@@ -204,9 +214,9 @@ Each ledger is anchored to exactly one entity:
    - All actions apply directly to the contact
 
 There are:
-- ❌ No sub-ledgers
-- ❌ No nested entities
-- ❌ No dual anchoring
+- âŒ No sub-ledgers
+- âŒ No nested entities
+- âŒ No dual anchoring
 
 An event belongs to one and only one ledger anchor.
 
@@ -236,7 +246,7 @@ Every ledger entry **MUST** include:
 | `initiatorType` | enum: `AI` \| `Human` \| `System` \| `External` | Who or what triggered this |
 | `initiatorId` | string | userId, AI agent ID, system name, or external service |
 | `timestamp` | ISO 8601 | When the event occurred |
-| `correlationId` | string (optional) | For chained or external actions (N8N callbacks, webhooks) |
+| `correlationId` | string (optional) | For chained or external actions (External Agent callbacks, webhooks) |
 
 Events missing any required field (except optional `correlationId`) are **rejected as invalid**.
 
@@ -249,7 +259,7 @@ Every meaningful system event generates a ledger entry:
 - **AI Events**
   - AI proposal created
   - AI tool execution requested
-  - AI validation decision (Master Architect)
+  - AI validation decision (Policy Agent)
   - AI rejection with reason
 
 - **Human Events**
@@ -263,24 +273,24 @@ Every meaningful system event generates a ledger entry:
   - Assist Queue approvals or rejections
 
 - **Execution Events**
-  - N8N workflow dispatched
+  - External Agent dispatched
   - Payment link sent
   - Stripe/payment confirmation received
   - External callback processed
 
-If it changes state, sends money, sends a message, or affects a customer — it goes on the ledger.
+If it changes state, sends money, sends a message, or affects a customer â€” it goes on the ledger.
 
 ### Queue Routing Rule
 
 All AI-initiated actions follow this deterministic path:
 
-1. **AI proposes action** → Ledger entry created (`eventType: ai_proposal_created`)
-2. **Master Architect validates** → Ledger governance event written (`eventType: ai_review_decision`)
+1. **AI proposes action** â†’ Ledger entry created (`eventType: ai_proposal_created`)
+2. **Policy Agent validates** â†’ Ledger governance event written (`eventType: ai_review_decision`)
 3. **Decision made:**
    - If action **requires human approval** (e.g., payments, estimate conversion): Move to Ready Execution
    - If action **does not require human approval** (e.g., data lookup, note creation): Move to Ready Execution (optional observability layer)
-4. **If Ready Execution:** Operator confirms/rejects → Ledger governance event written (`eventType: human_execution_decision`)
-5. **Execution** (if confirmed): Dispatch to N8N or execute internally → Ledger execution event written
+4. **If Ready Execution:** Operator confirms/rejects â†’ Ledger governance event written (`eventType: human_execution_decision`)
+5. **Execution** (if confirmed): Dispatch to External Agent â†’ Ledger execution event written
 
 This removes guesswork and ensures all routing decisions are ledger-recorded.
 
@@ -290,7 +300,7 @@ An action is executable only if:
 
 1. A valid ledger entry exists (proposing the action)
 2. Required governance decisions exist:
-   - If AI-initiated: Master Architect validation event exists
+   - If AI-initiated: Policy Agent validation event exists
    - If human-initiated: Action bypasses governance but is ledger-recorded
    - If requires human approval: Assist Queue approval event exists
 3. No rejection event exists later in the ledger stream
@@ -326,14 +336,14 @@ This prevents retroactive roll-ups and ensures deterministic ledger histories.
 
 ### Ledger as the Execution Spine
 
-Downstream systems do not act on intent — they act on Ledger state.
+Downstream systems do not act on intent â€” they act on Ledger state.
 
 Flow example:
-AI proposes an action → Ledger
-Master Architect validates → Ledger
-Operator approves → Ledger
-Action dispatched to N8N → Ledger
-External system confirms execution → Ledger
+AI proposes an action â†’ Ledger
+Policy Agent validates â†’ Ledger
+Operator approves â†’ Ledger
+Action dispatched to External Agent â†’ Ledger
+External system confirms execution â†’ Ledger
 
 This ensures:
 - Full traceability
@@ -345,7 +355,7 @@ This ensures:
 
 Financial actions (invoices, payment links, charges, refunds) are **never executed directly by AI**.
 
-AI may *propose* these actions, but execution occurs only after required ledger governance events are satisfied (Master Architect validation + human approval in Assist Queue).
+AI may *propose* these actions, but execution occurs only after required ledger governance events are satisfied (Policy Agent validation + human approval in Assist Queue).
 
 This prevents accidental autonomous payments and ensures financial safety.
 
@@ -390,31 +400,31 @@ This is not a passive status screen. It is the control room where the "Brains" a
 
 ### Who Uses This
 
-- **Master Architects**: To define system instructions and autonomy levels for AI entities.
+- **Policy Agents**: To define system instructions and autonomy levels for AI entities.
 
 ### The 4-Entity Architecture (Configurable)
 
 Smart Klix is organized around four distinct AI entities, each with separate concerns:
 
-1. **Edge Agent**
+1. **Intake Agent**
    - **Role**: Intake & Triage
    - **Authority**: Classifies incoming messages, extracts data, determines routing
    - **Configuration**: Greeting scripts, data collection rules, triage logic
    - **Execution**: Cannot execute (read-only, proposal-only)
 
-2. **Discovery AI**
+2. **Query Agent**
    - **Role**: Retrieval & Context
    - **Authority**: Searches knowledge base, retrieves customer history, contextualizes conversations
    - **Configuration**: Citation strictness, PII masking rules, search depth
    - **Execution**: Cannot execute (read-only, proposal-only)
 
-3. **ActionAI CRM**
-   - **Role**: The System Brain — Reasoning & Decision-Making
+3. **Proposal Agent**
+   - **Role**: The System Brain â€” Reasoning & Decision-Making
    - **Authority**: Analyzes input, proposes actions, drafts payloads
    - **Configuration**: Bias toward action vs. discussion, autonomy levels (Manual/Semi/Full)
-   - **Execution**: Cannot execute (proposal-only; execution requires Review Queue + Ready Execution)
+   - **Execution**: Cannot execute (proposal-only; execution requires Proposal Queue human confirmation)
 
-4. **Master Architect**
+4. **Policy Agent**
    - **Role**: Governance & Policy Enforcement
    - **Authority**: Validates AI proposals, enforces policy, makes governance decisions
    - **Configuration**: Validation schemas, policy rules, override thresholds
@@ -422,29 +432,29 @@ Smart Klix is organized around four distinct AI entities, each with separate con
 
 ### What AI Settings Is NOT
 
-- ❌ A dashboard or status screen
-- ❌ A role management system
-- ❌ An execution control panel
-- ❌ A simulation or debugging environment
+- âŒ A dashboard or status screen
+- âŒ A role management system
+- âŒ An execution control panel
+- âŒ A simulation or debugging environment
 
 **AI Settings defines constraints and behavior. Execution is controlled by Ledger governance, Review Queue, and Ready Execution.**
 
 ### AI Settings Contract
 
 - Config changes update the orchestration runtime (e.g., Neo8) immediately
-- Only Master Architects can write to AI Settings
+- Only Policy Agents can write to AI Settings
 - All entities are read-only executors; they generate proposals, not direct state changes
 - No entity can bypass Review Queue or Ready Execution
 
 ---
 
-## ActionAI CRM (Dual-Role Brain)
+## Proposal Agent (Dual-Role Brain)
 
 ### Definition & Responsibility
 
-**ActionAI CRM** is the **System Brain**. It is responsible for reasoning, decision-making, and drafting operational proposals based on input data and customer interactions.
+**Proposal Agent** is the **System Brain**. It is responsible for reasoning, decision-making, and drafting operational proposals based on input data and customer interactions.
 
-**Critical:** ActionAI CRM has one responsibility: **To propose governed actions based on input.**
+**Critical:** Proposal Agent has one responsibility: **To propose governed actions based on input.**
 
 It is **NOT** a background-only service. It has two explicit interfaces that both lead to the same outcome: a proposal in Review Queue.
 
@@ -454,17 +464,17 @@ It is **NOT** a background-only service. It has two explicit interfaces that bot
 
 - **Input Source**: Intake Hub, Funnels, Event triggers
 - **Trigger**: Data is committed (e.g., Form Submission, Webhook, Scheduled task)
-- **Behavior**: ActionAI analyzes the payload, deduplicates, and generates a proposal
-- **Output**: Review Queue (for Master Architect AI validation)
+- **Behavior**: Proposal Agent analyzes the payload, deduplicates, and generates a proposal
+- **Output**: Review Queue (for Policy Agent validation)
 - **Ledger Event**: `AI_PROPOSAL_CREATED`
 - **Cannot**: Dispatch or execute without governance approval
 
-#### B) The Action Console (Interactive)
+#### B) The Proposal Agent Chat (Interactive)
 
-- **Input Source**: Action Console tab (human operator typing instructions)
+- **Input Source**: Proposal Agent tab in sidebar (human operator typing instructions)
 - **Trigger**: Operator submits a manual instruction (e.g., "Draft an invoice for Marcus")
-- **Behavior**: ActionAI interprets intent, queries context, and drafts a proposal
-- **Output**: Review Queue (for Master Architect AI validation)
+- **Behavior**: Proposal Agent interprets intent, queries context, and drafts a proposal
+- **Output**: Proposal Queue → Review stage (for Policy Agent validation)
 - **Ledger Event**: `AI_PROPOSAL_CREATED`
 - **Cannot**: Execute without governance approval
 
@@ -474,7 +484,7 @@ There is no "fast path" that bypasses governance.
 
 ### Ledger Responsibility (First Writer in Chain of Custody)
 
-ActionAI CRM is the **First Writer** in the chain of custody.
+Proposal Agent is the **First Writer** in the chain of custody.
 
 - **When**: Immediately upon generating a draft proposal
 - **Writes**: `AI_PROPOSAL_CREATED` event to audit_log
@@ -482,35 +492,35 @@ ActionAI CRM is the **First Writer** in the chain of custody.
 
 This ensures full traceability from intent to execution.
 
-### Capability Contract (What ActionAI CRM Can Propose)
+### Capability Contract (What Proposal Agent Can Propose)
 
-ActionAI CRM is authorized to **PROPOSE** (not execute) the following actions only:
+Proposal Agent is authorized to **PROPOSE** (not execute) the following actions only:
 
 1. **Create Lead** - From normalized intake data
 2. **Create Contact** - Maximum of 5 entities per proposal
 3. **Create Task** - Follow-up tasks for human operators
 4. **Draft Communication** - Email, SMS, or WhatsApp drafts (not send)
 5. **Create Note** - Internal context logging
-6. **Create Job** - Only if explicitly allowed by Master Architect policy
+6. **Create Job** - Only if explicitly allowed by Policy Agent policy
 
 These actions create new entities or draft communications. **They do not mutate existing state.**
 
-### Hard Constraints (What ActionAI CRM CANNOT Do)
+### Hard Constraints (What Proposal Agent CANNOT Do)
 
-ActionAI CRM is strictly **FORBIDDEN** from:
+Proposal Agent is strictly **FORBIDDEN** from:
 
-- ❌ **Direct Mutation**: Cannot update existing records autonomously. Ever.
-- ❌ **Overwrite**: Cannot change data it created without human approval
-- ❌ **Direct Execution**: Cannot send emails, process payments, or dispatch to external systems
-- ❌ **Bypass**: Cannot skip the Review Queue or Master Architect governance
-- ❌ **Financial Actions**: Cannot propose, execute, or approve payment-related actions
+- âŒ **Direct Mutation**: Cannot update existing records autonomously. Ever.
+- âŒ **Overwrite**: Cannot change data it created without human approval
+- âŒ **Direct Execution**: Cannot send emails, process payments, or dispatch to external systems
+- âŒ **Bypass**: Cannot skip the Review Queue or Policy Agent governance
+- âŒ **Financial Actions**: Cannot propose, execute, or approve payment-related actions
 
 ### Flag-Only Escalation Rule (Non-Negotiable)
 
-If ActionAI CRM detects an action it is not authorized to perform:
+If Proposal Agent detects an action it is not authorized to perform:
 
 1. It must create a **Human Action Required** proposal
-2. Route it through Review Queue for Master Architect validation
+2. Route it through Review Queue for Policy Agent validation
 3. Surface it in Ready Execution for human operator review
 4. Human operator performs the action
 5. Ledger records the human action (`HUMAN_EXECUTION_DECISION`)
@@ -526,10 +536,10 @@ Examples:
 
 To prevent loops and hallucinations, the system enforces a strict kill-switch:
 
-1. **First Failure**: Master Architect rejects proposal. ActionAI requests redraft.
-2. **Second Failure**: Master Architect rejects proposal. ActionAI requests redraft.
+1. **First Failure**: Policy Agent rejects proposal. Proposal Agent requests redraft.
+2. **Second Failure**: Policy Agent rejects proposal. Proposal Agent requests redraft.
 3. **Third Failure**: **BLOCK**
-   - ActionAI CRM is suspended for this specific context/task
+   - Proposal Agent is suspended for this specific context/task
    - The task reverts to **Manual Handling Only**
    - Event is logged as "AI Unfit for Task" in audit_log
 
@@ -543,29 +553,29 @@ This prevents infinite loops and ensures human takes control.
 
 The Review Queue is the **Automated Governance Processing Layer**.
 
-It is the domain of the **Master Architect AI**.
+It is the domain of the **Policy Agent**.
 
 ### Critical Architecture Rule
 
-- ❌ **NO HUMANS** participate in this queue
-- ✅ **Master Architect AI** is the ONLY reviewer
+- âŒ **NO HUMANS** participate in this queue
+- âœ… **Policy Agent** is the ONLY reviewer
 
 This is non-negotiable. Review Queue is AI-to-AI validation, not human approval.
 
 ### What Happens Here
 
-1. **Input**: Proposals arrive from **ActionAI CRM** (from either Headless Engine or Action Console)
-2. **Validation**: Master Architect validates logic, schema, and policy compliance
+1. **Input**: Proposals arrive from **Proposal Agent** (from either Headless Engine or Proposal Agent Chat)
+2. **Validation**: Policy Agent validates logic, schema, and policy compliance
 3. **Decision**:
    - **Approved**: Automatically moves to **Ready Execution**
-   - **Rejected**: Returned to ActionAI CRM for redrafting (or archival after 3 failures)
+   - **Rejected**: Returned to Proposal Agent for redrafting (or archival after 3 failures)
 
 ### Ledger Responsibility
 
-The Master Architect writes the governance decision to the ledger.
+The Policy Agent writes the governance decision to the ledger.
 
 - **Event Type**: `AI_REVIEW_DECISION`
-- **Actor**: Master Architect (AI)
+- **Actor**: Policy Agent (AI)
 - **Content**: Validation outcome, policy check results, and the decision (Approve/Reject)
 
 ### Observability Interface (Optional)
@@ -578,26 +588,31 @@ The Master Architect writes the governance decision to the ledger.
 
 ### Review Queue UI Contract (If Implemented)
 
-- ✅ Read-only observability
-- ✅ Displays ledger-backed governance events only
-- ❌ No mutation handlers
-- ❌ No approval buttons
-- ❌ No execution triggers
-- ❌ No human decision capability
+- âœ… Read-only observability
+- âœ… Displays ledger-backed governance events only
+- âŒ No mutation handlers
+- âŒ No approval buttons
+- âŒ No execution triggers
+- âŒ No human decision capability
 
 Any UI component that attempts to modify state or approve actions from Review Queue is **architecturally invalid**.
 
 ### The Flow
 
 ```
-ActionAI CRM (Propose)
+Proposal Agent (Propose)
      |
      v
-Review Queue (Master Architect Validates)
+Proposal Queue — Review tab (Policy Agent Validates)
      |
      v
-Ready Execution (Human Decides & Executes)
+Proposal Queue — Execute tab (Human Decides & Dispatches)
+     |
+     v
+External Agent (Executes) → Callback → Automation Ledger
 ```
+
+> **UI Note:** Review Queue and Ready Execution are both accessible from the single **Proposal Queue** tab in the sidebar. The tab has two sub-tabs: Review (AI governance) and Execute (human dispatch).
 
 ---
 
@@ -609,14 +624,14 @@ Ready Execution (Human Decides & Executes)
 
 It is the **ONLY** place where a human operator exercises approval power and triggers real-world execution.
 
-**CRITICAL ARCHITECTURE RULE**: ✅ **Human Operator** is the ONLY actor here.
+**CRITICAL ARCHITECTURE RULE**: âœ… **Human Operator** is the ONLY actor here.
 
 ### What Happens Here
 
-1. **Input**: Proposals that have been **Approved by Master Architect** (from Review Queue)
-2. **Human Decision**: The Operator reviews the Master Architect-validated payload
+1. **Input**: Proposals that have been **Approved by Policy Agent** (from Review Queue)
+2. **Human Decision**: The Operator reviews the Policy Agent-validated payload
 3. **Action**:
-   - **Confirm**: Triggers the API/Integration (Real-world execution to N8N, Stripe, databases, etc.)
+   - **Confirm**: Triggers the API/Integration (Real-world execution to External Agent, Stripe, databases, etc.)
    - **Reject**: Overrides the AI's approval, kills the workflow, and logs a terminal state
 
 ### Ledger Responsibility
@@ -631,9 +646,9 @@ The Human Operator logs the final reality.
 
 - **Queue**: List of AI-Validated items ready for dispatch (from Review Queue)
 - **Action Buttons**: 
-  - "Confirm & Execute" - Dispatches to N8N, Stripe, database
+  - "Confirm & Execute" - Dispatches to External Agent, Stripe, database
   - "Reject & Cancel" - Terminal rejection (no redraft loop)
-- **Payload Display**: Full details of what AI proposed and Master Architect validated
+- **Payload Display**: Full details of what AI proposed and Policy Agent validated
 - **Security**: Identity confirmation modal before execution (especially for financial actions)
 
 ### The Flow
@@ -645,7 +660,7 @@ Review Queue (AI Validated)
 Ready Execution (Human Reviews & Confirms)
      |
      v
-External World (API, N8N, Stripe, Database)
+External World (API, External Agent, Stripe, Database)
      |
      v
 Ledger Records Result
@@ -653,11 +668,11 @@ Ledger Records Result
 
 ### Critical Boundaries
 
-**Ready Execution ≠ Review Queue**
+**Ready Execution â‰  Review Queue**
 - Review Queue: AI governance (no humans)
 - Ready Execution: Human authority (only humans execute)
 
-**Ready Execution ≠ Assist Queue**
+**Ready Execution â‰  Assist Queue**
 - Assist Queue: Operator approves AI-generated content (e.g., draft emails, estimates)
 - Ready Execution: Operator executes the approved action in the real world
 
@@ -666,11 +681,11 @@ Ledger Records Result
 **The Headless Execution Engine cannot dispatch any action without passing Review Queue and Ready Execution approval.**
 
 This applies to all paths:
-- Headless Engine triggers → Review Queue → Ready Execution → Dispatch
-- Action Console triggers → Review Queue → Ready Execution → Dispatch
-- Direct API calls → Review Queue → Ready Execution → Dispatch
+- Headless Engine triggers → Proposal Queue (Review) → Proposal Queue (Execute) → Dispatch
+- Proposal Agent Chat triggers → Proposal Queue (Review) → Proposal Queue (Execute) → Dispatch
+- Direct API calls → Proposal Queue (Review) → Proposal Queue (Execute) → Dispatch
 
-No action reaches external systems (N8N, Stripe, database mutations) without this full chain.
+No action reaches external systems (External Agent, Stripe, database mutations) without this full chain.
 
 ---
 
@@ -678,13 +693,13 @@ No action reaches external systems (N8N, Stripe, database mutations) without thi
 
 ```
 Contact Created
-    ↓
+    â†“
 Job Created (linked to contact)
-    ↓
+    â†“
 Field Reports Added (linked to job)
-    ↓
+    â†“
 Financial Records Tracked (linked to job/contact)
-    ↓
+    â†“
 Export to CSV (all entities with relational data)
 ```
 
@@ -717,7 +732,7 @@ Every entity is traceable. No orphan records allowed.
 SmartKlix is organized in 5 explicit layers:
 
 **Layer 1: Data Layer (DB)**
-- PostgreSQL database (Neon-backed)
+- PostgreSQL database (Supabase-backed)
 - Drizzle ORM schemas (`shared/schema.ts`)
 - Storage implementations (`server/storage.ts`)
 
@@ -754,7 +769,7 @@ SmartKlix is organized in 5 explicit layers:
 - NOT suitable for 50k+ records (production scaling)
 
 ### Real Limitation
-The bottleneck is not volume — it's **memory-bound CSV generation per request**.
+The bottleneck is not volume â€” it's **memory-bound CSV generation per request**.
 
 ### Future Optimization (Post-MVP)
 - Database-level filtering with SQL WHERE clauses
@@ -770,7 +785,7 @@ The bottleneck is not volume — it's **memory-bound CSV generation per request*
 - Node.js 20+ (automatically provided by Replit)
 - PostgreSQL database (use Replit's built-in database)
 - OpenAI API access (via Replit AI Integrations - no personal key required)
-- N8N instance (optional, for workflow automation)
+- External Agent instance (optional, for workflow automation)
 
 ### Step 1: Database Setup
 The project uses Replit's built-in PostgreSQL database. If not already created:
@@ -814,7 +829,7 @@ The app gracefully degrades when services are not configured:
 |---------|-------------------|
 | Database | Falls back to in-memory storage |
 | OpenAI | Shows "not_configured" status |
-| N8N | Displays pending status |
+| External Agent | Displays pending status |
 
 This allows development without all external dependencies.
 
@@ -867,64 +882,64 @@ Colors and theme are configured via Settings UI in-app (defaults: Yellow #FDB913
 ## Project Structure
 ```
 smart-klix-crm/
-├── client/                      # Frontend (React 18 + TypeScript)
-│   ├── src/
-│   │   ├── components/          # Reusable UI components
-│   │   │   ├── ui/              # Shadcn UI primitives (Button, Card, etc.)
-│   │   │   ├── AppSidebar.tsx   # Main navigation sidebar
-│   │   │   ├── CreateJobDialog.tsx
-│   │   │   └── ...
-│   │   ├── pages/               # Page components (one per route)
-│   │   │   ├── Dashboard.tsx    # Main dashboard with metrics
-│   │   │   ├── Contacts.tsx     # Customer management
-│   │   │   ├── Jobs.tsx         # Project tracking
-│   │   │   ├── Pipeline.tsx     # Visual kanban board
-│   │   │   ├── AdminChat.tsx    # AI intelligence bot
-│   │   │   └── ...
-│   │   ├── hooks/               # Custom React hooks
-│   │   │   └── use-toast.ts     # Toast notification hook
-│   │   ├── lib/                 # Utilities and config
-│   │   │   ├── queryClient.ts   # TanStack Query setup
-│   │   │   └── utils.ts         # Helper functions
-│   │   ├── App.tsx              # Root component with routing
-│   │   └── main.tsx             # Application entry point
-│   └── index.css                # Tailwind + theme variables
-│
-├── server/                      # Backend (Express + TypeScript)
-│   ├── index.ts                 # Express app entry point
-│   ├── routes.ts                # API routes (all with Zod validation)
-│   ├── storage.ts               # Storage interface + implementations
-│   ├── db.ts                    # Database connection (Drizzle + Neon)
-│   ├── master-architect.ts      # AI agent orchestrator
-│   ├── ai-tools.ts              # OpenAI function calling tools (26 tools)
-│   ├── pipeline.ts              # Job pipeline state machine
-│   ├── vite.ts                  # Vite dev server integration
-│   └── replit_integrations/     # Replit AI Integration blueprints
-│       ├── chat/                # Chat completion utilities
-│       │   ├── index.ts         # Main chat function
-│       │   └── storage.ts       # Chat history storage
-│       ├── image/               # Image generation utilities
-│       │   └── index.ts         # DALL-E integration
-│       └── batch/               # Batch processing utilities
-│           └── utils.ts         # Batch job helpers
-│
-├── shared/                      # Shared types and schemas
-│   └── schema.ts                # Drizzle ORM schemas + Zod validation
-│                                # (Single source of truth for all types)
-│
-├── docs/                        # Documentation (MUST be updated)
-│   ├── API_REFERENCE.md         # Complete API documentation
-│   ├── DEPLOYMENT_GUIDE.md      # Production deployment guide
-│   ├── DEVELOPER_ONBOARDING.md  # New developer setup
-│   ├── AUDIT_REPORT.md          # Latest audit findings
-│   └── architecture.md          # System architecture decisions
-│
-├── replit.md                    # Project memory and architecture notes
-├── package.json                 # Dependencies (DO NOT EDIT MANUALLY)
-├── tsconfig.json                # TypeScript configuration
-├── tailwind.config.ts           # Tailwind CSS configuration
-├── vite.config.ts               # Vite configuration (DO NOT EDIT)
-└── drizzle.config.ts            # Drizzle ORM configuration (DO NOT EDIT)
+â”œâ”€â”€ client/                      # Frontend (React 18 + TypeScript)
+â”‚   â”œâ”€â”€ src/
+â”‚   â”‚   â”œâ”€â”€ components/          # Reusable UI components
+â”‚   â”‚   â”‚   â”œâ”€â”€ ui/              # Shadcn UI primitives (Button, Card, etc.)
+â”‚   â”‚   â”‚   â”œâ”€â”€ AppSidebar.tsx   # Main navigation sidebar
+â”‚   â”‚   â”‚   â”œâ”€â”€ CreateJobDialog.tsx
+â”‚   â”‚   â”‚   â””â”€â”€ ...
+â”‚   â”‚   â”œâ”€â”€ pages/               # Page components (one per route)
+â”‚   â”‚   â”‚   â”œâ”€â”€ Dashboard.tsx    # Main dashboard with metrics
+â”‚   â”‚   â”‚   â”œâ”€â”€ Contacts.tsx     # Customer management
+â”‚   â”‚   â”‚   â”œâ”€â”€ Jobs.tsx         # Project tracking
+â”‚   â”‚   â”‚   â”œâ”€â”€ Pipeline.tsx     # Visual kanban board
+â”‚   â”‚   â”‚   â”œâ”€â”€ AdminChat.tsx    # AI intelligence bot
+â”‚   â”‚   â”‚   â””â”€â”€ ...
+â”‚   â”‚   â”œâ”€â”€ hooks/               # Custom React hooks
+â”‚   â”‚   â”‚   â””â”€â”€ use-toast.ts     # Toast notification hook
+â”‚   â”‚   â”œâ”€â”€ lib/                 # Utilities and config
+â”‚   â”‚   â”‚   â”œâ”€â”€ queryClient.ts   # TanStack Query setup
+â”‚   â”‚   â”‚   â””â”€â”€ utils.ts         # Helper functions
+â”‚   â”‚   â”œâ”€â”€ App.tsx              # Root component with routing
+â”‚   â”‚   â””â”€â”€ main.tsx             # Application entry point
+â”‚   â””â”€â”€ index.css                # Tailwind + theme variables
+â”‚
+â”œâ”€â”€ server/                      # Backend (Express + TypeScript)
+â”‚   â”œâ”€â”€ index.ts                 # Express app entry point
+â”‚   â”œâ”€â”€ routes.ts                # API routes (all with Zod validation)
+â”‚   â”œâ”€â”€ storage.ts               # Storage interface + implementations
+â”‚   â”œâ”€â”€ db.ts                    # Database connection (Drizzle + Supabase)
+â”‚   â”œâ”€â”€ master-architect.ts      # AI agent orchestrator
+â”‚   â”œâ”€â”€ ai-tools.ts              # OpenAI function calling tools (26 tools)
+â”‚   â”œâ”€â”€ pipeline.ts              # Job pipeline state machine
+â”‚   â”œâ”€â”€ vite.ts                  # Vite dev server integration
+â”‚   â””â”€â”€ replit_integrations/     # Replit AI Integration blueprints
+â”‚       â”œâ”€â”€ chat/                # Chat completion utilities
+â”‚       â”‚   â”œâ”€â”€ index.ts         # Main chat function
+â”‚       â”‚   â””â”€â”€ storage.ts       # Chat history storage
+â”‚       â”œâ”€â”€ image/               # Image generation utilities
+â”‚       â”‚   â””â”€â”€ index.ts         # DALL-E integration
+â”‚       â””â”€â”€ batch/               # Batch processing utilities
+â”‚           â””â”€â”€ utils.ts         # Batch job helpers
+â”‚
+â”œâ”€â”€ shared/                      # Shared types and schemas
+â”‚   â””â”€â”€ schema.ts                # Drizzle ORM schemas + Zod validation
+â”‚                                # (Single source of truth for all types)
+â”‚
+â”œâ”€â”€ docs/                        # Documentation (MUST be updated)
+â”‚   â”œâ”€â”€ API_REFERENCE.md         # Complete API documentation
+â”‚   â”œâ”€â”€ DEPLOYMENT_GUIDE.md      # Production deployment guide
+â”‚   â”œâ”€â”€ DEVELOPER_ONBOARDING.md  # New developer setup
+â”‚   â”œâ”€â”€ AUDIT_REPORT.md          # Latest audit findings
+â”‚   â””â”€â”€ architecture.md          # System architecture decisions
+â”‚
+â”œâ”€â”€ replit.md                    # Project memory and architecture notes
+â”œâ”€â”€ package.json                 # Dependencies (DO NOT EDIT MANUALLY)
+â”œâ”€â”€ tsconfig.json                # TypeScript configuration
+â”œâ”€â”€ tailwind.config.ts           # Tailwind CSS configuration
+â”œâ”€â”€ vite.config.ts               # Vite configuration (DO NOT EDIT)
+â””â”€â”€ drizzle.config.ts            # Drizzle ORM configuration (DO NOT EDIT)
 ```
 
 ### Folder Rules (Clean Code Doctrine)
@@ -955,7 +970,7 @@ smart-klix-crm/
 | Express.js | Web server | 4.x |
 | TypeScript | Type safety (strict mode) | 5.x |
 | Drizzle ORM | Type-safe database queries | 0.38.x |
-| PostgreSQL | Production database (Neon) | 16.x |
+| PostgreSQL | Production database (Supabase) | 16.x |
 | OpenAI SDK | AI agent (GPT-4o) | 4.x |
 | Zod | Runtime validation | 3.x |
 | WebSocket (ws) | Real-time chat streaming | 8.x |
@@ -964,8 +979,8 @@ smart-klix-crm/
 | Service | Purpose |
 |---------|---------|
 | Replit AI Integrations | OpenAI API access (managed keys) |
-| Replit Database | PostgreSQL hosting (Neon-backed) |
-| N8N | Workflow automation (SMS, email, payments) |
+| Replit Database | PostgreSQL hosting (Supabase-backed) |
+| External Agent | Workflow automation (SMS, email, payments) |
 
 ## Database Schema
 
@@ -1090,39 +1105,39 @@ Response:
 ```
 All POST/PATCH routes include Zod validation. See `docs/API_REFERENCE.md` for complete documentation.
 
-## Master Architect & Operational Modes
+## Policy Agent & Operational Modes
 
-### Master Architect Overview
+### Policy Agent Overview
 
-The Master Architect is the AI Governance Engine that validates all ActionAI CRM proposals. Located in `server/master-architect.ts`.
+The Policy Agent is the AI Governance Engine that validates all Proposal Agent proposals. Located in `server/master-architect.ts`.
 
 **Role**: Governance and Policy Enforcement
-- Receives proposals from ActionAI CRM
+- Receives proposals from Proposal Agent
 - Validates against policy schemas
 - Makes approval/rejection decisions
 - Writes governance events to Ledger
 
-Master Architect is NOT an execution engine. It is a validation and governance layer.
+Policy Agent is NOT an execution engine. It is a validation and governance layer.
 
-### Operational Modes (ActionAI CRM)
+### Operational Modes (Proposal Agent)
 
-**Critical:** These modes apply to **ActionAI CRM**, not Master Architect.
+**Critical:** These modes apply to **Proposal Agent**, not Policy Agent.
 
 | Mode | Behavior | Execution Path |
 |------|----------|-----------------|
-| Draft | ActionAI CRM suggests actions; no governance execution | ActionAI proposes → Operator reviews in UI (no auto-execution) |
-| Assist | ActionAI CRM queues proposals for approval | ActionAI proposes → Review Queue (Master Architect validates) → Ready Execution (human confirms) |
-| Auto | ActionAI CRM auto-generates proposals aggressively | ActionAI proposes → Review Queue (Master Architect validates) → Ready Execution (human confirms) |
+| Draft | Proposal Agent suggests actions; no governance execution | Proposal Agent proposes â†’ Operator reviews in UI (no auto-execution) |
+| Assist | Proposal Agent queues proposals for approval | Proposal Agent proposes â†’ Review Queue (Policy Agent validates) â†’ Ready Execution (human confirms) |
+| Auto | Proposal Agent auto-generates proposals aggressively | Proposal Agent proposes â†’ Review Queue (Policy Agent validates) â†’ Ready Execution (human confirms) |
 
 **Critical:** All modes route through Review Queue and Ready Execution. There is no "Auto mode" that bypasses human authority for financial or critical actions.
 
-**Auto mode does NOT mean "autonomous execution." It means ActionAI CRM is aggressive in generating proposals. Execution always requires human confirmation in Ready Execution.**
+**Auto mode does NOT mean "autonomous execution." It means Proposal Agent is aggressive in generating proposals. Execution always requires human confirmation in Ready Execution.**
 
 ### AI Tools & Execution
 
 #### Tool Categories (26 Available)
 
-The ActionAI CRM can invoke these proposal tools (defined in `server/ai-tools.ts`):
+The Proposal Agent can invoke these proposal tools (defined in `server/ai-tools.ts`):
 
 **Contact Management:**
 - `create_contact` - Add new leads/customers
@@ -1154,19 +1169,19 @@ The ActionAI CRM can invoke these proposal tools (defined in `server/ai-tools.ts
 
 **Important:** Tools related to invoices, payments, refunds, or financial state changes are **proposal-only, never executable**.
 
-These tools can be invoked by ActionAI CRM to PROPOSE:
+These tools can be invoked by Proposal Agent to PROPOSE:
 - `send_invoice` - Propose sending invoice
 - `record_payment` - Propose recording payment
 - `create_invoice` - Propose creating invoice
 - Any tool that mutates financial records
 
-**What happens when ActionAI CRM invokes a financial tool:**
-1. ActionAI CRM generates a proposal (not execution)
+**What happens when Proposal Agent invokes a financial tool:**
+1. Proposal Agent generates a proposal (not execution)
 2. Ledger entry created: `AI_PROPOSAL_CREATED` (financial action proposal)
-3. Master Architect validates the proposal
-4. If approved → Ready Execution shows the proposal for human confirmation
+3. Policy Agent validates the proposal
+4. If approved â†’ Ready Execution shows the proposal for human confirmation
 5. **Human operator explicitly confirms execution in Ready Execution**
-6. Only then is the action dispatched to N8N, Stripe, or internal systems
+6. Only then is the action dispatched to External Agent, Stripe, or internal systems
 
 **Even in Auto mode, financial tools require explicit human confirmation in Ready Execution. This is a non-negotiable safety boundary.**
 
@@ -1193,7 +1208,7 @@ All tools are proposal-only. Execution requires Ready Execution human confirmati
 User Message
      |
      v
-ActionAI CRM (server/master-architect.ts)
+Proposal Agent (server/master-architect.ts)
      |
      v
 OpenAI API (via Replit AI Integrations)
@@ -1205,7 +1220,7 @@ Tool Invocation (server/ai-tools.ts)
 Proposal Created (Ledger: AI_PROPOSAL_CREATED)
      |
      v
-Review Queue (Master Architect validates)
+Review Queue (Policy Agent validates)
      |
      v
 Ready Execution (Human confirms)
@@ -1231,7 +1246,7 @@ The Email tab contains two sub-tabs:
 - **Context**: Free-text subject and body, ad-hoc follow-ups
 - **Authority**: 
   - Human initiates directly
-  - ActionAI may DRAFT, but proposals go through Review Queue
+  - Proposal Agent may DRAFT, but proposals go through Review Queue
   - Dispatch goes through Neo8 Engine
 
 #### Sub-Tab B: Email Accounts (Company/System)
@@ -1240,8 +1255,8 @@ The Email tab contains two sub-tabs:
 - **Context**: Template-only, transactional messages (invoices, notifications)
 - **Constraint**: No free-text editing at send time - template selection only
 - **Authority**:
-  - Human or ActionAI can select templates
-  - ActionAI proposals MUST go through Review Queue
+  - Human or Proposal Agent can select templates
+  - Proposal Agent proposals MUST go through Review Queue
   - Human approval required before execution
 
 ### The Identity Model (Critical)
@@ -1268,7 +1283,7 @@ The Frontend CRM **NEVER** sends emails directly. All outbound dispatch actions 
 ### Email Ledger Events
 | Event | When Written | Actor |
 |-------|--------------|-------|
-| `EMAIL_DISPATCH_AUTHORIZED` | User clicks Authorize Dispatch | Human/ActionAI |
+| `EMAIL_DISPATCH_AUTHORIZED` | User clicks Authorize Dispatch | Human/Proposal Agent |
 | `EMAIL_DISPATCH_SENT` | Neo8 confirms send | System |
 | `EMAIL_DELIVERED` | Provider confirms delivery | System |
 | `EMAIL_OPENED` | Recipient opens email | System |
@@ -1286,10 +1301,10 @@ The Frontend CRM **NEVER** sends emails directly. All outbound dispatch actions 
 - Company emails REQUIRE template selection - no free-text
 
 ### Explicit Non-Goals
-- ❌ **Inbox Zero**: This is an audit log, not a to-do list
-- ❌ **Marketing Builder**: Bulk campaigns in Funnels/Social Planner
-- ❌ **Real-Time Chat**: Use WhatsApp for instant messaging
-- ❌ **Auto-Send**: Background automation lives in ActionAI
+- âŒ **Inbox Zero**: This is an audit log, not a to-do list
+- âŒ **Marketing Builder**: Bulk campaigns in Funnels/Social Planner
+- âŒ **Real-Time Chat**: Use WhatsApp for instant messaging
+- âŒ **Auto-Send**: Background automation lives in Proposal Agent
 
 ## WhatsApp & SMS (Operational Messaging Engine)
 
@@ -1303,7 +1318,7 @@ The WhatsApp tab is the **Instant Operations Channel** for high-velocity, low-la
 |-------------------|-------------|
 | No Client ID | No Lead |
 | No Client ID | No Outreach |
-| No Client ID | No ActionAI proposal |
+| No Client ID | No Proposal Agent proposal |
 | No Client ID | No Ledger entry |
 | No Client ID | No Messaging (SMS/WhatsApp/Email) |
 
@@ -1321,12 +1336,12 @@ Examples: `joe_4837`, `maria_9021`, `alex_1174`
 | **Provider IDs** | WhatsApp/SMS message refs | Metadata only on ledger events |
 
 ### Authority Boundaries
-**ActionAI CAN:**
+**Proposal Agent CAN:**
 - Draft SMS/WhatsApp messages
 - Propose outreach tied to a valid Client ID
 - Ask clarifying questions before drafting
 
-**ActionAI CANNOT:**
+**Proposal Agent CANNOT:**
 - Send messages directly
 - Bypass review
 - Message without a Client ID
@@ -1334,11 +1349,11 @@ Examples: `joe_4837`, `maria_9021`, `alex_1174`
 ### Dispatch Flow (Required)
 ```
 CRM UI
-→ Review Queue (approval required)
-→ Authorization
-→ Neo8 Engine
-→ Provider (WhatsApp/SMS via Twilio)
-→ Ledger Write
+â†’ Review Queue (approval required)
+â†’ Authorization
+â†’ Neo8 Engine
+â†’ Provider (WhatsApp/SMS via Twilio)
+â†’ Ledger Write
 ```
 
 **CRM never sends directly. All dispatch goes to Neo8.**
@@ -1359,7 +1374,7 @@ CRM UI
 ### Phase 1 Ledger Events (Current Implementation)
 | Event | When Written |
 |-------|--------------|
-| `WHATSAPP_DRAFTED` | ActionAI generates message |
+| `WHATSAPP_DRAFTED` | Proposal Agent generates message |
 | `WHATSAPP_DISPATCH_AUTHORIZED` | Human approves |
 | *(STOP HERE)* | Neo8 not connected yet |
 
@@ -1381,10 +1396,10 @@ WhatsApp Business API restricts free-form messaging after 24h from last customer
 - Template requires Meta pre-approval
 
 ### Explicit Non-Goals
-- ❌ **Real-time chat**: This is dispatch prep, not conversation
-- ❌ **Marketing blaster**: No bulk spam
-- ❌ **Bot builder**: Logic lives in Funnels or AI Voice
-- ❌ **Direct send**: CRM never sends directly
+- âŒ **Real-time chat**: This is dispatch prep, not conversation
+- âŒ **Marketing blaster**: No bulk spam
+- âŒ **Bot builder**: Logic lives in Funnels or AI Voice
+- âŒ **Direct send**: CRM never sends directly
 
 ## External Agent Integration
 
@@ -1392,8 +1407,8 @@ WhatsApp Business API restricts free-form messaging after 24h from last customer
 
 The CRM communicates with external agents via webhooks. This is a simple, bidirectional system:
 
-1. **Outbound (CRM → Agents):** Events fire to wake up agents
-2. **Inbound (Agents → CRM):** Agents report back via existing intake hub
+1. **Outbound (CRM â†’ Agents):** Events fire to wake up agents
+2. **Inbound (Agents â†’ CRM):** Agents report back via existing intake hub
 
 ### Outbound Webhook System
 
@@ -1480,7 +1495,7 @@ Agents report back to the CRM's **existing intake hub** in JSON format.
 }
 ```
 
-The intake hub receives this → processes it → updates contact record → logs to audit_log.
+The intake hub receives this â†’ processes it â†’ updates contact record â†’ logs to audit_log.
 
 ### Implementation Files
 
@@ -1500,13 +1515,13 @@ The intake hub receives this → processes it → updates contact record → log
 
 ---
 
-## N8N Integration (DEPRECATED)
+## External Agent Integration (DEPRECATED)
 
-**Note:** N8N integration has been replaced with the External Agent Integration system above.
+**Note:** External Agent integration has been replaced with the External Agent Integration system above.
 
 ### Legacy Documentation (For Reference Only)
 
-Smart Klix previously integrated with N8N for external automation:
+Smart Klix previously integrated with External Agent for external automation:
 - SMS/Email: Customer communications
 - Payment Links: Stripe/payment processing
 - Voice Calls: Inbound/outbound call handling
@@ -1554,7 +1569,7 @@ All external callbacks (agent gateway, Stripe, webhooks) **must reference the or
    }
    ```
 
-2. When N8N calls back via `/api/events/update`, the callback must include the originating ledger ID:
+2. When External Agent calls back via `/api/events/update`, the callback must include the originating ledger ID:
    ```typescript
    POST /api/events/update
    {
@@ -1709,16 +1724,16 @@ curl https://your-repl.replit.dev/api/health | jq
 ## Current Status
 
 ### Production-Ready
-- ✅ CRM Core (contacts, jobs, relationships)
-- ✅ Field Operations (reports, photos, status tracking)
-- ✅ Financial Tracking (income, expenses, profit)
-- ✅ Export System (CSV with guardrails)
-- ✅ Seed System (test data generation)
-- ✅ Validation Layer (unified, with financial integrity checks)
+- âœ… CRM Core (contacts, jobs, relationships)
+- âœ… Field Operations (reports, photos, status tracking)
+- âœ… Financial Tracking (income, expenses, profit)
+- âœ… Export System (CSV with guardrails)
+- âœ… Seed System (test data generation)
+- âœ… Validation Layer (unified, with financial integrity checks)
 
 ### In Development
-- ⚠️ Lead Crawler Integration (pipeline bridge needed)
-- ⚠️ Outreach Automation (email/SMS agents)
+- âš ï¸ Lead Crawler Integration (pipeline bridge needed)
+- âš ï¸ Outreach Automation (email/SMS agents)
 
 ### Technical Debt
 - Pre-existing TypeScript errors in Stripe/Campaign modules (non-blocking)
@@ -1737,7 +1752,7 @@ curl https://your-repl.replit.dev/api/health | jq
 - Authentication system (JWT + RBAC)
 - File upload storage (S3/local)
 - Real-time notifications (WebSocket)
-- Email/SMS sending (via N8N)
+- Email/SMS sending (via External Agent)
 - Advanced AI memory (embeddings)
 - Multi-language support
 
@@ -1756,3 +1771,5 @@ curl https://your-repl.replit.dev/api/health | jq
 | Architecture | System architecture decisions |
 
 Remember: If the code is not clean, readable, and documented, it is not done.
+
+
