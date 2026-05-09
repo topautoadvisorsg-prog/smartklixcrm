@@ -6,7 +6,7 @@ export default function AdminChat() {
       <div className="mb-4">
         <h1 className="text-2xl font-semibold mb-2">Intelligence Bot</h1>
         <p className="text-sm text-muted-foreground">
-          Master Architect AI with full CRM access - create contacts, manage jobs, schedule appointments, and more.
+          Query Agent with full CRM access - create contacts, manage jobs, schedule appointments, and more.
         </p>
       </div>
       

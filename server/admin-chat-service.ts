@@ -1,5 +1,5 @@
 /**
- * Admin Chat Service - Master Architect with Validator Integration
+ * Admin Chat Service - Query Agent with Validator Integration
  * 
  * This service handles AI chat interactions for the admin panel.
  * CRITICAL: All tool executions MUST go through reviewProposal() from validator.ts

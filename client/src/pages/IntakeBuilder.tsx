@@ -112,7 +112,7 @@ export default function IntakeBuilder() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/intake-submissions"] });
-      toast({ title: "Submission committed to ActionAI CRM" });
+      toast({ title: "Submission committed to Proposal Agent" });
       setSelectedSubmissionId(null);
       setNormalizedForm(null);
     },
@@ -532,10 +532,10 @@ export default function IntakeBuilder() {
                     data-testid="button-verify-commit"
                   >
                     <Check className="w-4 h-4" />
-                    {commitMutation.isPending ? "Committing..." : "Verify & Commit to ActionAI CRM"}
+                    {commitMutation.isPending ? "Committing..." : "Verify & Commit to Proposal Agent"}
                   </Button>
                   <p className="text-[9px] text-muted-foreground text-center leading-relaxed px-4">
-                    Triggering this action passes authority to ActionAI for reasoning and proposal generation.
+                    Triggering this action passes authority to Proposal Agent for reasoning and proposal generation.
                   </p>
                   <Button
                     variant="outline"

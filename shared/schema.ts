@@ -642,22 +642,22 @@ export const memoryEntries = pgTable("memory_entries", {
 export const aiSettings = pgTable("ai_settings", {
   id: varchar("id").primaryKey().default('default'),
   
-  // Edge Agent (Widget) - Public chat intake
+  // Intake Agent (Widget) - Public chat intake
   edgeAgentPrompt: text("edge_agent_prompt"),
   edgeAgentConstraints: jsonb("edge_agent_constraints").default(sql`'[]'::jsonb`),
   edgeAgentEnabled: boolean("edge_agent_enabled").notNull().default(true),
   
-  // Discovery AI (Information AI Chat) - Read-only CRM queries
+  // Query Agent (Information AI Chat) - Read-only CRM queries
   discoveryAiPrompt: text("discovery_ai_prompt"),
   discoveryAiConstraints: jsonb("discovery_ai_constraints").default(sql`'[]'::jsonb`),
   discoveryAiEnabled: boolean("discovery_ai_enabled").notNull().default(true),
   
-  // ActionAI CRM - Action Console execution
+  // Proposal Agent - Action Console execution
   actionAiPrompt: text("action_ai_prompt"),
   actionAiConstraints: jsonb("action_ai_constraints").default(sql`'[]'::jsonb`),
   actionAiEnabled: boolean("action_ai_enabled").notNull().default(true),
   
-  // Master Architect - Proposal validation (DEPRECATED)
+  // Policy Agent - Proposal validation (DEPRECATED)
   /** @deprecated Master Architect removed. All validation now handled by validator.ts. */
   masterArchitectPrompt: text("master_architect_prompt"),
   /** @deprecated Master Architect removed. All validation now handled by validator.ts. */

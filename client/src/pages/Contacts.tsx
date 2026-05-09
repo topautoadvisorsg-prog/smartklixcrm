@@ -455,7 +455,7 @@ export default function Contacts() {
                       </div>
 
                       <p className="text-[9px] text-muted-foreground/50 pt-2 border-t border-purple-500/10">
-                        Signals are advisory and owned by Discovery AI. No manual edits permitted.
+                        Signals are advisory and owned by Query Agent. No manual edits permitted.
                       </p>
                     </CardContent>
                   </Card>

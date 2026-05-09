@@ -1485,7 +1485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...proposals.map(p => ({
           id: p.id,
           timestamp: p.approvedAt || p.createdAt,
-          agentName: "ActionAI CRM",
+          agentName: "Proposal Agent",
           actionType: "Approved Proposal",
           entityType: "staged_proposal",
           entityId: p.id,
@@ -3175,7 +3175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 - Execute any actions that change the system
 
 If you need to make changes, use the Action Console instead.`,
-          actionAiPrompt: `You are ActionAI CRM - the operational brain for Smart Klix CRM.
+          actionAiPrompt: `You are Proposal Agent - the operational brain for Smart Klix CRM.
 
 ## CONTACT SAFETY (ALWAYS DO THIS)
 Before creating ANY contact:
@@ -3196,7 +3196,7 @@ After creating estimate, ALWAYS propose sending payment request.
 ## PROGRESSIVE CLARIFICATION
 - Never assume missing info - ask for it
 - Be conversational, not robotic`,
-          masterArchitectPrompt: "You are the Master Architect - responsible for validating ActionAI proposals against business logic and safety schemas before human approval.",
+          masterArchitectPrompt: "You are Policy Agent - responsible for validating Proposal Agent actions against business logic and safety schemas before human approval.",
           companyKnowledge: "Company Name: Smart Klix CRM\nIndustry: Field Service Management\nServices: HVAC, Plumbing, Electrical\nBusiness Hours: Mon-Fri 8AM-6PM, Sat 9AM-3PM\nEmergency Service: 24/7 available\nService Area: Greater metropolitan area, 50-mile radius",
           behaviorRules: "1. Always verify contact information before creating jobs\n2. Suggest follow-ups for open estimates older than 7 days\n3. Flag invoices unpaid after 30 days\n4. Recommend scheduling for approved estimates\n5. Maintain professional tone in all communications\n6. Auto-create contacts from widget interactions with complete info",
           globalEnabled: true,
@@ -3996,7 +3996,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
       // Write to Ledger (status: proposed)
       await storage.createAutomationLedgerEntry({
-        agentName: "ActionAI CRM",
+        agentName: "Proposal Agent",
         actionType: "PROPOSAL_CREATED",
         entityType: "staged_proposal",
         entityId: stagedBundleId,
@@ -4049,7 +4049,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
       // Log rejection to ledger
       await storage.createAutomationLedgerEntry({
-        agentName: "ActionAI CRM",
+        agentName: "Proposal Agent",
         actionType: "STAGED_ACTIONS_REJECTED",
         entityType: "staged_action",
         entityId: stagedBundleId,

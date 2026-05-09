@@ -1,5 +1,5 @@
 /**
- * Validator Function - Replaces Master Architect
+ * Validator Function - Policy Agent
  * 
  * Simple stateless decision function that validates proposed actions
  * before they are sent to external execution systems (OpenClaw).

@@ -1,7 +1,7 @@
 /**
  * AI Tools - OpenAI Function Calling Definitions
  * 
- * Defines 26+ tools that ActionAI CRM can propose:
+ * Defines 26+ tools that Proposal Agent can propose:
  * - Contact management (create, update, search)
  * - Job management (create, update, status changes)
  * - Financial operations (estimates, invoices, payments)
@@ -9,7 +9,7 @@
  * 
  * All tools are PROPOSAL-ONLY. Execution requires human approval via Ready Execution.
  * 
- * Used by: ActionAI CRM (OpenAI function calling)
+ * Used by: Proposal Agent (OpenAI function calling)
  */
 
 import { z } from "zod";
@@ -766,7 +766,7 @@ export const aiToolDefinitions: AIToolDefinition[] = [
           },
           agentName: {
             type: "string",
-            description: "Filter by agent name (e.g., 'ActionAI CRM', 'Master Architect', 'Human')"
+            description: "Filter by agent name (e.g., 'Proposal Agent', 'Policy Agent', 'Human')"
           },
           limit: {
             type: "string",
@@ -1395,8 +1395,8 @@ export async function executeAITool(toolName: string, args: unknown, options: Ex
       riskLevel: "high", // Gated actions are inherently higher risk
       summary: `Gated action: ${toolName}`,
       origin: "ai_chat",
-      validatorDecision: "approve", // Master Architect approved this action
-      validatorReason: "Auto-approved by Master Architect for gated action queueing",
+      validatorDecision: "approve", // Policy Agent approved this action
+      validatorReason: "Auto-approved by Policy Agent for gated action queueing",
       expiresAt,
     });
 

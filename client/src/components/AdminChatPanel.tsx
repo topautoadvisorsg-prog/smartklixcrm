@@ -207,7 +207,7 @@ export default function AdminChatPanel({ contactId }: AdminChatPanelProps) {
             </div>
             <div>
               <CardTitle className="text-base">Intelligence Bot</CardTitle>
-              <p className="text-xs text-muted-foreground">Master Architect with full CRM access</p>
+              <p className="text-xs text-muted-foreground">Query Agent with full CRM access</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

@@ -562,7 +562,7 @@ export async function finalizeAction(
 
   // Write ledger entry
   await storage.createAutomationLedgerEntry({
-    agentName: "Master Architect",
+    agentName: "Policy Agent",
     actionType: allSucceeded ? "PROPOSAL_EXECUTED" : "PROPOSAL_EXECUTION_FAILED",
     entityType: "staged_proposal",
     entityId: proposalId,
