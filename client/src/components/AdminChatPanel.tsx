@@ -144,7 +144,7 @@ export default function AdminChatPanel({ contactId }: AdminChatPanelProps) {
     onSuccess: (result) => {
       toast({
         title: "Mode updated",
-        description: `Intelligence Bot now in ${result.mode.toUpperCase()} mode`,
+        description: `Proposal Agent now in ${result.mode.toUpperCase()} mode`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin-chat/conversations"] });
     },
@@ -206,8 +206,8 @@ export default function AdminChatPanel({ contactId }: AdminChatPanelProps) {
               <Sparkles className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-base">Intelligence Bot</CardTitle>
-              <p className="text-xs text-muted-foreground">Query Agent with full CRM access</p>
+              <CardTitle className="text-base">Proposal Agent</CardTitle>
+              <p className="text-xs text-muted-foreground">Proposal Agent with full CRM access</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -324,7 +324,7 @@ export default function AdminChatPanel({ contactId }: AdminChatPanelProps) {
             <Input
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Ask Intelligence Bot anything..."
+              placeholder="Ask Proposal Agent anything..."
               disabled={sendMessageMutation.isPending}
               className="flex-1"
               data-testid="input-message"

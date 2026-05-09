@@ -49,6 +49,7 @@ import Funnels from "@/pages/Funnels";
 import SocialMedia from "@/pages/SocialMedia";
 import Marketplace from "@/pages/Marketplace";
 import ExportCenter from "@/pages/ExportCenter";
+import Campaigns from "@/pages/Campaigns";
 import NotFound from "@/pages/not-found";
 
 function LegacyRedirect({ to, message }: { to: string; message: string }) {
@@ -111,6 +112,7 @@ function Router() {
       <Route path="/social-media" component={SocialMedia} />
       <Route path="/marketplace" component={Marketplace} />
       <Route path="/exports" component={ExportCenter} />
+      <Route path="/campaigns" component={Campaigns} />
       <Route component={NotFound} />
     </Switch>
   );

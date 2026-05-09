@@ -27,7 +27,7 @@ export default function InformationAIChat() {
     {
       id: "system-1",
       role: "system",
-      content: "Information AI Chat Online. I have read-only access to your CRM data. Ask me about contacts, jobs, pipeline status, queue status, ledger entries, or any business insights. I cannot create, update, or delete any records.",
+      content: "Query Agent Online. I have read-only access to your CRM data. Ask me about contacts, jobs, pipeline status, queue status, ledger entries, or any business insights. I cannot create, update, or delete any records.",
       timestamp: new Date().toLocaleTimeString(),
     },
   ]);
@@ -104,7 +104,7 @@ export default function InformationAIChat() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3" data-testid="text-page-title">
             <Info className="w-6 h-6 text-primary" />
-            Information AI Chat
+            Query Agent
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Read-only conversational interface for CRM data retrieval
@@ -119,7 +119,7 @@ export default function InformationAIChat() {
       <div className="p-3 rounded-lg border border-warning/30 bg-warning/5 flex items-center gap-3">
         <AlertCircle className="w-5 h-5 text-warning shrink-0" />
         <p className="text-sm text-warning">
-          <span className="font-semibold">Governance Lock:</span> Information AI Chat is permanently read-only. 
+          <span className="font-semibold">Governance Lock:</span> Query Agent is permanently read-only. 
           No action execution. No proposals. No approvals. No ledger writes.
         </p>
       </div>
@@ -128,7 +128,7 @@ export default function InformationAIChat() {
         <CardHeader className="pb-3 border-b border-border shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Information AI Chat Interface
+              Query Agent Interface
             </CardTitle>
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="font-mono text-[10px]">
@@ -163,7 +163,7 @@ export default function InformationAIChat() {
                         <Bot className="w-3 h-3" />
                       )}
                       <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {msg.role === "user" ? "You" : msg.role === "system" ? "System" : "Information AI"}
+                        {msg.role === "user" ? "You" : msg.role === "system" ? "System" : "Query Agent"}
                       </span>
                       <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5" />
