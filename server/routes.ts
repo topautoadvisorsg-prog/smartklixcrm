@@ -4241,6 +4241,68 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
+  // POST /api/proposals/:id/finalize
+  // Finalizes an "approved_pending_send" proposal — operator confirms the send step,
+  // then the proposal is queued for execution via the outbox worker.
+  app.post("/api/proposals/:id/finalize", async (req, res) => {
+    try {
+      const aiSettings = await storage.getAiSettings();
+      if (aiSettings?.killSwitchActive) {
+        return res.status(503).json({ success: false, error: "AI execution is currently disabled by kill switch" });
+      }
+
+      const { id } = req.params;
+      const proposal = await storage.getStagedProposal(id);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposal not found" });
+      }
+      if (proposal.status !== "approved_pending_send") {
+        return res.status(400).json({ error: `Finalize requires status 'approved_pending_send' (current: ${proposal.status})` });
+      }
+
+      const correlationId = proposal.correlationId || crypto.randomUUID();
+      const { writeToOutbox } = await import("./outbox-worker");
+
+      const outboxId = await writeToOutbox({
+        tenantId: "default",
+        idempotencyKey: `finalize-${id}`,
+        eventType: "proposal.execute",
+        channel: "crm",
+        payload: {
+          proposalId: proposal.id,
+          summary: proposal.summary || "",
+          actions: proposal.actions,
+          reasoning: proposal.reasoning || "",
+          approvedBy: proposal.approvedBy || "",
+          approvedAt: proposal.approvedAt ? new Date(proposal.approvedAt).toISOString() : new Date().toISOString(),
+          relatedEntity: proposal.relatedEntity,
+        },
+        correlationId,
+      });
+
+      await storage.updateStagedProposal(id, { status: "queued" });
+
+      await storage.createAutomationLedgerEntry({
+        agentName: "system",
+        actionType: "PROPOSAL_QUEUED",
+        entityType: "staged_proposal",
+        entityId: id,
+        status: "queued",
+        mode: "executed",
+        diffJson: { proposalId: id, outboxId, finalizedAt: new Date().toISOString() },
+        reason: "Operator finalized approved_pending_send proposal",
+        correlationId,
+        executionTraceId: id,
+        idempotencyKey: `finalize-queue-${id}-${Date.now()}`,
+      });
+
+      res.json({ success: true, message: "Proposal finalized and queued for execution", outboxId, correlationId });
+    } catch (error: any) {
+      console.error("Failed to finalize proposal:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to finalize proposal" });
+    }
+  });
+
   // GPT Actions Execute (Master Architect removed; validation now via validator.ts, same pipeline as CRM Chat)
   app.post("/api/ai/gpt-actions/execute", gptActionsRateLimiter, async (req, res) => {
     try {

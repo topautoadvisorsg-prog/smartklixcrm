@@ -98,6 +98,7 @@ function Router() {
       <Route path="/public-contact" component={PublicContact} />
       <Route path="/widget-demo" component={WidgetDemo} />
       <Route path="/proposal-queue" component={ProposalQueue} />
+      <Route path="/review-queue" component={ProposalQueue} />
       <Route path="/ready-execution" component={ProposalQueue} />
       <Route path="/ai-receptionist" component={AIReceptionist} />
       <Route path="/emails" component={Emails} />

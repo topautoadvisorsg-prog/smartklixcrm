@@ -1406,6 +1406,10 @@ export const LedgerActionType = {
   // AI Voice Shared Events
   DISPATCH_SENT: "dispatch_sent",
   EXECUTION_RESULT_RECORDED: "execution_result_recorded",
+  // Proposal lifecycle events
+  PROPOSAL_REJECTED: "PROPOSAL_REJECTED",
+  PROPOSAL_QUEUED: "PROPOSAL_QUEUED",
+  PROPOSAL_FAILED: "PROPOSAL_FAILED",
   // Dead-letter / error events
   CALLBACK_ORPHANED: "CALLBACK_ORPHANED",
   EVENT_DEAD_LETTERED: "EVENT_DEAD_LETTERED",

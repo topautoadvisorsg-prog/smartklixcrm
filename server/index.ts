@@ -142,7 +142,8 @@ app.use((req, res, next) => {
   // Startup env validation — log critical config at boot so Railway logs show what's wired
   const envCheck = {
     DATABASE_URL:         !!process.env.DATABASE_URL,
-    ANTHROPIC_API_KEY:    !!process.env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY:       !!process.env.OPENAI_API_KEY,       // Proposal Agent chat (admin-chat-service)
+    ANTHROPIC_API_KEY:    !!process.env.ANTHROPIC_API_KEY,    // External Agent system (claude-based)
     AGENT_WEBHOOK_URL:    !!process.env.AGENT_WEBHOOK_URL,
     AGENT_WEBHOOK_SECRET: !!process.env.AGENT_WEBHOOK_SECRET,
     RESEND_API_KEY:       !!process.env.RESEND_API_KEY,
