@@ -13,7 +13,7 @@ import { Phone, Mail, MapPin } from "lucide-react";
 
 export default function PublicContact() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background/95 backdrop-blur-sm">
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Contact Us</h1>

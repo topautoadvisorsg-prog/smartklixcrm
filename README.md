@@ -1,43 +1,54 @@
 # Smart Klix CRM - White-Label AI CRM Platform
-**Version:** 2.0.0 (Agent-Ready Architecture)
-**Status:** Production-Ready Base Platform
-**Last Updated:** April 17, 2026
-**Clean Code Doctrine:** Enforced
-**Architecture:** Brain + Control Tower (External Agent Execution)
+**Version:** 2.1.0 (Proposal System + External Agent Integration)  
+**Status:** Production-Ready Base Platform  
+**Last Updated:** April 20, 2026  
+**Clean Code Doctrine:** Enforced  
+**Architecture:** CRM Brain + External Agent Execution (Webhook-Based)
+
+> 📋 **SYSTEM AUDIT**: Comprehensive audit completed April 20, 2026. See [SYSTEM_AUDIT_COMPLETE.md](./SYSTEM_AUDIT_COMPLETE.md) for full system status, setup requirements, and agent deployment guide.
 
 ## Table of Contents
+- [System Audit](#-critical-setup-requirements)
 - [Overview](#overview)
-- [Ledger & Governance Model](#ledger--governance-model)
-- [AI Settings (System Constitution)](#ai-settings--system-constitution)
-- [ActionAI CRM (Dual-Role Brain)](#actionai-crm--dual-role-brain)
-- [Review Queue (AI Governance)](#review-queue--ai-governance)
-- [Ready Execution (Human Authority)](#ready-execution--human-authority)
+- [Proposal System](#proposal-system)
+- [AI Validation (Simple Function)](#ai-validation-simple-function)
+- [External Agent Integration](#external-agent-integration)
 - [Quick Start](#quick-start)
 - [Environment Configuration](#environment-configuration)
 - [Project Structure](#project-structure)
 - [Technology Stack](#technology-stack)
 - [Database Schema](#database-schema)
 - [API Reference](#api-reference)
-- [Master Architect & Operational Modes](#master-architect--operational-modes)
+- [Admin Chat & Operational Modes](#admin-chat--operational-modes)
 - [AI Tools & Execution](#ai-tools--execution)
-- [N8N Integration](#n8n-integration)
 - [Clean Code Standards](#clean-code-standards)
 - [Developer Workflow](#developer-workflow)
 - [Troubleshooting](#troubleshooting)
 - [Known Issues](#known-issues)
 
 ## Overview
-Smart Klix CRM is a production-grade, single-tenant, white-label AI CRM automation platform for field service management. It orchestrates the entire Lead to Estimate to Job to Invoice to Payment pipeline with integrated AI automation.
+Smart Klix CRM is a production-grade, single-tenant, white-label AI CRM automation platform for field service management. It orchestrates the entire Lead → Estimate → Job → Invoice → Payment pipeline with integrated AI automation.
 
-### Architecture Philosophy (Updated April 2026)
+### Architecture Philosophy (Updated April 20, 2026)
+
+**SmartKlix is a lead-to-cash operating system for service businesses.**
+
+Core loop:
+1. **Acquisition**: Crawler discovers businesses (leads)
+2. **Organization**: CRM stores and organizes contacts
+3. **Work Lifecycle**: Jobs created and managed
+4. **Field Operations**: Agents update work in real-time
+5. **Financial Tracking**: Money tracked per job
+6. **Reporting**: Everything exportable for analysis
+7. **Outreach**: Automation converts leads to clients (future)
 
 **CRM = Brain + Control Tower. External Agents Handle Execution.**
 
 The CRM is the **Source of Truth + Internal Intelligence Only**:
 - ✅ Manages all data (contacts, jobs, invoices, pipeline)
-- ✅ Makes decisions via simple validation functions
+- ✅ Makes decisions via AI (OpenAI) + simple validation function
 - ✅ Logs everything (audit trail)
-- ✅ Sends events to external agents
+- ✅ Sends proposals to external agents via webhook
 - ✅ Receives and processes agent reports
 
 **External Agents** handle all execution:
@@ -47,34 +58,105 @@ The CRM is the **Source of Truth + Internal Intelligence Only**:
 - ✅ Execute workflows
 - ✅ Report back to CRM
 
+### System Modules
+
+#### 1. CRM Core (✅ COMPLETE)
+- Contacts management with relationship tracking
+- Jobs lifecycle management
+- Contact-to-job relationship mapping
+- Status: Production-ready
+
+#### 2. Field Operations Module (✅ COMPLETE)
+- Field reports with type classification (progress | issue | completion | inspection)
+- Job status updates from field agents
+- Photo uploads (URL-based)
+- Real-time job tracking
+- Status: UI + Backend complete
+
+#### 3. Financial Tracking Module (✅ COMPLETE)
+- Income/expense tracking per job
+- Profit calculation per job/client
+- Job-level economics
+- Financial summaries
+- Status: Production-ready
+
+#### 4. Export System (✅ FUNCTIONAL)
+- CSV exports for all data entities:
+  - Contacts
+  - Jobs
+  - Field Reports
+  - Financial Records
+- Server-side filtering (date range, status, contact)
+- Row limit enforcement (5000 max)
+- Relational data included (names, not just IDs)
+- Status: Functional with guardrails
+
+#### 5. Lead Crawler System (⚠️ PLANNED)
+- Automated business discovery
+- Niche-based filtering
+- CRM ingestion pipeline
+- Status: Conceptual design complete, implementation pending
+
+#### 6. Outreach System (⚠️ FUTURE PHASE)
+- Email/SMS automation
+- Agent-based workflows
+- Campaign management
+- Status: Architecture defined, implementation pending
+
 ### Key Features
-- **AI-Powered Decision Making:** Simple validator function for proposal review
-- **Complete Pipeline Management:** Visual kanban board with drag-and-drop
-- **Dual Chat Interfaces:** Public lead capture widget + admin intelligence bot
-- **External Agent Integration:** Webhook-based event dispatch to agents
-- **Comprehensive Analytics:** Real-time metrics and audit logging
-- **White-Label Ready:** Fully customizable branding per deployment
+- **Complete CRM**: Contacts, jobs, and relationship management
+- **Field Operations**: Real-time job updates from field agents
+- **Financial Tracking**: Profit calculation per job/client
+- **Export Center**: Business reporting via CSV downloads
+- **AI-Powered Proposal Generation**: Admin Chat uses OpenAI to propose actions
+- **Proposal Approval Workflow**: staged_proposals table with human review queue
+- **Complete Pipeline Management**: Visual kanban board with drag-and-drop
+- **Dual Chat Interfaces**: Public lead capture widget + admin intelligence bot
+- **External Agent Integration**: Webhook-based proposal dispatch to agents
+- **Comprehensive Analytics**: Real-time metrics and audit logging
+- **White-Label Ready**: Fully customizable branding per deployment
 
-### What Was Removed (Architectural Simplification)
+---
 
-The following were removed to simplify the architecture:
-- ❌ Master Architect (complex AI orchestration - replaced with simple validator)
-- ❌ N8N internal integration (external agents handle this now)
-- ❌ Automation Ledger (complex state tracking - audit_log is sufficient)
-- ❌ AI Memory systems (embeddings, importance scores)
-- ❌ Internal messaging execution (email, SMS, WhatsApp sending)
-- ❌ Outbox dispatcher
-- ❌ Webhook verification system
-- ❌ Neo8 event system
+## 🔴 CRITICAL SETUP REQUIREMENTS
 
-**Total removed:** ~9,500 lines across 32 files
-**Build status:** ✅ Successful
+**Before deploying to production, you MUST configure the following:**
+
+### 1. External Agent Gateway (REQUIRED)
+The CRM requires an external agent gateway to execute actions (email, WhatsApp, payments, calendar).
+
+**Add to `.env`:**
+```bash
+AGENT_WEBHOOK_URL=https://your-agent-gateway.com
+AGENT_INTERNAL_TOKEN=$(openssl rand -hex 32)
+```
+
+**Agent Gateway Must Expose:**
+- `POST /execute/task`
+- `POST /execute/whatsapp`
+- `POST /execute/email`
+- `POST /execute/payment`
+
+**See [SYSTEM_AUDIT_COMPLETE.md](./SYSTEM_AUDIT_COMPLETE.md) for complete agent deployment guide.**
+
+### 2. PostgreSQL Database (REQUIRED)
+```bash
+DATABASE_URL=postgresql://user:password@host:5432/smartklix_db
+```
+
+### 3. External Service Accounts
+- **Twilio**: WhatsApp/SMS/Voice
+- **SendGrid/Resend**: Email
+- **Stripe**: Payments
+- **Google Cloud**: Calendar/Workspace
+
+---
 
 ### Architecture Model
 **Single-Tenant Isolation:** Each customer deployment is independent with dedicated:
 - PostgreSQL database (Neon-backed)
 - Secrets management
-- N8N workflow runtime
+- External agent webhook endpoint
 - Branding configuration
 
 This design prioritizes data security, compliance, and customer control.
@@ -85,12 +167,11 @@ This design prioritizes data security, compliance, and customer control.
 
 The following are architectural laws. Do not treat them as suggestions:
 
-1. **Do not treat UI as authority** — UI is observational only. Authority lives in the Ledger.
-2. **Do not bypass ledger writes** — Every state mutation requires a ledger entry. No shortcuts.
-3. **Do not infer state from UI** — State is determined by the Ledger, not by UI visibility.
-4. **Do not execute actions based on intent** — Only execute actions with valid ledger records.
-5. **Do not "simplify" governance flows** — Review Queue and Assist Queue exist for safety.
-6. **Do not collapse governance logic** — Master Architect and human approval are separate authorities.
+1. **AI proposals require human approval** - All AI-generated actions go through staged_proposals before execution
+2. **Validator runs before DB write** - Every proposal validated by `validator.ts` before creating staged_proposal
+3. **Kill switch blocks all AI execution** - When active, no AI actions execute
+4. **External dispatch via webhook only** - CRM sends proposals to external agents via POST to AGENT_WEBHOOK_URL
+5. **Audit log records all mutations** - Every state change logged to audit_log table
 
 ### README Authority Statement
 
@@ -593,6 +674,96 @@ No action reaches external systems (N8N, Stripe, database mutations) without thi
 
 ---
 
+## Core Data Flow
+
+```
+Contact Created
+    ↓
+Job Created (linked to contact)
+    ↓
+Field Reports Added (linked to job)
+    ↓
+Financial Records Tracked (linked to job/contact)
+    ↓
+Export to CSV (all entities with relational data)
+```
+
+Every entity is traceable. No orphan records allowed.
+
+## System Rules (Non-Negotiable)
+
+1. **All writes must pass validation layer** - Use `validators.ts` utilities, never inline validation
+2. **No orphan relationships allowed** - Every foreign key must reference a valid entity
+3. **All exports must enforce**:
+   - Max row limit (5000 rows, hard fail)
+   - Default date window (90 days, soft limit with transparency)
+4. **All modules must be seed-testable** - Use `seed-utils.ts` for testing
+5. **No feature depends on external APIs** - System must work in isolation
+6. **All logic must be server-authoritative** - Never trust client-side validation
+7. **Financial integrity is mandatory** - Amount > 0, type must be income/expense, job must belong to contact
+
+## Development Rules
+
+1. **Validate relationships before write operations** - Use `validators.ts` utilities
+2. **Keep modules isolated but connected via IDs** - No cross-module dependencies
+3. **Prefer server-side validation over frontend checks** - Never trust client input
+4. **Maintain exportability for all data entities** - Every table must be exportable
+5. **Avoid silent failures in workflows** - Always log and return errors
+6. **System must work WITHOUT external APIs** - Graceful degradation required
+7. **Every feature must be seed-testable** - Use `seed-utils.ts` for testing
+
+## System Architecture
+
+SmartKlix is organized in 5 explicit layers:
+
+**Layer 1: Data Layer (DB)**
+- PostgreSQL database (Neon-backed)
+- Drizzle ORM schemas (`shared/schema.ts`)
+- Storage implementations (`server/storage.ts`)
+
+**Layer 2: Business Logic Layer**
+- Validation utilities (`server/validators.ts`)
+- Storage interface methods
+- Seed utilities (`server/seed-utils.ts`)
+
+**Layer 3: Execution Layer (Routes)**
+- API routes (`server/routes.ts`)
+- Request validation (Zod)
+- Business rule enforcement (via validators)
+
+**Layer 4: Output Layer**
+- Export center (CSV with guardrails)
+- UI components (React)
+- Response formatting
+
+**Layer 5: Future Layer (Planned)**
+- Crawler agent (lead discovery)
+- Outreach automation (email/SMS)
+- Lead scoring system
+
+**Rule:** Logic lives in Layer 2, not Layer 3. Routes only orchestrate.
+
+## Export Performance
+
+### Current Implementation (MVP)
+- Loads all records into memory
+- Applies filters in-memory
+- Generates CSV in-memory
+- Safe for 1-5k records (testing)
+- Acceptable for 5-20k records (MVP real usage)
+- NOT suitable for 50k+ records (production scaling)
+
+### Real Limitation
+The bottleneck is not volume — it's **memory-bound CSV generation per request**.
+
+### Future Optimization (Post-MVP)
+- Database-level filtering with SQL WHERE clauses
+- Streaming CSV generation (row-by-row, not all-in-memory)
+- Pagination for large exports
+- Background job processing for exports >5000 rows
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -680,8 +851,8 @@ curl https://your-repl.replit.dev/api/health
 ### Optional Environment Variables
 | Variable | Description | Default |
 |----------|-------------|---------|
-| N8N_WEBHOOK_URL | N8N webhook base URL | None (N8N features disabled) |
-| N8N_INTERNAL_TOKEN | Token for N8N to CRM API calls | None |
+| AGENT_WEBHOOK_URL | Agent gateway base URL for external execution | None (agent features disabled) |
+| AGENT_INTERNAL_TOKEN | Token for agent to CRM API calls | None |
 | SESSION_SECRET | Express session security | Auto-generated |
 | APP_BASE_URL | Your deployed app URL (for callbacks) | Auto-detected |
 
@@ -1348,13 +1519,13 @@ This has been replaced by the agent webhook system which is more flexible and si
 Dashboard Action
      |
      v
-POST to N8N Webhook (N8N_WEBHOOK_URL)
+POST to Agent Gateway (AGENT_WEBHOOK_URL)
      |
      v
-N8N Workflow Executes
+Agent Gateway Executes
      |
      v
-N8N Calls Back via /api/events/update
+Agent Calls Back via /api/agent/callback
      |
      v
 CRM Updates Status
@@ -1362,20 +1533,20 @@ CRM Updates Status
 
 ### Required Environment Variables
 ```bash
-N8N_WEBHOOK_URL=https://your-n8n.com/webhook
-N8N_INTERNAL_TOKEN=your-secret-token
+AGENT_WEBHOOK_URL=https://your-agent-gateway.com
+AGENT_INTERNAL_TOKEN=your-secret-token
 APP_BASE_URL=https://your-app.replit.dev
 ```
 
-### N8N Callbacks & Ledger Linkage (Critical)
+### Agent Gateway Callbacks & Ledger Linkage (Critical)
 
-All external callbacks (N8N, Stripe, webhooks) **must reference the originating ledger action ID**.
+All external callbacks (agent gateway, Stripe, webhooks) **must reference the originating ledger action ID**.
 
 **Callback Contract:**
 
-1. When dispatching to N8N, include the ledger entry ID:
+1. When dispatching to agent gateway, include the ledger entry ID:
    ```typescript
-   POST https://n8n-instance/webhook
+   POST https://agent-gateway/execute/task
    {
      "action": "send_sms",
      "ledgerActionId": "abc123...",
@@ -1534,6 +1705,24 @@ DEBUG=* npm run dev
 ```bash
 curl https://your-repl.replit.dev/api/health | jq
 ```
+
+## Current Status
+
+### Production-Ready
+- ✅ CRM Core (contacts, jobs, relationships)
+- ✅ Field Operations (reports, photos, status tracking)
+- ✅ Financial Tracking (income, expenses, profit)
+- ✅ Export System (CSV with guardrails)
+- ✅ Seed System (test data generation)
+- ✅ Validation Layer (unified, with financial integrity checks)
+
+### In Development
+- ⚠️ Lead Crawler Integration (pipeline bridge needed)
+- ⚠️ Outreach Automation (email/SMS agents)
+
+### Technical Debt
+- Pre-existing TypeScript errors in Stripe/Campaign modules (non-blocking)
+- Export authentication configuration (UI works, direct API needs session)
 
 ## Known Issues
 

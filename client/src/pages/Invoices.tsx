@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { Plus, Search, MoreHorizontal, Eye, Send, DollarSign, Download, CheckCircle, Link2, FileText, Loader2, XCircle } from "lucide-react";
+import { useLocation, useSearch } from "wouter";
+import { Plus, Search, MoreHorizontal, Eye, Send, DollarSign, Download, CheckCircle, Link2, FileText, Loader2, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -26,16 +26,46 @@ import { useToast } from "@/hooks/use-toast";
 import type { Invoice, Contact, Job } from "@shared/schema";
 
 export default function Invoices() {
-  const [, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [location, setLocation] = useLocation();
+  const rawSearch = useSearch();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const { toast } = useToast();
+
+  // Read filter state from URL params
+  const urlParams = useMemo(() => new URLSearchParams(rawSearch), [rawSearch]);
+  const searchQuery = urlParams.get('search') || '';
+  const page = parseInt(urlParams.get('page') || '1', 10);
+
+  // Helper to update URL params while preserving existing ones
+  const updateFilters = (updates: Record<string, string>) => {
+    const newParams = new URLSearchParams(rawSearch);
+    Object.entries(updates).forEach(([key, val]) => {
+      if (val && val !== '1') {
+        newParams.set(key, val);
+      } else {
+        newParams.delete(key);
+      }
+    });
+    const qs = newParams.toString();
+    setLocation(location + (qs ? '?' + qs : ''), { replace: true });
+  };
   
-  const { data: allInvoices = [], isLoading } = useQuery<Invoice[]>({
-    queryKey: ["/api/invoices"],
+  const { data: invoicesResponse, isLoading } = useQuery<{
+    data: Invoice[]; total: number; page: number; limit: number; totalPages: number;
+  }>({
+    queryKey: ["/api/invoices", page, searchQuery],
+    queryFn: async ({ queryKey }) => {
+      const [, p] = queryKey as [string, number];
+      const res = await fetch(`/api/invoices?page=${p}&limit=50`, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
   });
+  const allInvoices = invoicesResponse?.data ?? [];
+  const invoicesTotal = invoicesResponse?.total ?? 0;
+  const invoicesTotalPages = invoicesResponse?.totalPages ?? 1;
 
   const { data: contacts = [] } = useQuery<Contact[]>({
     queryKey: ["/api/contacts"],
@@ -184,7 +214,7 @@ export default function Invoices() {
             placeholder="Search invoices by ID, contact, job, or status..."
             className="pl-10"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => updateFilters({ search: e.target.value, page: "1" })}
             data-testid="input-search-invoices"
           />
         </div>
@@ -320,6 +350,36 @@ export default function Invoices() {
           </TableBody>
         </Table>
       </Card>
+
+      {invoicesTotal > 0 && (
+        <div className="flex items-center justify-between gap-2 p-4 border rounded-lg">
+          <span className="text-xs text-muted-foreground">
+            Showing {((page - 1) * 50) + 1}-{Math.min(page * 50, invoicesTotal)} of {invoicesTotal}
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={page <= 1}
+              onClick={() => updateFilters({ page: String(Math.max(1, page - 1)) })}
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={page >= invoicesTotalPages}
+              onClick={() => updateFilters({ page: String(page + 1) })}
+              data-testid="button-next-page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <CreateInvoiceDialog
         open={createDialogOpen}

@@ -1,6 +1,6 @@
 import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import AppSidebar from "@/components/AppSidebar";
 import ThemeToggle from "@/components/ThemeToggle";
+import ThemeBackground from "@/components/ThemeBackground";
 import NotificationPanel, { Notification } from "@/components/NotificationPanel";
 import Dashboard from "@/pages/Dashboard";
 import Contacts from "@/pages/Contacts";
@@ -34,6 +36,19 @@ import IntakeBuilder from "@/pages/IntakeBuilder";
 import Pricebook from "@/pages/Pricebook";
 import InformationAIChat from "@/pages/InformationAIChat";
 import AutomationLedger from "@/pages/AutomationLedger";
+import ReadyExecution from "@/pages/ReadyExecution";
+import AIReceptionist from "@/pages/AIReceptionist";
+import ActionConsole from "@/pages/ActionConsole";
+import Emails from "@/pages/Emails";
+import WhatsApp from "@/pages/WhatsApp";
+import GoogleWorkspace from "@/pages/GoogleWorkspace";
+import ReviewQueue from "@/pages/ReviewQueue";
+import ChatGPTActions from "@/pages/ChatGPTActions";
+import CRMAgentConfig from "@/pages/CRMAgentConfig";
+import Funnels from "@/pages/Funnels";
+import SocialMedia from "@/pages/SocialMedia";
+import Marketplace from "@/pages/Marketplace";
+import ExportCenter from "@/pages/ExportCenter";
 import NotFound from "@/pages/not-found";
 
 function LegacyRedirect({ to, message }: { to: string; message: string }) {
@@ -52,6 +67,12 @@ function LegacyRedirect({ to, message }: { to: string; message: string }) {
   );
 }
 
+/**
+ * INTERNAL ROUTING SURFACE
+ * All routes registered here, including features not in production sidebar.
+ * Sidebar visibility controlled in AppSidebar.tsx.
+ * Routes here but NOT in sidebar are accessible via direct URL for dev/testing only.
+ */
 function Router() {
   return (
     <Switch>
@@ -77,109 +98,119 @@ function Router() {
       <Route path="/intake-builder" component={IntakeBuilder} />
       <Route path="/public-contact" component={PublicContact} />
       <Route path="/widget-demo" component={WidgetDemo} />
+      <Route path="/ready-execution" component={ReadyExecution} />
+      <Route path="/ai-receptionist" component={AIReceptionist} />
+      <Route path="/action-console" component={ActionConsole} />
+      <Route path="/emails" component={Emails} />
+      <Route path="/whatsapp" component={WhatsApp} />
+      <Route path="/google-workspace" component={GoogleWorkspace} />
+      <Route path="/review-queue" component={ReviewQueue} />
+      <Route path="/chatgpt-actions" component={ChatGPTActions} />
+      <Route path="/crm-agent-config" component={CRMAgentConfig} />
+      <Route path="/funnels" component={Funnels} />
+      <Route path="/social-media" component={SocialMedia} />
+      <Route path="/marketplace" component={Marketplace} />
+      <Route path="/exports" component={ExportCenter} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-export default function App() {
+function AppContent() {
+  // Fetch real notifications from API
+  const { data: apiNotifications = [] } = useQuery<Notification[]>({
+    queryKey: ["/api/notifications"],
+    refetchInterval: 30000, // 30 seconds
+  });
+
+  // Track read state locally (since API doesn't persist read status yet)
+  const [readIds, setReadIds] = useState<string[]>([]);
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+
+  // Format notifications with relative timestamps
+  const notifications: Notification[] = apiNotifications
+    .filter(n => !dismissedIds.includes(n.id))
+    .map(n => ({
+      ...n,
+      read: n.read || readIds.includes(n.id),
+      timestamp: formatDistanceToNow(new Date(n.timestamp), { addSuffix: true }),
+    }));
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleMarkAsRead = (id: string) => {
+    setReadIds(prev => [...prev, id]);
+  };
+
+  const handleMarkAllAsRead = () => {
+    setReadIds(notifications.map(n => n.id));
+  };
+
+  const handleDismiss = (id: string) => {
+    setDismissedIds(prev => [...prev, id]);
+  };
+
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
 
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "New Contact Added",
-      message: "John Smith was added to your contacts",
-      timestamp: "2 minutes ago",
-      read: false,
-      type: "success",
-    },
-    {
-      id: "2",
-      title: "Job Status Updated",
-      message: "Website Redesign moved to In Progress",
-      timestamp: "1 hour ago",
-      read: false,
-      type: "info",
-    },
-    {
-      id: "3",
-      title: "Payment Received",
-      message: "Invoice #1234 has been paid - $2,500",
-      timestamp: "3 hours ago",
-      read: true,
-      type: "success",
-    },
-  ]);
+  return (
+    <TooltipProvider>
+      <ThemeBackground />
+      <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+        <div className="flex h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <header className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger data-testid="button-sidebar-toggle" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+                      <Bell className="w-5 h-5" />
+                      {unreadCount > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                          data-testid="notification-badge"
+                        >
+                          {unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-auto" align="end">
+                    <NotificationPanel
+                      notifications={notifications}
+                      onMarkAsRead={handleMarkAsRead}
+                      onMarkAllAsRead={handleMarkAllAsRead}
+                      onDismiss={handleDismiss}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <ThemeToggle />
+              </div>
+            </header>
+            <main className="flex-1 overflow-auto">
+              <div className="max-w-7xl mx-auto p-6">
+                <Router />
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+      <Toaster />
+    </TooltipProvider>
+  );
+}
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const handleMarkAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const handleDismiss = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <SidebarProvider style={sidebarStyle as React.CSSProperties}>
-          <div className="flex h-screen w-full">
-            <AppSidebar />
-            <div className="flex flex-col flex-1 overflow-hidden">
-              <header className="flex items-center justify-between p-4 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
-                        <Bell className="w-5 h-5" />
-                        {unreadCount > 0 && (
-                          <Badge
-                            variant="destructive"
-                            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                            data-testid="notification-badge"
-                          >
-                            {unreadCount}
-                          </Badge>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0 w-auto" align="end">
-                      <NotificationPanel
-                        notifications={notifications}
-                        onMarkAsRead={handleMarkAsRead}
-                        onMarkAllAsRead={handleMarkAllAsRead}
-                        onDismiss={handleDismiss}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <ThemeToggle />
-                </div>
-              </header>
-              <main className="flex-1 overflow-auto">
-                <div className="max-w-7xl mx-auto p-6">
-                  <Router />
-                </div>
-              </main>
-            </div>
-          </div>
-        </SidebarProvider>
-        <Toaster />
-      </TooltipProvider>
+      <AppContent />
     </QueryClientProvider>
   );
 }

@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 /* ============================================
-   SMART KLIX GLASSMORPHIC DESIGN SYSTEM
+   SMART KLIX DESIGN SYSTEM
    Target: Modern AI Platform / Industrial Minimalist
-   Dark Mode: Charcoal / Navy base with amber accents
-   Light Mode: Cool blue-white tinted surfaces (not gray)
+   Dark Mode: Deep dark anchor sidebar + charcoal canvas + amber accents
+   Light Mode: Neutral white/gray workspace — no blue tinting
    ============================================ */
 
-/* LIGHT MODE - Cool blue-white tinted surfaces */
+/* LIGHT MODE — Neutral clean workspace */
 :root {
   --button-outline: rgba(0, 0, 0, 0.08);
   --badge-outline: rgba(0, 0, 0, 0.06);
@@ -17,32 +17,32 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.06);
 
-  /* Base surfaces - Cool blue-white, not gray */
-  --background: 210 40% 98%;
-  --foreground: 220 25% 12%;
-  --border: 210 25% 88%;
+  /* Base surfaces — neutral off-white, no hue tinting */
+  --background: 0 0% 97%;
+  --foreground: 220 10% 10%;
+  --border: 0 0% 88%;
 
-  /* Cards - Crisp white with cool undertone */
-  --card: 210 50% 100%;
-  --card-foreground: 220 25% 12%;
-  --card-border: 210 30% 90%;
+  /* Cards — clean white surfaces */
+  --card: 0 0% 100%;
+  --card-foreground: 220 10% 10%;
+  --card-border: 0 0% 90%;
 
-  /* Sidebar - Soft cool blue surface */
-  --sidebar: 215 35% 96%;
-  --sidebar-foreground: 220 25% 15%;
-  --sidebar-border: 210 25% 88%;
+  /* Sidebar — light theme compatible (clean light gray/white) */
+  --sidebar: 0 0% 98%;
+  --sidebar-foreground: 220 10% 15%;
+  --sidebar-border: 0 0% 88%;
   --sidebar-primary: 45 95% 48%;
-  --sidebar-primary-foreground: 220 30% 10%;
-  --sidebar-accent: 210 30% 92%;
-  --sidebar-accent-foreground: 220 25% 15%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 93%;
+  --sidebar-accent-foreground: 220 10% 15%;
   --sidebar-ring: 45 95% 48%;
 
-  /* Popover - Elevated white surface */
-  --popover: 210 50% 100%;
-  --popover-foreground: 220 25% 12%;
-  --popover-border: 210 25% 88%;
+  /* Popover — pure white floating surface */
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 10% 10%;
+  --popover-border: 0 0% 88%;
 
-  /* Primary - Amber/Gold accent (slightly deeper for light bg) */
+  /* Primary - Amber/Gold accent */
   --primary: 45 95% 48%;
   --primary-foreground: 0 0% 100%;
 
@@ -50,13 +50,13 @@
   --secondary: 215 80% 50%;
   --secondary-foreground: 0 0% 100%;
 
-  /* Muted - Cool blue-gray for inactive states */
-  --muted: 210 30% 94%;
-  --muted-foreground: 220 15% 45%;
+  /* Muted — neutral light gray */
+  --muted: 0 0% 93%;
+  --muted-foreground: 220 5% 45%;
 
-  /* Accent - Subtle cool highlight */
-  --accent: 210 35% 95%;
-  --accent-foreground: 220 25% 20%;
+  /* Accent — neutral hover highlight */
+  --accent: 0 0% 95%;
+  --accent-foreground: 220 10% 15%;
 
   /* Semantic colors */
   --destructive: 0 72% 51%;
@@ -66,8 +66,8 @@
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 100%;
 
-  /* Input fields - Cool subtle border */
-  --input: 210 25% 88%;
+  /* Input fields — neutral border */
+  --input: 0 0% 87%;
   --ring: 45 95% 48%;
 
   /* Charts */
@@ -97,7 +97,7 @@
   --font-serif: Georgia, serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
 
-  /* Spacing & Radius - Modernized for softer feel */
+  /* Spacing & Radius */
   --radius: 0.75rem;
   --radius-sm: 0.5rem;
   --radius-lg: 1rem;
@@ -105,54 +105,37 @@
   --spacing: 0.25rem;
   --tracking-normal: 0em;
 
-  /* Glass-specific tokens - Light mode variant */
-  --glass-surface: 210 40% 100% / 0.85;
-  --glass-surface-opaque: 215 35% 97% / 0.95;
-  --glass-border: 210 25% 80% / 0.5;
+  /* Glass-specific tokens — neutral light variant */
+  --glass-surface: 0 0% 100% / 0.85;
+  --glass-surface-opaque: 0 0% 97% / 0.95;
+  --glass-border: 0 0% 80% / 0.5;
   --glass-blur: 12px;
-  --glass-highlight: 210 100% 50% / 0.03;
+  --glass-highlight: 0 0% 0% / 0.02;
 
-  /* Shadows - Subtle for light mode */
-  --shadow-2xs: 0 1px 2px 0 hsl(220 25% 20% / 0.05);
-  --shadow-xs: 0 1px 3px 0 hsl(220 25% 20% / 0.08);
-  --shadow-sm: 0 1px 2px 0 hsl(220 25% 20% / 0.06), 0 1px 3px 0 hsl(220 25% 20% / 0.05);
-  --shadow: 0 1px 3px 0 hsl(220 25% 20% / 0.08), 0 1px 2px -1px hsl(220 25% 20% / 0.06);
-  --shadow-md: 0 4px 6px -1px hsl(220 25% 20% / 0.08), 0 2px 4px -2px hsl(220 25% 20% / 0.05);
-  --shadow-lg: 0 10px 15px -3px hsl(220 25% 20% / 0.08), 0 4px 6px -4px hsl(220 25% 20% / 0.05);
-  --shadow-xl: 0 20px 25px -5px hsl(220 25% 20% / 0.1), 0 8px 10px -6px hsl(220 25% 20% / 0.06);
-  --shadow-2xl: 0 25px 50px -12px hsl(220 25% 20% / 0.2);
+  /* Shadows — neutral subtle */
+  --shadow-2xs: 0 1px 2px 0 hsl(220 10% 20% / 0.05);
+  --shadow-xs: 0 1px 3px 0 hsl(220 10% 20% / 0.08);
+  --shadow-sm: 0 1px 2px 0 hsl(220 10% 20% / 0.06), 0 1px 3px 0 hsl(220 10% 20% / 0.05);
+  --shadow: 0 1px 3px 0 hsl(220 10% 20% / 0.08), 0 1px 2px -1px hsl(220 10% 20% / 0.06);
+  --shadow-md: 0 4px 6px -1px hsl(220 10% 20% / 0.08), 0 2px 4px -2px hsl(220 10% 20% / 0.05);
+  --shadow-lg: 0 10px 15px -3px hsl(220 10% 20% / 0.08), 0 4px 6px -4px hsl(220 10% 20% / 0.05);
+  --shadow-xl: 0 20px 25px -5px hsl(220 10% 20% / 0.1), 0 8px 10px -6px hsl(220 10% 20% / 0.06);
+  --shadow-2xl: 0 25px 50px -12px hsl(220 10% 20% / 0.2);
 
   /* Derived border colors */
-  --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --sidebar-accent-border: hsl(var(--sidebar-accent));
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --primary-border: hsl(var(--primary));
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --secondary-border: hsl(var(--secondary));
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --muted-border: hsl(var(--muted));
   --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --accent-border: hsl(var(--accent));
   --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
-/* DARK MODE - Layered Charcoal with Visible Depth
-   ================================================
-   NON-NEGOTIABLE LIGHTNESS RULES:
-   - Canvas starts at 12-14% (NOT black)
-   - Surface steps increase by 5-6% minimum
-   - Borders are 6-8% lighter than their surface
-   - Shadows use luminous glows, not dark shadows
-   
-   Surface Hierarchy (all steps 6%):
-   L0 Canvas:     12% - App background
-   L1 Chrome:     18% - Sidebar/navigation (+6)
-   L2 Card:       24% - Elevated panels (+6)
-   L3 Input/Muted:30% - Input backgrounds (+6)
-   L4 Popover:    32% - Floating UI (+2, ceiling)
+/* DARK MODE - Professional SaaS Dashboard (Carbon + Slate)
+   ========================================================
+   Clean, minimal, readable - balanced dark SaaS aesthetic
+   Softer than pure black for comfortable long-term usage
 */
 .dark {
   --button-outline: rgba(255,255,255, .12);
@@ -161,30 +144,30 @@
   --elevate-1: rgba(255,255,255, .05);
   --elevate-2: rgba(255,255,255, .10);
 
-  /* L0: Canvas - App background (12%) */
-  --background: 222 18% 12%;
+  /* L0: Canvas - Soft carbon slate background (~12% lightness) */
+  --background: 215 25% 12%;  /* #0f1720 equivalent - softer than pure black */
   --foreground: 210 20% 95%;
-  --border: 222 14% 20%;
+  --border: 217 14% 22%;
 
-  /* L2: Cards/Panels - Elevated surfaces (24%) */
-  --card: 222 16% 24%;
+  /* L2: Cards/Panels - Elevated surfaces (slightly lighter for depth) */
+  --card: 217 20% 16%;
   --card-foreground: 210 20% 95%;
-  --card-border: 222 12% 32%;
+  --card-border: 217 12% 24%;
 
-  /* L1: Sidebar/Chrome - Navigation (18%) */
-  --sidebar: 222 18% 18%;
+  /* L1: Sidebar — Deep professional anchor (darker than canvas) */
+  --sidebar: 215 28% 9%;
   --sidebar-foreground: 210 20% 95%;
-  --sidebar-border: 222 14% 26%;
+  --sidebar-border: 215 20% 15%;
   --sidebar-primary: 45 90% 55%;
-  --sidebar-primary-foreground: 222 25% 12%;
-  --sidebar-accent: 222 14% 26%;
+  --sidebar-primary-foreground: 215 25% 10%;
+  --sidebar-accent: 215 22% 13%;
   --sidebar-accent-foreground: 210 20% 95%;
   --sidebar-ring: 45 90% 55%;
 
-  /* L4: Popover/Modal - Floating (32%) */
-  --popover: 222 12% 32%;
+  /* L4: Popover/Modal - Floating surfaces */
+  --popover: 217 16% 20%;
   --popover-foreground: 210 20% 95%;
-  --popover-border: 222 10% 40%;
+  --popover-border: 217 10% 28%;
 
   /* Primary - Amber accent */
   --primary: 45 90% 55%;
@@ -194,12 +177,12 @@
   --secondary: 215 80% 58%;
   --secondary-foreground: 0 0% 100%;
 
-  /* L3: Muted/Input - Input backgrounds (30%) - 6% step from card */
-  --muted: 222 14% 30%;
-  --muted-foreground: 222 10% 62%;
+  /* L3: Muted/Input - Input backgrounds */
+  --muted: 217 14% 22%;
+  --muted-foreground: 217 10% 65%;
 
-  /* Accent - Hover highlight (28%) */
-  --accent: 222 14% 28%;
+  /* Accent - Hover highlight */
+  --accent: 217 14% 20%;
   --accent-foreground: 210 20% 95%;
 
   /* Semantic colors */
@@ -210,8 +193,8 @@
   --warning: 38 85% 52%;
   --warning-foreground: 0 0% 100%;
 
-  /* Input border - 6% lighter than muted bg */
-  --input: 222 12% 36%;
+  /* Input border */
+  --input: 217 12% 28%;
   --ring: 45 90% 55%;
 
   /* Charts */
@@ -254,19 +237,12 @@
   --shadow-2xl: 0 24px 48px -8px rgba(0,0,0,0.6), 0 0 48px 0 rgba(100,140,200,0.18);
 
   /* Derived border colors */
-  --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --sidebar-accent-border: hsl(var(--sidebar-accent));
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --primary-border: hsl(var(--primary));
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --secondary-border: hsl(var(--secondary));
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --muted-border: hsl(var(--muted));
   --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --accent-border: hsl(var(--accent));
   --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
@@ -276,7 +252,7 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased text-foreground bg-background;
   }
 
   /* High contrast typography defaults */

@@ -418,111 +418,113 @@ export default function IntakeBuilder() {
             )}
           </main>
 
-          <aside className="w-[450px] flex flex-col bg-glass-surface shrink-0">
+          <aside className="w-[450px] flex flex-col bg-glass-surface shrink-0 overflow-hidden">
             {selectedSubmission && normalizedForm ? (
               <>
-                <div className="p-6 border-b border-border">
-                  <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest mb-4">
-                    Normalized Staging [Editable CRM Objects]
-                  </h2>
+                <ScrollArea className="flex-1">
+                  <div className="p-6 border-b border-border">
+                    <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest mb-4">
+                      Normalized Staging [Editable CRM Objects]
+                    </h2>
 
-                  {checkDedupeWarning(selectedSubmission.payload as Record<string, unknown>) && (
-                    <Card className="mb-6 p-3 bg-amber-500/10 border-amber-500/20 flex items-start gap-3">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-[10px] font-black text-amber-500 uppercase tracking-wide">Dedupe Watch</p>
-                        <p className="text-[10px] text-amber-400/80 leading-tight mt-1">
-                          Potential match found in existing records.
-                        </p>
+                    {checkDedupeWarning(selectedSubmission.payload as Record<string, unknown>) && (
+                      <Card className="mb-6 p-3 bg-amber-500/10 border-amber-500/20 flex items-start gap-3">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-black text-amber-500 uppercase tracking-wide">Dedupe Watch</p>
+                          <p className="text-[10px] text-amber-400/80 leading-tight mt-1">
+                            Potential match found in existing records.
+                          </p>
+                        </div>
+                      </Card>
+                    )}
+
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                            First Name
+                          </Label>
+                          <Input
+                            value={normalizedForm.firstName}
+                            onChange={(e) => setNormalizedForm({ ...normalizedForm, firstName: e.target.value })}
+                            className="text-xs font-bold"
+                            data-testid="input-first-name"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                            Last Name
+                          </Label>
+                          <Input
+                            value={normalizedForm.lastName}
+                            onChange={(e) => setNormalizedForm({ ...normalizedForm, lastName: e.target.value })}
+                            className="text-xs font-bold"
+                            data-testid="input-last-name"
+                          />
+                        </div>
                       </div>
-                    </Card>
-                  )}
 
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                          First Name
+                          Email (Business)
                         </Label>
                         <Input
-                          value={normalizedForm.firstName}
-                          onChange={(e) => setNormalizedForm({ ...normalizedForm, firstName: e.target.value })}
+                          value={normalizedForm.email}
+                          onChange={(e) => setNormalizedForm({ ...normalizedForm, email: e.target.value })}
                           className="text-xs font-bold"
-                          data-testid="input-first-name"
+                          data-testid="input-email"
                         />
                       </div>
+
                       <div className="space-y-1">
                         <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                          Last Name
+                          Phone (Normalized)
                         </Label>
                         <Input
-                          value={normalizedForm.lastName}
-                          onChange={(e) => setNormalizedForm({ ...normalizedForm, lastName: e.target.value })}
-                          className="text-xs font-bold"
-                          data-testid="input-last-name"
+                          value={normalizedForm.phone}
+                          onChange={(e) => setNormalizedForm({ ...normalizedForm, phone: e.target.value })}
+                          className="text-xs font-mono font-bold"
+                          data-testid="input-phone"
                         />
                       </div>
-                    </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        Email (Business)
-                      </Label>
-                      <Input
-                        value={normalizedForm.email}
-                        onChange={(e) => setNormalizedForm({ ...normalizedForm, email: e.target.value })}
-                        className="text-xs font-bold"
-                        data-testid="input-email"
-                      />
-                    </div>
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                          Intent Summary
+                        </Label>
+                        <Textarea
+                          value={normalizedForm.intent}
+                          onChange={(e) => setNormalizedForm({ ...normalizedForm, intent: e.target.value })}
+                          className="text-xs font-medium min-h-[80px] resize-none"
+                          data-testid="input-intent"
+                        />
+                      </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        Phone (Normalized)
-                      </Label>
-                      <Input
-                        value={normalizedForm.phone}
-                        onChange={(e) => setNormalizedForm({ ...normalizedForm, phone: e.target.value })}
-                        className="text-xs font-mono font-bold"
-                        data-testid="input-phone"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        Intent Summary
-                      </Label>
-                      <Textarea
-                        value={normalizedForm.intent}
-                        onChange={(e) => setNormalizedForm({ ...normalizedForm, intent: e.target.value })}
-                        className="text-xs font-medium min-h-[80px] resize-none"
-                        data-testid="input-intent"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        Proposed CRM Object
-                      </Label>
-                      <Select
-                        value={normalizedForm.proposedObject}
-                        onValueChange={(v) => setNormalizedForm({ ...normalizedForm, proposedObject: v as NormalizedData["proposedObject"] })}
-                      >
-                        <SelectTrigger className="text-xs font-bold" data-testid="select-proposed-object">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Lead">Lead</SelectItem>
-                          <SelectItem value="Contact">Contact</SelectItem>
-                          <SelectItem value="Deal">Deal</SelectItem>
-                          <SelectItem value="Ticket">Ticket</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                          Proposed CRM Object
+                        </Label>
+                        <Select
+                          value={normalizedForm.proposedObject}
+                          onValueChange={(v) => setNormalizedForm({ ...normalizedForm, proposedObject: v as NormalizedData["proposedObject"] })}
+                        >
+                          <SelectTrigger className="text-xs font-bold" data-testid="select-proposed-object">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Lead">Lead</SelectItem>
+                            <SelectItem value="Contact">Contact</SelectItem>
+                            <SelectItem value="Deal">Deal</SelectItem>
+                            <SelectItem value="Ticket">Ticket</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </ScrollArea>
 
-                <div className="mt-auto p-6 border-t border-border space-y-3">
+                <div className="p-6 border-t border-border space-y-3 shrink-0">
                   <Button
                     className="w-full py-6 text-[11px] font-black uppercase tracking-[0.2em] gap-2"
                     onClick={handleCommit}

@@ -8,7 +8,7 @@ if (!connectionString) {
   console.warn("⚠️  DATABASE_URL not set - using placeholder mode");
 }
 
-const pool = connectionString ? new Pool({
+export const pool = connectionString ? new Pool({
   connectionString,
   ssl: { rejectUnauthorized: false },
   max: 10,

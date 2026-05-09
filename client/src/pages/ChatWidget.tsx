@@ -79,11 +79,7 @@ export default function ChatWidget() {
 
   const saveSettingsMutation = useMutation({
     mutationFn: (settings: WidgetSettings) =>
-      apiRequest("/api/widget/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      }),
+      apiRequest("POST", "/api/widget/settings", settings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/widget/settings"] });
       toast({

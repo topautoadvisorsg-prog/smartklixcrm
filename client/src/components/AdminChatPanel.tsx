@@ -88,9 +88,38 @@ export default function AdminChatPanel({ contactId }: AdminChatPanelProps) {
       const data = await response.json();
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setMessage("");
       queryClient.invalidateQueries({ queryKey: ["/api/admin-chat/conversations", conversationId, "messages"] });
+      
+      // Check for queued proposals in response
+      if (data?.actions && Array.isArray(data.actions)) {
+        const queuedActions = data.actions.filter(
+          (action: any) => action.status === "queued"
+        );
+        
+        if (queuedActions.length > 0) {
+          // Show toast notification with proposal info
+          toast({
+            title: `${queuedActions.length} proposal(s) created`,
+            description: "Check Review Queue to approve and execute",
+            action: (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  window.location.href = "/review-queue";
+                }}
+              >
+                View Queue
+              </Button>
+            ),
+          });
+          
+          // Force refresh of proposals data
+          queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+        }
+      }
     },
     onError: (error: Error) => {
       toast({

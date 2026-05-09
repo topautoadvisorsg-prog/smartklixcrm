@@ -1,3 +1,16 @@
+/**
+ * Storage Layer - Database Operations Interface
+ * 
+ * Provides IStorage interface with two implementations:
+ * - MemStorage: In-memory storage for development/testing
+ * - DbStorage: PostgreSQL storage for production
+ * 
+ * Covers all domain entities: contacts, jobs, estimates, invoices, 
+ * payments, AI conversations, proposals, audit logs, etc.
+ * 
+ * Pattern: Repository pattern with domain-based method grouping
+ */
+
 import { 
   type User, 
   type InsertUser,
@@ -15,6 +28,8 @@ import {
   type InsertAuditLogEntry,
   type Estimate,
   type InsertEstimate,
+  type JobTask,
+  type InsertJobTask,
   type Invoice,
   type InsertInvoice,
   type Payment,
@@ -77,6 +92,14 @@ import {
   type InsertDocumentArtifact,
   type WorkspaceFile,
   type InsertWorkspaceFile,
+  type StagedProposal,
+  type InsertStagedProposal,
+  type FieldReport,
+  type InsertFieldReport,
+  type FinancialRecord,
+  type InsertFinancialRecord,
+  type EmailTemplate,
+  type InsertEmailTemplate,
   users,
   contacts,
   jobs,
@@ -85,6 +108,7 @@ import {
   files,
   auditLog,
   estimates,
+  jobTasks,
   invoices,
   payments,
   aiReflection,
@@ -116,12 +140,35 @@ import {
   paymentSlips,
   workspaceFiles,
   documentArtifacts,
+  stagedProposals,
+  emailTemplates,
+  campaigns,
+  campaignRecipients,
+  fieldReports,
+  financialRecords,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db, isDatabaseConnected } from "./db";
-import { eq, like, ilike, or, and, sql, desc } from "drizzle-orm";
+import { eq, like, ilike, or, and, sql, desc, isNull, inArray } from "drizzle-orm";
+// Transaction type for passing transaction context to storage methods
+// Using a more flexible type that accepts any transaction from Drizzle
+export type Tx = any;
 
 export interface IStorage {
+  /**
+   * Execute operations within a transaction
+   * 
+   * PostgresStorage: Real ACID transaction with rollback on failure
+   * MemStorage: Executes without transaction (logs warning)
+   * 
+   * @example
+   * await storage.transaction(async (tx) => {
+   *   await storage.createJob(job, tx);
+   *   await storage.createAuditLogEntry(entry, tx);
+   * });
+   */
+  transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>;
+  
   getUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -139,8 +186,8 @@ export interface IStorage {
   
   getJobs(): Promise<Job[]>;
   getJob(id: string): Promise<Job | undefined>;
-  createJob(job: InsertJob): Promise<Job>;
-  updateJob(id: string, job: Partial<InsertJob>): Promise<Job | undefined>;
+  createJob(job: InsertJob, tx?: Tx): Promise<Job>;
+  updateJob(id: string, job: Partial<InsertJob>, tx?: Tx): Promise<Job | undefined>;
   
   getAppointments(): Promise<Appointment[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
@@ -163,24 +210,31 @@ export interface IStorage {
   deleteWorkspaceFile(id: string): Promise<boolean>;
   
   getAuditLog(): Promise<AuditLogEntry[]>;
-  createAuditLogEntry(entry: InsertAuditLogEntry): Promise<AuditLogEntry>;
+  createAuditLogEntry(entry: InsertAuditLogEntry, tx?: Tx): Promise<AuditLogEntry>;
   
   getEstimates(): Promise<Estimate[]>;
   getEstimate(id: string): Promise<Estimate | undefined>;
   createEstimate(estimate: InsertEstimate): Promise<Estimate>;
-  updateEstimate(id: string, estimate: Partial<InsertEstimate>): Promise<Estimate | undefined>;
+  updateEstimate(id: string, estimate: Partial<InsertEstimate>, tx?: Tx): Promise<Estimate | undefined>;
   deleteEstimate(id: string): Promise<boolean>;
+
+  // Job Tasks
+  getJobTasks(jobId: string): Promise<JobTask[]>;
+  getJobTask(id: string): Promise<JobTask | undefined>;
+  createJobTask(task: InsertJobTask): Promise<JobTask>;
+  updateJobTask(id: string, data: Partial<InsertJobTask>): Promise<JobTask | undefined>;
+  deleteJobTask(id: string): Promise<boolean>;
   
   getInvoices(): Promise<Invoice[]>;
   getInvoice(id: string): Promise<Invoice | undefined>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
-  updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
+  updateInvoice(id: string, invoice: Partial<InsertInvoice>, tx?: Tx): Promise<Invoice | undefined>;
   deleteInvoice(id: string): Promise<boolean>;
   
   getPayments(): Promise<Payment[]>;
   getPayment(id: string): Promise<Payment | undefined>;
-  createPayment(payment: InsertPayment): Promise<Payment>;
-  updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
+  createPayment(payment: InsertPayment, tx?: Tx): Promise<Payment>;
+  updatePayment(id: string, payment: Partial<InsertPayment>, tx?: Tx): Promise<Payment | undefined>;
   
   getPaymentSlips(): Promise<PaymentSlip[]>;
   getPaymentSlip(id: string): Promise<PaymentSlip | undefined>;
@@ -195,10 +249,14 @@ export interface IStorage {
   getAiTask(id: string): Promise<AiTask | undefined>;
   createAiTask(task: InsertAiTask): Promise<AiTask>;
   updateAiTask(id: string, task: Partial<InsertAiTask>): Promise<AiTask | undefined>;
-  
+
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   getAssistQueue(): Promise<AssistQueueEntry[]>;
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   getAssistQueueEntry(id: string): Promise<AssistQueueEntry | undefined>;
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   createAssistQueueEntry(entry: InsertAssistQueueEntry): Promise<AssistQueueEntry>;
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   updateAssistQueueEntry(id: string, entry: Partial<InsertAssistQueueEntry>): Promise<AssistQueueEntry | undefined>;
 
   getConversations(): Promise<Conversation[]>;
@@ -227,8 +285,10 @@ export interface IStorage {
   getAiSettings(): Promise<AiSettings | undefined>;
   updateAiSettings(config: Partial<InsertAiSettings>): Promise<AiSettings>;
 
-  getMasterArchitectConfig(): Promise<MasterArchitectConfig | undefined>;
-  updateMasterArchitectConfig(config: Partial<InsertMasterArchitectConfig>): Promise<MasterArchitectConfig>;
+    /** @deprecated Master Architect removed. See validator.ts */
+    getMasterArchitectConfig(): Promise<MasterArchitectConfig | undefined>;
+    /** @deprecated Master Architect removed. See validator.ts */
+    updateMasterArchitectConfig(config: Partial<InsertMasterArchitectConfig>): Promise<MasterArchitectConfig>;
 
   getWebhookEvents(limit?: number): Promise<WebhookEvent[]>;
   createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent>;
@@ -331,7 +391,16 @@ export interface IStorage {
   updateEventsOutboxForRetry(id: string, retryCount: number, status: string, dispatchedAt?: Date, errorMessage?: string): Promise<EventsOutbox | undefined>;
 
   // Automation Ledger
-  getAutomationLedgerEntries(filters?: { agentName?: string; actionType?: string; mode?: string; status?: string; limit?: number }): Promise<AutomationLedger[]>;
+  getAutomationLedgerEntries(filters?: { 
+    agentName?: string; 
+    actionType?: string; 
+    mode?: string; 
+    status?: string; 
+    correlationId?: string;
+    entityId?: string;
+    entityType?: string;
+    limit?: number 
+  }): Promise<AutomationLedger[]>;
   getAutomationLedgerEntry(id: string): Promise<AutomationLedger | undefined>;
   getAutomationLedgerByIdempotencyKey(idempotencyKey: string): Promise<AutomationLedger | undefined>;
   createAutomationLedgerEntry(entry: InsertAutomationLedger): Promise<AutomationLedger>;
@@ -343,6 +412,13 @@ export interface IStorage {
   createVoiceDispatchLog(log: InsertVoiceDispatchLog): Promise<VoiceDispatchLog>;
   updateVoiceDispatchLog(id: string, updates: Partial<InsertVoiceDispatchLog>): Promise<VoiceDispatchLog | undefined>;
 
+  // Email Templates
+  getEmailTemplates(): Promise<EmailTemplate[]>;
+  getEmailTemplate(id: string): Promise<EmailTemplate | undefined>;
+  createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
+  updateEmailTemplate(id: string, template: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined>;
+  deleteEmailTemplate(id: string): Promise<boolean>;
+
   // Document Artifacts
   getDocumentArtifacts(filters?: { contactId?: string; jobId?: string; documentType?: string; title?: string; limit?: number }): Promise<DocumentArtifact[]>;
   getDocumentArtifact(id: string): Promise<DocumentArtifact | undefined>;
@@ -350,6 +426,29 @@ export interface IStorage {
   getLatestDocumentArtifact(contactId?: string, jobId?: string): Promise<DocumentArtifact | undefined>;
   createDocumentArtifact(artifact: InsertDocumentArtifact): Promise<DocumentArtifact>;
   updateDocumentArtifact(id: string, updates: Partial<InsertDocumentArtifact>): Promise<DocumentArtifact | undefined>;
+
+  // Staged Proposals
+  createStagedProposal(data: InsertStagedProposal): Promise<StagedProposal>;
+  getStagedProposal(id: string): Promise<StagedProposal | undefined>;
+  getStagedProposalByIdempotencyKey(key: string): Promise<StagedProposal | undefined>;
+  listStagedProposals(filters?: { status?: string | string[]; origin?: string; userId?: string }): Promise<StagedProposal[]>;
+  updateStagedProposal(id: string, update: Partial<InsertStagedProposal>): Promise<StagedProposal | undefined>;
+  cleanupExpiredProposals(): Promise<void>;
+
+  // Field Reports
+  getFieldReports(filters?: { jobId?: string; contactId?: string; type?: string }): Promise<FieldReport[]>;
+  getFieldReport(id: string): Promise<FieldReport | undefined>;
+  createFieldReport(report: InsertFieldReport): Promise<FieldReport>;
+  updateFieldReport(id: string, updates: Partial<InsertFieldReport>): Promise<FieldReport | undefined>;
+  deleteFieldReport(id: string): Promise<boolean>;
+
+  // Financial Records
+  getFinancialRecords(filters?: { contactId?: string; jobId?: string; type?: string; fromDate?: Date; toDate?: Date }): Promise<FinancialRecord[]>;
+  getFinancialRecord(id: string): Promise<FinancialRecord | undefined>;
+  createFinancialRecord(record: InsertFinancialRecord): Promise<FinancialRecord>;
+  updateFinancialRecord(id: string, updates: Partial<InsertFinancialRecord>): Promise<FinancialRecord | undefined>;
+  deleteFinancialRecord(id: string): Promise<boolean>;
+  getFinancialSummary(contactId: string): Promise<{ totalIncome: number; totalExpenses: number; netProfit: number }>;
 }
 
 export class MemStorage implements IStorage {
@@ -361,6 +460,7 @@ export class MemStorage implements IStorage {
   private files: Map<string, FileRecord>;
   private auditLogs: AuditLogEntry[];
   private estimates: Map<string, Estimate>;
+  private jobTasksMap: Map<string, JobTask>;
   private invoices: Map<string, Invoice>;
   private payments: Map<string, Payment>;
   private paymentSlipsMap: Map<string, PaymentSlip>;
@@ -371,7 +471,8 @@ export class MemStorage implements IStorage {
   private messagesMap: Map<string, Message>;
   private memoryEntriesMap: Map<string, MemoryEntry>;
   private settingsData: Settings | undefined;
-  private masterArchitectConfigData: MasterArchitectConfig | undefined;
+    /** @deprecated Master Architect removed. See validator.ts */
+    private masterArchitectConfigData: MasterArchitectConfig | undefined;
   private aiVoiceDispatchConfigData: AiVoiceDispatchConfig | undefined;
   private webhookEventsArray: WebhookEvent[];
   private companyInstructionsMap: Map<string, CompanyInstructions>;
@@ -381,6 +482,9 @@ export class MemStorage implements IStorage {
   private intakeFieldsMap: Map<string, IntakeField>;
   private intakeSubmissionsMap: Map<string, IntakeSubmission>;
   private eventsOutboxMap: Map<string, EventsOutbox>;
+  private stagedProposalsMap: Map<string, StagedProposal>;
+  private fieldReportsMap: Map<string, FieldReport>;
+  private financialRecordsMap: Map<string, FinancialRecord>;
 
   constructor() {
     this.users = new Map();
@@ -391,6 +495,7 @@ export class MemStorage implements IStorage {
     this.files = new Map();
     this.auditLogs = [];
     this.estimates = new Map();
+    this.jobTasksMap = new Map();
     this.invoices = new Map();
     this.payments = new Map();
     this.paymentSlipsMap = new Map();
@@ -401,7 +506,7 @@ export class MemStorage implements IStorage {
     this.messagesMap = new Map();
     this.memoryEntriesMap = new Map();
     this.settingsData = undefined;
-    this.masterArchitectConfigData = undefined;
+        this.masterArchitectConfigData = undefined; // @deprecated
     this.aiVoiceDispatchConfigData = undefined;
     this.webhookEventsArray = [];
     this.companyInstructionsMap = new Map();
@@ -411,6 +516,35 @@ export class MemStorage implements IStorage {
     this.intakeFieldsMap = new Map();
     this.intakeSubmissionsMap = new Map();
     this.eventsOutboxMap = new Map();
+    this.stagedProposalsMap = new Map();
+    this.fieldReportsMap = new Map();
+    this.financialRecordsMap = new Map();
+  }
+
+  /**
+   * Transaction stub for MemStorage
+   * 
+   * PostgresStorage supports real transactions, but MemStorage is in-memory.
+   * This method provides API compatibility while warning developers that
+   * transactions are not enforced in development mode.
+   * 
+   * @param fn - Function to execute within transaction context
+   * @returns Result of the function
+   * 
+   * @example
+   * await storage.transaction(async (tx) => {
+   *   await storage.createJob(job, tx);
+   *   await storage.createAuditLogEntry(entry, tx);
+   * });
+   */
+  async transaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+    console.warn(
+      '[MemStorage] ⚠️  Transactions not supported in development mode. ' +
+      'Operations are atomic but NOT transactional. ' +
+      'Test with PostgresStorage for real transaction behavior.'
+    );
+    // Execute function without transaction context
+    return fn(null);
   }
 
   async getUsers(): Promise<User[]> {
@@ -453,19 +587,21 @@ export class MemStorage implements IStorage {
   }
 
   async getContacts(): Promise<Contact[]> {
-    return Array.from(this.contacts.values());
+    return Array.from(this.contacts.values()).filter(c => c.deletedAt === null);
   }
 
   async getContact(id: string): Promise<Contact | undefined> {
-    return this.contacts.get(id);
+    const contact = this.contacts.get(id);
+    if (contact?.deletedAt) return undefined;
+    return contact;
   }
 
   async getContactByPhone(phone: string): Promise<Contact | undefined> {
-    return Array.from(this.contacts.values()).find(c => c.phone === phone);
+    return Array.from(this.contacts.values()).find(c => c.phone === phone && c.deletedAt === null);
   }
 
   async getContactByEmail(email: string): Promise<Contact | undefined> {
-    return Array.from(this.contacts.values()).find(c => c.email === email);
+    return Array.from(this.contacts.values()).find(c => c.email === email && c.deletedAt === null);
   }
 
   async createContact(insertContact: InsertContact): Promise<Contact> {
@@ -478,9 +614,12 @@ export class MemStorage implements IStorage {
       company: insertContact.company ?? null,
       status: insertContact.status ?? "new",
       avatar: insertContact.avatar ?? null,
+      title: insertContact.title ?? null,
+      address: insertContact.address ?? null,
+      deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as Contact;
     this.contacts.set(id, contact);
     return contact;
   }
@@ -494,7 +633,11 @@ export class MemStorage implements IStorage {
   }
 
   async deleteContact(id: string): Promise<boolean> {
-    return this.contacts.delete(id);
+    const contact = this.contacts.get(id);
+    if (!contact) return false;
+    const updated = { ...contact, deletedAt: new Date(), updatedAt: new Date() };
+    this.contacts.set(id, updated);
+    return true;
   }
 
   async getJobs(): Promise<Job[]> {
@@ -511,10 +654,11 @@ export class MemStorage implements IStorage {
       id,
       title: insertJob.title,
       clientId: insertJob.clientId ?? null,
+      locationId: insertJob.locationId ?? null,
       status: insertJob.status ?? "lead_intake",
-      value: insertJob.value ?? null,
+      estimatedValue: insertJob.estimatedValue ?? null,
       deadline: insertJob.deadline ?? null,
-      description: insertJob.description ?? null,
+      scope: insertJob.scope ?? null,
       jobType: insertJob.jobType ?? "lead",
       jobNumber: insertJob.jobNumber ?? null,
       scheduledStart: insertJob.scheduledStart ?? null,
@@ -523,6 +667,10 @@ export class MemStorage implements IStorage {
       assignedTechs: insertJob.assignedTechs ?? [],
       sourceLeadId: insertJob.sourceLeadId ?? null,
       sourceEstimateId: insertJob.sourceEstimateId ?? null,
+      priority: insertJob.priority ?? "normal",
+      driveFolderId: insertJob.driveFolderId ?? null,
+      driveFolderUrl: insertJob.driveFolderUrl ?? null,
+      tags: insertJob.tags ?? [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -740,6 +888,42 @@ export class MemStorage implements IStorage {
     return this.estimates.delete(id);
   }
 
+  // Job Tasks
+  async getJobTasks(jobId: string): Promise<JobTask[]> {
+    return Array.from(this.jobTasksMap.values())
+      .filter(task => task.jobId === jobId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async getJobTask(id: string): Promise<JobTask | undefined> {
+    return this.jobTasksMap.get(id);
+  }
+
+  async createJobTask(task: InsertJobTask): Promise<JobTask> {
+    const id = randomUUID();
+    const newTask: JobTask = {
+      id,
+      jobId: task.jobId,
+      title: task.title,
+      completed: task.completed ?? false,
+      createdAt: new Date(),
+    };
+    this.jobTasksMap.set(id, newTask);
+    return newTask;
+  }
+
+  async updateJobTask(id: string, data: Partial<InsertJobTask>): Promise<JobTask | undefined> {
+    const task = this.jobTasksMap.get(id);
+    if (!task) return undefined;
+    const updated: JobTask = { ...task, ...data };
+    this.jobTasksMap.set(id, updated);
+    return updated;
+  }
+
+  async deleteJobTask(id: string): Promise<boolean> {
+    return this.jobTasksMap.delete(id);
+  }
+
   async getInvoices(): Promise<Invoice[]> {
     return Array.from(this.invoices.values());
   }
@@ -752,7 +936,7 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const invoice: Invoice = {
       id,
-      jobId: insertInvoice.jobId,
+      jobId: insertInvoice.jobId ?? null,
       contactId: insertInvoice.contactId,
       estimateId: insertInvoice.estimateId ?? null,
       status: insertInvoice.status ?? "draft",
@@ -764,6 +948,12 @@ export class MemStorage implements IStorage {
       dueAt: insertInvoice.dueAt ?? null,
       paidAt: insertInvoice.paidAt ?? null,
       notes: insertInvoice.notes ?? null,
+      invoiceNumber: insertInvoice.invoiceNumber ?? null,
+      syncEnabled: insertInvoice.syncEnabled ?? false,
+      externalInvoiceId: insertInvoice.externalInvoiceId ?? null,
+      accountingIntegration: insertInvoice.accountingIntegration ?? null,
+      lastSyncedAt: insertInvoice.lastSyncedAt ?? null,
+      syncError: insertInvoice.syncError ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -796,10 +986,14 @@ export class MemStorage implements IStorage {
     const payment: Payment = {
       id,
       invoiceId: insertPayment.invoiceId,
+      contactId: insertPayment.contactId ?? null,
       amount: insertPayment.amount,
       method: insertPayment.method ?? "cash",
       transactionRef: insertPayment.transactionRef ?? null,
+      stripePaymentIntentId: insertPayment.stripePaymentIntentId ?? null,
+      stripePaymentMethodId: insertPayment.stripePaymentMethodId ?? null,
       status: insertPayment.status ?? "pending",
+      origin: insertPayment.origin ?? "human",
       paidAt: insertPayment.paidAt ?? null,
       createdAt: new Date(),
     };
@@ -829,6 +1023,18 @@ export class MemStorage implements IStorage {
     const newSlip: PaymentSlip = {
       ...slip,
       id,
+      contactId: slip.contactId ?? null,
+      description: slip.description ?? null,
+      jobId: slip.jobId ?? null,
+      estimateId: slip.estimateId ?? null,
+      invoiceId: slip.invoiceId ?? null,
+      currency: slip.currency ?? "usd",
+      customerEmail: slip.customerEmail ?? null,
+      customerName: slip.customerName ?? null,
+      memo: slip.memo ?? null,
+      paymentMethodTypes: slip.paymentMethodTypes ?? ["card"],
+      traceId: slip.traceId ?? null,
+      createdBy: slip.createdBy ?? null,
       status: slip.status || "draft",
       origin: slip.origin || "human",
       stripeIntentId: slip.stripeIntentId || null,
@@ -923,14 +1129,17 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   async getAssistQueue(): Promise<AssistQueueEntry[]> {
     return Array.from(this.assistQueueMap.values());
   }
 
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   async getAssistQueueEntry(id: string): Promise<AssistQueueEntry | undefined> {
     return this.assistQueueMap.get(id);
   }
 
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   async createAssistQueueEntry(insertEntry: InsertAssistQueueEntry): Promise<AssistQueueEntry> {
     const id = randomUUID();
     const entry: AssistQueueEntry = {
@@ -950,6 +1159,18 @@ export class MemStorage implements IStorage {
       executedAt: insertEntry.executedAt ?? null,
       completedAt: insertEntry.completedAt ?? null,
       error: insertEntry.error ?? null,
+      gatedActionType: insertEntry.gatedActionType ?? null,
+      finalizationPayload: insertEntry.finalizationPayload ?? null,
+      architectApprovedAt: insertEntry.architectApprovedAt ?? null,
+      idempotencyKey: insertEntry.idempotencyKey ?? null,
+      reasoningSummary: insertEntry.reasoningSummary ?? null,
+      validatorDecision: insertEntry.validatorDecision ?? null,
+      validatorRiskLevel: insertEntry.validatorRiskLevel ?? null,
+      rejectionCount: insertEntry.rejectionCount ?? 0,
+      escalatedToOperator: insertEntry.escalatedToOperator ?? false,
+      escalatedAt: insertEntry.escalatedAt ?? null,
+      handledManually: insertEntry.handledManually ?? false,
+      manualHandlingNote: insertEntry.manualHandlingNote ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -957,6 +1178,7 @@ export class MemStorage implements IStorage {
     return entry;
   }
 
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   async updateAssistQueueEntry(id: string, update: Partial<InsertAssistQueueEntry>): Promise<AssistQueueEntry | undefined> {
     const entry = this.assistQueueMap.get(id);
     if (!entry) return undefined;
@@ -992,11 +1214,18 @@ export class MemStorage implements IStorage {
     const conversation: Conversation = {
       id,
       contactId: insertConversation.contactId ?? null,
+      clientId: insertConversation.clientId ?? null,
+      conversationId: insertConversation.conversationId ?? null,
       status: insertConversation.status ?? "active",
       channel: insertConversation.channel ?? "widget",
+      sessionStatus: insertConversation.sessionStatus ?? null,
+      sessionExpiresAt: insertConversation.sessionExpiresAt ?? null,
+      urgencyScore: insertConversation.urgencyScore ?? null,
+      assignedUserId: insertConversation.assignedUserId ?? null,
       sessionToken: insertConversation.sessionToken ?? null,
       leadScore: insertConversation.leadScore ?? null,
       lastMessageAt: insertConversation.lastMessageAt ?? null,
+      jobId: insertConversation.jobId ?? null,
       metadata: insertConversation.metadata ?? {},
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1031,6 +1260,10 @@ export class MemStorage implements IStorage {
       conversationId: insertMessage.conversationId,
       role: insertMessage.role,
       content: insertMessage.content,
+      senderType: insertMessage.senderType ?? null,
+      messageStatus: insertMessage.messageStatus ?? null,
+      media: insertMessage.media ?? null,
+      providerMessageId: insertMessage.providerMessageId ?? null,
       metadata: insertMessage.metadata ?? {},
       createdAt,
     };
@@ -1150,7 +1383,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateSettings(update: Partial<InsertSettings>): Promise<Settings> {
-    const current = this.settingsData || {
+    const current: Settings = this.settingsData || {
       id: 'default',
       agentMode: 'assist',
       autoEmail: true,
@@ -1160,6 +1393,7 @@ export class MemStorage implements IStorage {
       primaryColor: '#FDB913',
       secondaryColor: '#1E40AF',
       logoUrl: null,
+      defaultTaxRate: "8.25",
       n8nWebhookUrl: null,
       openaiApiKey: null,
       stripeSecretKey: null,
@@ -1202,15 +1436,21 @@ export class MemStorage implements IStorage {
       masterArchitectEnabled: config.masterArchitectEnabled ?? true,
       companyKnowledge: config.companyKnowledge || null,
       globalEnabled: config.globalEnabled ?? true,
+      killSwitchActive: config.killSwitchActive ?? false,
+      killSwitchActivatedAt: config.killSwitchActivatedAt || null,
+      killSwitchActivatedBy: config.killSwitchActivatedBy || null,
+      killSwitchReason: config.killSwitchReason || null,
       updatedAt: new Date(),
     };
     return aiSettingsData;
   }
 
+  /** @deprecated Master Architect removed. See validator.ts */
   async getMasterArchitectConfig(): Promise<MasterArchitectConfig | undefined> {
     return this.masterArchitectConfigData;
   }
 
+  /** @deprecated Master Architect removed. See validator.ts */
   async updateMasterArchitectConfig(config: Partial<InsertMasterArchitectConfig>): Promise<MasterArchitectConfig> {
     const current: MasterArchitectConfig = this.masterArchitectConfigData || {
       id: 'default',
@@ -1228,6 +1468,8 @@ export class MemStorage implements IStorage {
       autoPruneAfterMessages: 100,
       toolPermissions: {},
       channelToolPermissions: {},
+      finalizationMode: 'semi_autonomous',
+      isActive: true,
       updatedAt: new Date(),
     };
 
@@ -1313,6 +1555,7 @@ export class MemStorage implements IStorage {
       defaultTags: instructions.defaultTags || [],
       toolPermissionOverrides: instructions.toolPermissionOverrides || {},
       customFlags: instructions.customFlags || {},
+      finalizationMode: instructions.finalizationMode || 'semi_autonomous',
       isActive: instructions.isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1718,9 +1961,335 @@ export class MemStorage implements IStorage {
   async updateDocumentArtifact(_id: string, _updates: Partial<InsertDocumentArtifact>): Promise<DocumentArtifact | undefined> {
     return undefined;
   }
+
+  // Staged Proposals
+  async createStagedProposal(data: InsertStagedProposal): Promise<StagedProposal> {
+    const id = randomUUID();
+    const proposal: StagedProposal = {
+      id,
+      status: data.status || "pending",
+      actions: data.actions,
+      reasoning: data.reasoning || null,
+      riskLevel: data.riskLevel || null,
+      summary: data.summary || null,
+      relatedEntity: data.relatedEntity || null,
+      approvedBy: data.approvedBy || null,
+      approvedAt: data.approvedAt || null,
+      expiresAt: data.expiresAt,
+      createdAt: new Date(),
+      // Governance columns from assist_queue migration
+      userId: data.userId || null,
+      origin: data.origin || "ai_chat",
+      userRequest: data.userRequest || null,
+      validatorDecision: data.validatorDecision || null,
+      validatorReason: data.validatorReason || null,
+      requiresApproval: data.requiresApproval ?? true,
+      rejectedBy: data.rejectedBy || null,
+      rejectedAt: data.rejectedAt || null,
+      rejectionReason: data.rejectionReason || null,
+      executedAt: data.executedAt || null,
+      completedAt: data.completedAt || null,
+      idempotencyKey: data.idempotencyKey || null,
+      escalatedToOperator: data.escalatedToOperator ?? false,
+      mode: data.mode || null,
+      correlationId: data.correlationId || null,
+    };
+    this.stagedProposalsMap.set(id, proposal);
+    return proposal;
+  }
+  async getStagedProposal(id: string): Promise<StagedProposal | undefined> {
+    return this.stagedProposalsMap.get(id);
+  }
+  async getStagedProposalByIdempotencyKey(key: string): Promise<StagedProposal | undefined> {
+    return Array.from(this.stagedProposalsMap.values()).find(p => p.idempotencyKey === key);
+  }
+  async listStagedProposals(filters?: { status?: string | string[]; origin?: string; userId?: string }): Promise<StagedProposal[]> {
+    let results = Array.from(this.stagedProposalsMap.values());
+
+    if (filters?.status) {
+      if (Array.isArray(filters.status)) {
+        results = results.filter(p => filters.status?.includes(p.status));
+      } else {
+        results = results.filter(p => p.status === filters.status);
+      }
+    }
+    if (filters?.origin) {
+      results = results.filter(p => p.origin === filters.origin);
+    }
+    if (filters?.userId) {
+      results = results.filter(p => p.userId === filters.userId);
+    }
+
+    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+  async updateStagedProposal(id: string, update: Partial<InsertStagedProposal>): Promise<StagedProposal | undefined> {
+    const existing = this.stagedProposalsMap.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...update };
+    this.stagedProposalsMap.set(id, updated);
+    return updated;
+  }
+  async cleanupExpiredProposals(): Promise<void> {
+    const now = new Date();
+    for (const [id, proposal] of Array.from(this.stagedProposalsMap.entries())) {
+      if (proposal.status === "pending" && proposal.expiresAt < now) {
+        this.stagedProposalsMap.delete(id);
+      }
+    }
+  }
+
+  // Field Reports
+  async getFieldReports(filters?: { jobId?: string; contactId?: string; type?: string }): Promise<FieldReport[]> {
+    let reports = Array.from(this.fieldReportsMap.values());
+    if (filters?.jobId) reports = reports.filter(r => r.jobId === filters.jobId);
+    if (filters?.contactId) reports = reports.filter(r => r.contactId === filters.contactId);
+    if (filters?.type) reports = reports.filter(r => r.type === filters.type);
+    return reports.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getFieldReport(id: string): Promise<FieldReport | undefined> {
+    return this.fieldReportsMap.get(id);
+  }
+
+  async createFieldReport(report: InsertFieldReport): Promise<FieldReport> {
+    const id = randomUUID();
+    const newReport: FieldReport = {
+      id,
+      jobId: report.jobId,
+      contactId: report.contactId,
+      type: report.type ?? 'progress',
+      observations: report.observations ?? null,
+      actionsTaken: report.actionsTaken ?? null,
+      recommendations: report.recommendations ?? null,
+      severity: report.severity ?? null,
+      resolutionStatus: report.resolutionStatus ?? null,
+      startedAt: report.startedAt ?? null,
+      completedAt: report.completedAt ?? null,
+      durationMinutes: report.durationMinutes ?? null,
+      photos: report.photos ?? [],
+      statusUpdate: report.statusUpdate ?? null,
+      createdBy: report.createdBy ?? null,
+      createdAt: new Date(),
+    };
+    this.fieldReportsMap.set(id, newReport);
+    return newReport;
+  }
+
+  async updateFieldReport(id: string, updates: Partial<InsertFieldReport>): Promise<FieldReport | undefined> {
+    const report = this.fieldReportsMap.get(id);
+    if (!report) return undefined;
+    const updated: FieldReport = { ...report, ...updates, createdAt: report.createdAt }; // Preserve original createdAt
+    this.fieldReportsMap.set(id, updated);
+    return updated;
+  }
+
+  async deleteFieldReport(id: string): Promise<boolean> {
+    return this.fieldReportsMap.delete(id);
+  }
+
+  // Financial Records
+  async getFinancialRecords(filters?: { contactId?: string; jobId?: string; type?: string; fromDate?: Date; toDate?: Date }): Promise<FinancialRecord[]> {
+    let records = Array.from(this.financialRecordsMap.values());
+    if (filters?.contactId) records = records.filter(r => r.contactId === filters.contactId);
+    if (filters?.jobId) records = records.filter(r => r.jobId === filters.jobId);
+    if (filters?.type) records = records.filter(r => r.type === filters.type);
+    if (filters?.fromDate) records = records.filter(r => r.date >= filters.fromDate!);
+    if (filters?.toDate) records = records.filter(r => r.date <= filters.toDate!);
+    return records.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }
+
+  async getFinancialRecord(id: string): Promise<FinancialRecord | undefined> {
+    return this.financialRecordsMap.get(id);
+  }
+
+  async createFinancialRecord(record: InsertFinancialRecord): Promise<FinancialRecord> {
+    const id = randomUUID();
+    const newRecord: FinancialRecord = {
+      id,
+      jobId: record.jobId ?? null,
+      contactId: record.contactId,
+      type: record.type,
+      category: record.category ?? 'other',
+      amount: record.amount,
+      description: record.description ?? null,
+      date: record.date ?? new Date(),
+      createdAt: new Date(),
+    };
+    this.financialRecordsMap.set(id, newRecord);
+    return newRecord;
+  }
+
+  async updateFinancialRecord(id: string, updates: Partial<InsertFinancialRecord>): Promise<FinancialRecord | undefined> {
+    const record = this.financialRecordsMap.get(id);
+    if (!record) return undefined;
+    const updated: FinancialRecord = { ...record, ...updates, createdAt: record.createdAt }; // Preserve original createdAt
+    this.financialRecordsMap.set(id, updated);
+    return updated;
+  }
+
+  async deleteFinancialRecord(id: string): Promise<boolean> {
+    return this.financialRecordsMap.delete(id);
+  }
+
+  async getFinancialSummary(contactId: string): Promise<{ totalIncome: number; totalExpenses: number; netProfit: number }> {
+    const records = Array.from(this.financialRecordsMap.values()).filter(r => r.contactId === contactId);
+    const totalIncome = records.filter(r => r.type === 'income').reduce((sum, r) => {
+      const safeAmount = Number(r.amount);
+      if (isNaN(safeAmount)) return sum;
+      return sum + safeAmount;
+    }, 0);
+    const totalExpenses = records.filter(r => r.type === 'expense').reduce((sum, r) => {
+      const safeAmount = Number(r.amount);
+      if (isNaN(safeAmount)) return sum;
+      return sum + safeAmount;
+    }, 0);
+    return { totalIncome, totalExpenses, netProfit: totalIncome - totalExpenses };
+  }
+
+  // Locations
+  async getLocations(_contactId?: string): Promise<Location[]> { return []; }
+  async getLocation(_id: string): Promise<Location | undefined> { return undefined; }
+  async createLocation(_location: InsertLocation): Promise<Location> { throw new Error("Not implemented in MemStorage"); }
+  async updateLocation(_id: string, _location: Partial<InsertLocation>): Promise<Location | undefined> { return undefined; }
+  async deleteLocation(_id: string): Promise<boolean> { return false; }
+
+  // Equipment
+  async getEquipment(_locationId?: string): Promise<Equipment[]> { return []; }
+  async getEquipmentItem(_id: string): Promise<Equipment | undefined> { return undefined; }
+  async createEquipment(_equip: InsertEquipment): Promise<Equipment> { throw new Error("Not implemented in MemStorage"); }
+  async updateEquipment(_id: string, _equip: Partial<InsertEquipment>): Promise<Equipment | undefined> { return undefined; }
+  async deleteEquipment(_id: string): Promise<boolean> { return false; }
+
+  // Pricebook
+  async getPricebookItems(_filters?: { category?: string; tier?: string; active?: boolean }): Promise<PricebookItem[]> { return []; }
+  async getPricebookItem(_id: string): Promise<PricebookItem | undefined> { return undefined; }
+  async createPricebookItem(_item: InsertPricebookItem): Promise<PricebookItem> { throw new Error("Not implemented in MemStorage"); }
+  async updatePricebookItem(_id: string, _item: Partial<InsertPricebookItem>): Promise<PricebookItem | undefined> { return undefined; }
+  async deletePricebookItem(_id: string): Promise<boolean> { return false; }
+
+  // Tags
+  async getTags(): Promise<Tag[]> { return []; }
+  async getTag(_id: string): Promise<Tag | undefined> { return undefined; }
+  async createTag(_tag: InsertTag): Promise<Tag> { throw new Error("Not implemented in MemStorage"); }
+  async deleteTag(_id: string): Promise<boolean> { return false; }
+
+  // Stored Payment Methods
+  async getStoredPaymentMethods(_contactId: string): Promise<StoredPaymentMethod[]> { return []; }
+  async getStoredPaymentMethod(_id: string): Promise<StoredPaymentMethod | undefined> { return undefined; }
+  async createStoredPaymentMethod(_pm: InsertStoredPaymentMethod): Promise<StoredPaymentMethod> { throw new Error("Not implemented in MemStorage"); }
+  async deleteStoredPaymentMethod(_id: string): Promise<boolean> { return false; }
+
+  // Duplicate Detection
+  async findDuplicateContacts(_name?: string, _email?: string, _phone?: string): Promise<Contact[]> { return []; }
+
+  // Automation Ledger
+  private automationLedger: AutomationLedger[] = [];
+  async getAutomationLedgerEntries(filters?: { 
+    agentName?: string; 
+    actionType?: string; 
+    mode?: string; 
+    status?: string; 
+    correlationId?: string;
+    entityId?: string;
+    entityType?: string;
+    limit?: number 
+  }): Promise<AutomationLedger[]> { 
+    let entries = [...this.automationLedger];
+    
+    if (filters?.agentName) entries = entries.filter(e => e.agentName === filters.agentName);
+    if (filters?.actionType) entries = entries.filter(e => e.actionType === filters.actionType);
+    if (filters?.mode) entries = entries.filter(e => e.mode === filters.mode);
+    if (filters?.status) entries = entries.filter(e => e.status === filters.status);
+    if (filters?.correlationId) entries = entries.filter(e => e.correlationId === filters.correlationId);
+    if (filters?.entityId) entries = entries.filter(e => e.entityId === filters.entityId);
+    if (filters?.entityType) entries = entries.filter(e => e.entityType === filters.entityType);
+    
+    return entries.slice(0, filters?.limit || 100); 
+  }
+  async getAutomationLedgerEntry(_id: string): Promise<AutomationLedger | undefined> { 
+    return this.automationLedger.find(e => e.id === _id); 
+  }
+  async getAutomationLedgerByIdempotencyKey(_idempotencyKey: string): Promise<AutomationLedger | undefined> { 
+    return this.automationLedger.find(e => e.idempotencyKey === _idempotencyKey); 
+  }
+  async createAutomationLedgerEntry(entry: InsertAutomationLedger): Promise<AutomationLedger> {
+    const newEntry: AutomationLedger = {
+      id: `ledger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      agentName: entry.agentName,
+      actionType: entry.actionType,
+      entityType: entry.entityType,
+      entityId: entry.entityId || null,
+      mode: entry.mode || "auto",
+      status: entry.status || "pending",
+      diffJson: entry.diffJson || null,
+      reason: entry.reason || null,
+      correlationId: entry.correlationId || null,
+      executionTraceId: entry.executionTraceId || null,
+      idempotencyKey: entry.idempotencyKey || null,
+      reasoningSummary: entry.reasoningSummary || null,
+      assistQueueId: entry.assistQueueId || null,
+      timestamp: new Date(),
+      updatedAt: new Date(),
+    };
+    this.automationLedger.push(newEntry);
+    return newEntry;
+  }
+  async updateAutomationLedgerEntry(_id: string, _updates: Partial<InsertAutomationLedger>): Promise<AutomationLedger | undefined> { 
+    const idx = this.automationLedger.findIndex(e => e.id === _id);
+    if (idx === -1) return undefined;
+    this.automationLedger[idx] = { ...this.automationLedger[idx], ..._updates, updatedAt: new Date() };
+    return this.automationLedger[idx];
+  }
+
+  // Voice Dispatch Logs
+  async getVoiceDispatchLogs(): Promise<VoiceDispatchLog[]> { return []; }
+  async getVoiceDispatchLog(_id: string): Promise<VoiceDispatchLog | undefined> { return undefined; }
+  async createVoiceDispatchLog(_log: InsertVoiceDispatchLog): Promise<VoiceDispatchLog> { throw new Error("Not implemented in MemStorage"); }
+  async updateVoiceDispatchLog(_id: string, _updates: Partial<InsertVoiceDispatchLog>): Promise<VoiceDispatchLog | undefined> { return undefined; }
+
+  // Email Templates - MemStorage
+  private emailTemplatesStore: EmailTemplate[] = [];
+  async getEmailTemplates(): Promise<EmailTemplate[]> {
+    return this.emailTemplatesStore;
+  }
+  async getEmailTemplate(id: string): Promise<EmailTemplate | undefined> {
+    return this.emailTemplatesStore.find(t => t.id === id);
+  }
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const newTemplate = {
+      ...template,
+      id: randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as EmailTemplate;
+    this.emailTemplatesStore.push(newTemplate);
+    return newTemplate;
+  }
+  async updateEmailTemplate(id: string, template: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
+    const idx = this.emailTemplatesStore.findIndex(t => t.id === id);
+    if (idx === -1) return undefined;
+    this.emailTemplatesStore[idx] = {
+      ...this.emailTemplatesStore[idx],
+      ...template,
+      updatedAt: new Date(),
+    };
+    return this.emailTemplatesStore[idx];
+  }
+  async deleteEmailTemplate(id: string): Promise<boolean> {
+    const idx = this.emailTemplatesStore.findIndex(t => t.id === id);
+    if (idx === -1) return false;
+    this.emailTemplatesStore.splice(idx, 1);
+    return true;
+  }
 }
 
 export class DbStorage implements IStorage {
+  // Transaction support
+  async transaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+    if (!db) throw new Error("Database not connected");
+    return await db.transaction(fn);
+  }
+
   async getUsers(): Promise<User[]> {
     if (!db) return [];
     return await db.select().from(users);
@@ -1762,24 +2331,24 @@ export class DbStorage implements IStorage {
 
   async getContacts(): Promise<Contact[]> {
     if (!db) return [];
-    return await db.select().from(contacts);
+    return await db.select().from(contacts).where(isNull(contacts.deletedAt));
   }
 
   async getContact(id: string): Promise<Contact | undefined> {
     if (!db) return undefined;
-    const result = await db.select().from(contacts).where(eq(contacts.id, id));
+    const result = await db.select().from(contacts).where(and(eq(contacts.id, id), isNull(contacts.deletedAt)));
     return result[0];
   }
 
   async getContactByPhone(phone: string): Promise<Contact | undefined> {
     if (!db) return undefined;
-    const result = await db.select().from(contacts).where(eq(contacts.phone, phone));
+    const result = await db.select().from(contacts).where(and(eq(contacts.phone, phone), isNull(contacts.deletedAt)));
     return result[0];
   }
 
   async getContactByEmail(email: string): Promise<Contact | undefined> {
     if (!db) return undefined;
-    const result = await db.select().from(contacts).where(eq(contacts.email, email));
+    const result = await db.select().from(contacts).where(and(eq(contacts.email, email), isNull(contacts.deletedAt)));
     return result[0];
   }
 
@@ -1801,7 +2370,7 @@ export class DbStorage implements IStorage {
 
   async deleteContact(id: string): Promise<boolean> {
     if (!db) return false;
-    await db.delete(contacts).where(eq(contacts.id, id));
+    await db.update(contacts).set({ deletedAt: new Date() }).where(eq(contacts.id, id));
     return true;
   }
 
@@ -1816,15 +2385,17 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async createJob(insertJob: InsertJob): Promise<Job> {
+  async createJob(insertJob: InsertJob, tx?: Tx): Promise<Job> {
     if (!db) throw new Error("Database not connected");
-    const result = await db.insert(jobs).values(insertJob).returning();
+    const executor = tx || db;
+    const result = await executor.insert(jobs).values(insertJob).returning();
     return result[0];
   }
 
-  async updateJob(id: string, update: Partial<InsertJob>): Promise<Job | undefined> {
+  async updateJob(id: string, update: Partial<InsertJob>, tx?: Tx): Promise<Job | undefined> {
     if (!db) return undefined;
-    const result = await db
+    const executor = tx || db;
+    const result = await executor
       .update(jobs)
       .set({ ...update, updatedAt: new Date() })
       .where(eq(jobs.id, id))
@@ -1840,6 +2411,16 @@ export class DbStorage implements IStorage {
   async createAppointment(insertAppointment: InsertAppointment): Promise<Appointment> {
     if (!db) throw new Error("Database not connected");
     const result = await db.insert(appointments).values(insertAppointment).returning();
+    return result[0];
+  }
+
+  async updateAppointment(id: string, update: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    if (!db) return undefined;
+    const result = await db
+      .update(appointments)
+      .set({ ...update, updatedAt: new Date() })
+      .where(eq(appointments.id, id))
+      .returning();
     return result[0];
   }
 
@@ -1942,9 +2523,10 @@ export class DbStorage implements IStorage {
     return await db.select().from(auditLog);
   }
 
-  async createAuditLogEntry(insertEntry: InsertAuditLogEntry): Promise<AuditLogEntry> {
+  async createAuditLogEntry(insertEntry: InsertAuditLogEntry, tx?: Tx): Promise<AuditLogEntry> {
     if (!db) throw new Error("Database not connected");
-    const result = await db.insert(auditLog).values(insertEntry).returning();
+    const executor = tx || db;
+    const result = await executor.insert(auditLog).values(insertEntry).returning();
     return result[0];
   }
 
@@ -1965,9 +2547,10 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async updateEstimate(id: string, update: Partial<InsertEstimate>): Promise<Estimate | undefined> {
+  async updateEstimate(id: string, update: Partial<InsertEstimate>, tx?: Tx): Promise<Estimate | undefined> {
     if (!db) return undefined;
-    const result = await db
+    const executor = tx || db;
+    const result = await executor
       .update(estimates)
       .set({ ...update, updatedAt: new Date() })
       .where(eq(estimates.id, id))
@@ -1978,6 +2561,40 @@ export class DbStorage implements IStorage {
   async deleteEstimate(id: string): Promise<boolean> {
     if (!db) return false;
     await db.delete(estimates).where(eq(estimates.id, id));
+    return true;
+  }
+
+  // Job Tasks
+  async getJobTasks(jobId: string): Promise<JobTask[]> {
+    if (!db) return [];
+    return await db.select().from(jobTasks).where(eq(jobTasks.jobId, jobId)).orderBy(jobTasks.createdAt);
+  }
+
+  async getJobTask(id: string): Promise<JobTask | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(jobTasks).where(eq(jobTasks.id, id));
+    return result[0];
+  }
+
+  async createJobTask(task: InsertJobTask): Promise<JobTask> {
+    if (!db) throw new Error("Database not connected");
+    const result = await db.insert(jobTasks).values(task).returning();
+    return result[0];
+  }
+
+  async updateJobTask(id: string, data: Partial<InsertJobTask>): Promise<JobTask | undefined> {
+    if (!db) return undefined;
+    const result = await db
+      .update(jobTasks)
+      .set(data)
+      .where(eq(jobTasks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteJobTask(id: string): Promise<boolean> {
+    if (!db) return false;
+    await db.delete(jobTasks).where(eq(jobTasks.id, id));
     return true;
   }
 
@@ -1998,9 +2615,10 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async updateInvoice(id: string, update: Partial<InsertInvoice>): Promise<Invoice | undefined> {
+  async updateInvoice(id: string, update: Partial<InsertInvoice>, tx?: Tx): Promise<Invoice | undefined> {
     if (!db) return undefined;
-    const result = await db
+    const executor = tx || db;
+    const result = await executor
       .update(invoices)
       .set({ ...update, updatedAt: new Date() })
       .where(eq(invoices.id, id))
@@ -2025,15 +2643,17 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
+  async createPayment(insertPayment: InsertPayment, tx?: Tx): Promise<Payment> {
     if (!db) throw new Error("Database not connected");
-    const result = await db.insert(payments).values(insertPayment).returning();
+    const executor = tx || db;
+    const result = await executor.insert(payments).values(insertPayment).returning();
     return result[0];
   }
 
-  async updatePayment(id: string, update: Partial<InsertPayment>): Promise<Payment | undefined> {
+  async updatePayment(id: string, update: Partial<InsertPayment>, tx?: Tx): Promise<Payment | undefined> {
     if (!db) return undefined;
-    const result = await db
+    const executor = tx || db;
+    const result = await executor
       .update(payments)
       .set(update)
       .where(eq(payments.id, id))
@@ -2119,23 +2739,27 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   async getAssistQueue(): Promise<AssistQueueEntry[]> {
     if (!db) return [];
     return await db.select().from(assistQueue);
   }
 
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   async getAssistQueueEntry(id: string): Promise<AssistQueueEntry | undefined> {
     if (!db) return undefined;
     const result = await db.select().from(assistQueue).where(eq(assistQueue.id, id));
     return result[0];
   }
 
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   async createAssistQueueEntry(insertEntry: InsertAssistQueueEntry): Promise<AssistQueueEntry> {
     if (!db) throw new Error("Database not connected");
     const result = await db.insert(assistQueue).values(insertEntry).returning();
     return result[0];
   }
 
+  /** @deprecated Legacy queue system. Replaced by proposals. */
   async updateAssistQueueEntry(id: string, update: Partial<InsertAssistQueueEntry>): Promise<AssistQueueEntry | undefined> {
     if (!db) return undefined;
     const updates: Record<string, any> = { ...update, updatedAt: new Date() };
@@ -2390,12 +3014,14 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  /** @deprecated Master Architect removed. See validator.ts */
   async getMasterArchitectConfig(): Promise<MasterArchitectConfig | undefined> {
     if (!db) return undefined;
     const result = await db.select().from(masterArchitectConfig).where(eq(masterArchitectConfig.id, 'default'));
     return result[0];
   }
 
+  /** @deprecated Master Architect removed. See validator.ts */
   async updateMasterArchitectConfig(config: Partial<InsertMasterArchitectConfig>): Promise<MasterArchitectConfig> {
     if (!db) throw new Error("Database not connected");
 
@@ -2906,12 +3532,14 @@ export class DbStorage implements IStorage {
   // Duplicate Detection - fuzzy matching on name/email/phone
   async findDuplicateContacts(name?: string, email?: string, phone?: string): Promise<Contact[]> {
     if (!db) return [];
-    const conditions: any[] = [];
-    if (email) conditions.push(eq(contacts.email, email));
-    if (phone) conditions.push(eq(contacts.phone, phone));
-    if (name) conditions.push(like(contacts.name, `%${name}%`));
-    if (conditions.length === 0) return [];
-    const results = await db.select().from(contacts).where(or(...conditions));
+    const searchConditions: any[] = [];
+    if (email) searchConditions.push(eq(contacts.email, email));
+    if (phone) searchConditions.push(eq(contacts.phone, phone));
+    if (name) searchConditions.push(like(contacts.name, `%${name}%`));
+    if (searchConditions.length === 0) return [];
+    const results = await db.select().from(contacts).where(
+      and(isNull(contacts.deletedAt), or(...searchConditions))
+    );
     return results;
   }
 
@@ -2966,13 +3594,25 @@ export class DbStorage implements IStorage {
   // ========================================
   // Automation Ledger
   // ========================================
-  async getAutomationLedgerEntries(filters?: { agentName?: string; actionType?: string; mode?: string; status?: string; limit?: number }): Promise<AutomationLedger[]> {
+  async getAutomationLedgerEntries(filters?: { 
+    agentName?: string; 
+    actionType?: string; 
+    mode?: string; 
+    status?: string; 
+    correlationId?: string;
+    entityId?: string;
+    entityType?: string;
+    limit?: number 
+  }): Promise<AutomationLedger[]> {
     if (!db) return [];
-    const conditions: ReturnType<typeof eq>[] = [];
+    const conditions: any[] = [];
     if (filters?.agentName) conditions.push(eq(automationLedger.agentName, filters.agentName));
     if (filters?.actionType) conditions.push(eq(automationLedger.actionType, filters.actionType));
     if (filters?.mode) conditions.push(eq(automationLedger.mode, filters.mode));
     if (filters?.status) conditions.push(eq(automationLedger.status, filters.status));
+    if (filters?.correlationId) conditions.push(eq(automationLedger.correlationId, filters.correlationId));
+    if (filters?.entityId) conditions.push(eq(automationLedger.entityId, filters.entityId));
+    if (filters?.entityType) conditions.push(eq(automationLedger.entityType, filters.entityType));
     
     const query = db.select().from(automationLedger);
     if (conditions.length > 0) {
@@ -3096,6 +3736,211 @@ export class DbStorage implements IStorage {
       .where(eq(documentArtifacts.id, id))
       .returning();
     return result[0];
+  }
+
+  // ========================================
+  // Staged Proposals
+  // ========================================
+  async createStagedProposal(data: InsertStagedProposal): Promise<StagedProposal> {
+    if (!db) throw new Error("Database not connected");
+    const result = await db.insert(stagedProposals).values(data).returning();
+    return result[0];
+  }
+
+  async getStagedProposal(id: string): Promise<StagedProposal | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(stagedProposals).where(eq(stagedProposals.id, id));
+    return result[0];
+  }
+
+  async getStagedProposalByIdempotencyKey(key: string): Promise<StagedProposal | undefined> {
+    if (!db) return undefined;
+    const [result] = await db.select().from(stagedProposals).where(eq(stagedProposals.idempotencyKey, key));
+    return result;
+  }
+
+  async listStagedProposals(filters?: { status?: string | string[]; origin?: string; userId?: string }): Promise<StagedProposal[]> {
+    if (!db) return [];
+    let query = db.select().from(stagedProposals);
+    const conditions: any[] = [];
+
+    if (filters?.status) {
+      if (Array.isArray(filters.status)) {
+        conditions.push(inArray(stagedProposals.status, filters.status));
+      } else {
+        conditions.push(eq(stagedProposals.status, filters.status));
+      }
+    }
+    if (filters?.origin) {
+      conditions.push(eq(stagedProposals.origin, filters.origin));
+    }
+    if (filters?.userId) {
+      conditions.push(eq(stagedProposals.userId, filters.userId));
+    }
+
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions)).orderBy(desc(stagedProposals.createdAt));
+    }
+    return await query.orderBy(desc(stagedProposals.createdAt));
+  }
+
+  async updateStagedProposal(id: string, update: Partial<InsertStagedProposal>): Promise<StagedProposal | undefined> {
+    if (!db) return undefined;
+    const result = await db.update(stagedProposals)
+      .set(update)
+      .where(eq(stagedProposals.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async cleanupExpiredProposals(): Promise<void> {
+    if (!db) return;
+    await db.delete(stagedProposals)
+      .where(and(eq(stagedProposals.status, "pending"), sql`${stagedProposals.expiresAt} < NOW()`));
+  }
+
+  // Email Templates - DbStorage
+  async getEmailTemplates(): Promise<EmailTemplate[]> {
+    if (!db) return [];
+    return await db.select().from(emailTemplates).orderBy(emailTemplates.createdAt);
+  }
+
+  async getEmailTemplate(id: string): Promise<EmailTemplate | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(emailTemplates).where(eq(emailTemplates.id, id));
+    return result[0];
+  }
+
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    if (!db) throw new Error("Database not connected");
+    const result = await db.insert(emailTemplates).values(template).returning();
+    return result[0];
+  }
+
+  async updateEmailTemplate(id: string, template: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
+    if (!db) return undefined;
+    const result = await db.update(emailTemplates)
+      .set({ ...template, updatedAt: new Date() })
+      .where(eq(emailTemplates.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteEmailTemplate(id: string): Promise<boolean> {
+    if (!db) return false;
+    const result = await db.delete(emailTemplates).where(eq(emailTemplates.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // ========================================
+  // Field Reports - DbStorage
+  // ========================================
+  async getFieldReports(filters?: { jobId?: string; contactId?: string; type?: string }): Promise<FieldReport[]> {
+    if (!db) return [];
+    const conditions = [];
+    if (filters?.jobId) conditions.push(eq(fieldReports.jobId, filters.jobId));
+    if (filters?.contactId) conditions.push(eq(fieldReports.contactId, filters.contactId));
+    if (filters?.type) conditions.push(eq(fieldReports.type, filters.type));
+    
+    const query = db.select().from(fieldReports);
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions)).orderBy(desc(fieldReports.createdAt));
+    }
+    return await query.orderBy(desc(fieldReports.createdAt));
+  }
+
+  async getFieldReport(id: string): Promise<FieldReport | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(fieldReports).where(eq(fieldReports.id, id));
+    return result[0];
+  }
+
+  async createFieldReport(report: InsertFieldReport): Promise<FieldReport> {
+    if (!db) throw new Error("Database not connected");
+    const result = await db.insert(fieldReports).values(report).returning();
+    return result[0];
+  }
+
+  async updateFieldReport(id: string, updates: Partial<InsertFieldReport>): Promise<FieldReport | undefined> {
+    if (!db) return undefined;
+    const result = await db.update(fieldReports)
+      .set(updates)
+      .where(eq(fieldReports.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteFieldReport(id: string): Promise<boolean> {
+    if (!db) return false;
+    await db.delete(fieldReports).where(eq(fieldReports.id, id));
+    return true;
+  }
+
+  // ========================================
+  // Financial Records - DbStorage
+  // ========================================
+  async getFinancialRecords(filters?: { contactId?: string; jobId?: string; type?: string; fromDate?: Date; toDate?: Date }): Promise<FinancialRecord[]> {
+    if (!db) return [];
+    const conditions = [];
+    if (filters?.contactId) conditions.push(eq(financialRecords.contactId, filters.contactId));
+    if (filters?.jobId) conditions.push(eq(financialRecords.jobId, filters.jobId));
+    if (filters?.type) conditions.push(eq(financialRecords.type, filters.type));
+    if (filters?.fromDate) conditions.push(sql`${financialRecords.date} >= ${filters.fromDate}`);
+    if (filters?.toDate) conditions.push(sql`${financialRecords.date} <= ${filters.toDate}`);
+    
+    const query = db.select().from(financialRecords);
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions)).orderBy(desc(financialRecords.date));
+    }
+    return await query.orderBy(desc(financialRecords.date));
+  }
+
+  async getFinancialRecord(id: string): Promise<FinancialRecord | undefined> {
+    if (!db) return undefined;
+    const result = await db.select().from(financialRecords).where(eq(financialRecords.id, id));
+    return result[0];
+  }
+
+  async createFinancialRecord(record: InsertFinancialRecord): Promise<FinancialRecord> {
+    if (!db) throw new Error("Database not connected");
+    const result = await db.insert(financialRecords).values(record).returning();
+    return result[0];
+  }
+
+  async updateFinancialRecord(id: string, updates: Partial<InsertFinancialRecord>): Promise<FinancialRecord | undefined> {
+    if (!db) return undefined;
+    const result = await db.update(financialRecords)
+      .set(updates)
+      .where(eq(financialRecords.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteFinancialRecord(id: string): Promise<boolean> {
+    if (!db) return false;
+    await db.delete(financialRecords).where(eq(financialRecords.id, id));
+    return true;
+  }
+
+  async getFinancialSummary(contactId: string): Promise<{ totalIncome: number; totalExpenses: number; netProfit: number }> {
+    if (!db) return { totalIncome: 0, totalExpenses: 0, netProfit: 0 };
+    
+    const result = await db.select({
+      type: financialRecords.type,
+      total: sql<number>`SUM(${financialRecords.amount}::numeric)`
+    })
+    .from(financialRecords)
+    .where(eq(financialRecords.contactId, contactId))
+    .groupBy(financialRecords.type);
+    
+    const totalIncome = result.find(r => r.type === 'income')?.total ?? 0;
+    const totalExpenses = result.find(r => r.type === 'expense')?.total ?? 0;
+    
+    return { 
+      totalIncome: Number(totalIncome) || 0, 
+      totalExpenses: Number(totalExpenses) || 0, 
+      netProfit: (Number(totalIncome) || 0) - (Number(totalExpenses) || 0) 
+    };
   }
 }
 

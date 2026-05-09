@@ -112,11 +112,23 @@ export default function EstimateDetail() {
     });
   };
 
+  const convertToInvoiceMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/estimates/${estimateId}/convert-to-invoice`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Invoice Created", description: "Estimate converted to invoice successfully." });
+      // Navigate to the new invoice
+      setLocation(`/invoices/${data.id}`);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Conversion Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleConvertToInvoice = () => {
-    toast({
-      title: "Convert to Invoice",
-      description: "Invoice creation from estimate coming soon.",
-    });
+    convertToInvoiceMutation.mutate();
   };
 
   const handleConvertToJob = () => {

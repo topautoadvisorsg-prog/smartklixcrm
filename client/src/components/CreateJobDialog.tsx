@@ -36,10 +36,14 @@ import {
 const jobFormSchema = z.object({
   clientId: z.string().min(1, "Contact is required"),
   title: z.string().min(1, "Title is required"),
-  description: z.string().optional().or(z.literal("")),
-  status: z.string().default("lead_intake"),
-  value: z.string().optional().or(z.literal("")),
-  jobType: z.string().default("lead"),
+  scope: z.string().optional().or(z.literal("")),
+  status: z.string().default("discovery"),
+  estimatedValue: z.string().optional().or(z.literal("")),
+  jobType: z.string().default("project"),
+  projectType: z.string().default("website"),
+  repositoryUrl: z.string().optional().or(z.literal("")),
+  designUrl: z.string().optional().or(z.literal("")),
+  deadline: z.string().optional().or(z.literal("")),
 });
 
 type JobFormData = z.infer<typeof jobFormSchema>;
@@ -68,10 +72,14 @@ export default function CreateJobDialog({
     defaultValues: {
       clientId: preselectedContactId || "",
       title: "",
-      description: "",
-      status: "lead_intake",
-      value: "",
-      jobType: "lead",
+      scope: "",
+      status: "discovery",
+      estimatedValue: "",
+      jobType: "project",
+      projectType: "website",
+      repositoryUrl: "",
+      designUrl: "",
+      deadline: "",
     },
   });
 
@@ -81,10 +89,14 @@ export default function CreateJobDialog({
       const payload: InsertJob = {
         clientId: data.clientId || null,
         title: data.title,
-        description: data.description || null,
+        scope: data.scope || null,
         status: data.status,
-        value: data.value || null,
+        estimatedValue: data.estimatedValue || null,
         jobType: data.jobType,
+        projectType: data.projectType,
+        repositoryUrl: data.repositoryUrl || null,
+        designUrl: data.designUrl || null,
+        deadline: data.deadline ? new Date(data.deadline) : null,
       };
       const res = await apiRequest("POST", "/api/jobs", payload);
       return await res.json();
@@ -120,9 +132,9 @@ export default function CreateJobDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="dialog-create-job">
         <DialogHeader>
-          <DialogTitle>Create New Job</DialogTitle>
+          <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
-            Create a new job opportunity. Select a contact and provide job details.
+            Create a new project. Select a contact and provide project details.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -162,7 +174,7 @@ export default function CreateJobDialog({
                   <FormLabel>Job Title *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Website Redesign"
+                      placeholder="Website Redesign for Client"
                       {...field}
                       data-testid="input-job-title"
                     />
@@ -173,17 +185,17 @@ export default function CreateJobDialog({
             />
             <FormField
               control={form.control}
-              name="description"
+              name="scope"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Scope of Work</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Describe the job details..."
+                      placeholder="Describe deliverables, scope of work, and client requirements..."
                       className="resize-none"
                       rows={3}
                       {...field}
-                      data-testid="textarea-job-description"
+                      data-testid="textarea-job-scope"
                     />
                   </FormControl>
                   <FormMessage />
@@ -192,7 +204,7 @@ export default function CreateJobDialog({
             />
             <FormField
               control={form.control}
-              name="value"
+              name="estimatedValue"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Estimated Value ($)</FormLabel>
@@ -201,7 +213,7 @@ export default function CreateJobDialog({
                       type="number"
                       placeholder="5000"
                       {...field}
-                      data-testid="input-job-value"
+                      data-testid="input-job-estimated-value"
                     />
                   </FormControl>
                   <FormMessage />
@@ -213,7 +225,7 @@ export default function CreateJobDialog({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Initial Status</FormLabel>
+                  <FormLabel>Project Stage</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -224,11 +236,115 @@ export default function CreateJobDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="lead_intake">Lead Intake</SelectItem>
-                      <SelectItem value="estimate_sent">Estimate Sent</SelectItem>
-                      <SelectItem value="scheduled">Scheduled</SelectItem>
+                      <SelectItem value="discovery">Discovery</SelectItem>
+                      <SelectItem value="design">Design</SelectItem>
+                      <SelectItem value="development">Development</SelectItem>
+                      <SelectItem value="review">Review</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="projectType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Type</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-project-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="website">Website</SelectItem>
+                        <SelectItem value="marketing">Marketing</SelectItem>
+                        <SelectItem value="consulting">Consulting</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="jobType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Engagement Type</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-job-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="project">Project</SelectItem>
+                        <SelectItem value="recurring">Retainer</SelectItem>
+                        <SelectItem value="rush">Rush</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="repositoryUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Repository URL (optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://github.com/..."
+                      {...field}
+                      data-testid="input-repository-url"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="designUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Design Tool URL (optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://figma.com/..."
+                      {...field}
+                      data-testid="input-design-url"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="deadline"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Deadline</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      {...field}
+                      data-testid="input-job-deadline"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -248,7 +364,7 @@ export default function CreateJobDialog({
                 disabled={isSubmitting}
                 data-testid="button-submit-job"
               >
-                {isSubmitting ? "Creating..." : "Create Job"}
+                {isSubmitting ? "Creating..." : "Create Project"}
               </Button>
             </div>
           </form>

@@ -153,7 +153,7 @@ export default function Calendar() {
             linkedEntity: contact?.name || job.title,
             entityType: "Job",
             entityId: job.id,
-            location: job.description?.substring(0, 50),
+            location: job.scope?.substring(0, 50),
             attendees: Array.isArray(job.assignedTechs) 
               ? (job.assignedTechs as string[]).map(t => String(t))
               : [],

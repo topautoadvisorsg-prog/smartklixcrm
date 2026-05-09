@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { 
   Plus, Search, MoreHorizontal, X, ExternalLink, Calendar, DollarSign, 
   User, Clock, ChevronDown, ArrowLeft, MapPin, ArrowRight, Upload,
-  AlertTriangle, Signal, FileText, MessageSquare, Image, Receipt
+  AlertTriangle, Signal, FileText, MessageSquare, Image, Receipt, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,15 +22,6 @@ import type { Job, Contact } from "@shared/schema";
 type SortField = "title" | "value" | "scheduledStart" | "status";
 type SortOrder = "asc" | "desc";
 type DetailTab = "overview" | "messages" | "work_logs" | "finances";
-
-function getFinanceStatus(job: Job): "paid" | "outstanding" | "invoiced" | "unquoted" {
-  const status = job.status?.toLowerCase();
-  if (status === "paid") return "paid";
-  if (status === "invoiced") return "invoiced";
-  if (status === "completed" && job.value && Number(job.value) > 0) return "outstanding";
-  if (job.value && Number(job.value) > 0) return "outstanding";
-  return "unquoted";
-}
 
 function getFinanceColor(status: string) {
   switch (status) {
@@ -62,8 +53,8 @@ function JobDetailView({
   onViewFull: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
-  const financeStatus = getFinanceStatus(job);
-  const jobValue = job.value ? `$${Number(job.value).toLocaleString()}` : "$0.00";
+  const financeStatus = (job as any).financeStatus ?? "unquoted";
+  const jobValue = job.estimatedValue ? `$${Number(job.estimatedValue).toLocaleString()}` : "$0.00";
 
   const tabs: { id: DetailTab; label: string; icon: typeof FileText }[] = [
     { id: "overview", label: "Overview", icon: FileText },
@@ -130,7 +121,7 @@ function JobDetailView({
                 <div className="flex items-start gap-3">
                   <FileText className="w-4 h-4 text-primary mt-0.5" />
                   <span className="text-sm font-medium leading-relaxed">
-                    {job.description || "No description provided"}
+                    {job.scope || "No description provided"}
                   </span>
                 </div>
               </div>
@@ -232,7 +223,7 @@ function JobDetailView({
                   <h3 className="text-lg font-black uppercase tracking-tight mb-4">Service Summary</h3>
                   <Card className="p-6 bg-muted/30">
                     <p className="text-sm text-muted-foreground italic leading-relaxed">
-                      {job.description || "No service description provided. Add notes to describe the work scope."}
+                      {job.scope || "No service description provided. Add notes to describe the work scope."}
                     </p>
                   </Card>
                 </section>
@@ -353,17 +344,47 @@ function JobDetailView({
 }
 
 export default function Jobs() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  const rawSearch = useSearch();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<SortField>("scheduledStart");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-  const { data: jobs = [], isLoading } = useQuery<Job[]>({
-    queryKey: ["/api/jobs"],
+  // Read filter state from URL params
+  const urlParams = useMemo(() => new URLSearchParams(rawSearch), [rawSearch]);
+  const searchTerm = urlParams.get('search') || '';
+  const statusFilter = urlParams.get('status') || 'all';
+  const sortField = (urlParams.get('sort') as SortField) || 'scheduledStart';
+  const sortOrder = (urlParams.get('order') as SortOrder) || 'desc';
+  const page = parseInt(urlParams.get('page') || '1', 10);
+
+  // Helper to update URL params while preserving existing ones
+  const updateFilters = (updates: Record<string, string>) => {
+    const newParams = new URLSearchParams(rawSearch);
+    Object.entries(updates).forEach(([key, val]) => {
+      if (val && val !== 'all' && val !== '1' && val !== 'scheduledStart' && val !== 'desc') {
+        newParams.set(key, val);
+      } else {
+        newParams.delete(key);
+      }
+    });
+    const qs = newParams.toString();
+    setLocation(location + (qs ? '?' + qs : ''), { replace: true });
+  };
+
+  const { data: jobsResponse, isLoading } = useQuery<{
+    data: (Job & { financeStatus?: string })[]; total: number; page: number; limit: number; totalPages: number;
+  }>({
+    queryKey: ["/api/jobs", page, searchTerm, statusFilter, sortField, sortOrder],
+    queryFn: async ({ queryKey }) => {
+      const [, p] = queryKey as [string, number];
+      const res = await fetch(`/api/jobs?page=${p}&limit=50`, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
   });
+  const jobs = jobsResponse?.data ?? [];
+  const jobsTotal = jobsResponse?.total ?? 0;
+  const jobsTotalPages = jobsResponse?.totalPages ?? 1;
 
   const { data: contacts = [] } = useQuery<Contact[]>({
     queryKey: ["/api/contacts"],
@@ -383,7 +404,7 @@ export default function Jobs() {
         const clientName = job.clientId ? contactMap[job.clientId] : "";
         return (
           job.title?.toLowerCase().includes(searchLower) ||
-          job.description?.toLowerCase().includes(searchLower) ||
+          job.scope?.toLowerCase().includes(searchLower) ||
           clientName?.toLowerCase().includes(searchLower) ||
           job.status?.toLowerCase().includes(searchLower)
         );
@@ -401,7 +422,7 @@ export default function Jobs() {
           comparison = (a.title || "").localeCompare(b.title || "");
           break;
         case "value":
-          comparison = (Number(a.value) || 0) - (Number(b.value) || 0);
+          comparison = (Number(a.estimatedValue) || 0) - (Number(b.estimatedValue) || 0);
           break;
         case "scheduledStart":
           const aDate = a.scheduledStart ? new Date(a.scheduledStart).getTime() : 0;
@@ -420,10 +441,9 @@ export default function Jobs() {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+      updateFilters({ sort: field, order: sortOrder === "asc" ? "desc" : "asc", page: "1" });
     } else {
-      setSortField(field);
-      setSortOrder("asc");
+      updateFilters({ sort: field, order: "asc", page: "1" });
     }
   };
 
@@ -456,7 +476,7 @@ export default function Jobs() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-black uppercase tracking-tight">Operations Queue</h1>
-              <Badge variant="muted" className="font-mono text-xs">{jobs.length} Jobs</Badge>
+              <Badge variant="muted" className="font-mono text-xs">{jobsTotal} Projects</Badge>
             </div>
             <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-widest mt-1 flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
@@ -498,12 +518,12 @@ export default function Jobs() {
                 placeholder="Search jobs..."
                 className="pl-10"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => updateFilters({ search: e.target.value, page: "1" })}
                 data-testid="input-search-jobs"
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(v) => updateFilters({ status: v, page: "1" })}>
               <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -523,10 +543,7 @@ export default function Jobs() {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter("all");
-                }}
+                onClick={() => updateFilters({ search: "", status: "all", page: "1" })}
                 data-testid="button-clear-filters"
               >
                 <X className="w-4 h-4 mr-1" />
@@ -538,7 +555,7 @@ export default function Jobs() {
           {(searchTerm || statusFilter !== "all") && (
             <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border">
               <span className="text-xs text-muted-foreground">
-                Showing {filteredAndSortedJobs.length} of {jobs.length} jobs
+                Showing {filteredAndSortedJobs.length} of {jobsTotal} projects
               </span>
             </div>
           )}
@@ -617,7 +634,7 @@ export default function Jobs() {
                   filteredAndSortedJobs.map((job) => {
                     const clientName = job.clientId ? contactMap[job.clientId] : "No Client";
                     const jobIdShort = job.id.substring(0, 8);
-                    const financeStatus = getFinanceStatus(job);
+                    const financeStatus = (job as any).financeStatus ?? "unquoted";
                     
                     return (
                       <TableRow
@@ -632,7 +649,7 @@ export default function Jobs() {
                         <TableCell className="font-medium">{job.title}</TableCell>
                         <TableCell className="text-muted-foreground">{clientName}</TableCell>
                         <TableCell className="font-semibold">
-                          {job.value ? `$${Number(job.value).toLocaleString()}` : "-"}
+                          {job.estimatedValue ? `$${Number(job.estimatedValue).toLocaleString()}` : "-"}
                         </TableCell>
                         <TableCell>
                           <span className={`text-sm font-medium capitalize ${getFinanceColor(financeStatus)}`}>
@@ -669,6 +686,36 @@ export default function Jobs() {
           </Card>
         </div>
       </ScrollArea>
+
+      {jobsTotal > 0 && (
+        <div className="p-4 border-t border-border flex items-center justify-between gap-2 bg-glass-surface">
+          <span className="text-xs text-muted-foreground">
+            Showing {((page - 1) * 50) + 1}-{Math.min(page * 50, jobsTotal)} of {jobsTotal}
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={page <= 1}
+              onClick={() => updateFilters({ page: String(Math.max(1, page - 1)) })}
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={page >= jobsTotalPages}
+              onClick={() => updateFilters({ page: String(page + 1) })}
+              data-testid="button-next-page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <CreateJobDialog
         open={createDialogOpen}

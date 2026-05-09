@@ -1,4 +1,28 @@
-import { Home, Users, Briefcase, FileText, CreditCard, Calendar, TrendingUp, Bot, Settings, Network, MessageSquare, Zap, Phone, Mail, FormInput, BookOpen, Cloud, MessageCircle, Store, Layers, Share2, ShieldCheck, ScrollText, Terminal } from "lucide-react";
+/**
+ * PRODUCTION SURFACE — Sidebar Navigation
+ * 
+ * This sidebar defines the production-visible UI surface.
+ * RULE: If a feature has full backend integration and governance compliance — it MUST appear here.
+ * 
+ * Features NOT in sidebar (dev/stub surface — accessible via direct URL only):
+ * - Action Console (/action-console)   — STUB, no backend flow
+ * - Email (/emails)                    — STUB, no backend flow
+ * - ActionGPT (/chatgpt-actions)       — STUB, no backend flow
+ * - AI Settings (/crm-agent-config)    — STUB, no backend flow
+ * - Funnels (/funnels)                 — STUB
+ * - Social Media (/social-media)       — STUB
+ * - Marketplace (/marketplace)         — STUB
+ * - Google Workspace (/google-workspace) — STUB
+ * - WhatsApp (/whatsapp)               — STUB
+ * 
+ * To promote a feature to production: add it here ONLY after confirming
+ * full backend integration and governance compliance.
+ * 
+ * Last Updated: April 20, 2026
+ * Restored missing AI modules that were incorrectly hidden during cleanup
+ */
+
+import { Home, Users, Briefcase, FileText, CreditCard, Calendar, TrendingUp, Settings, Network, MessageSquare, Phone, FormInput, BookOpen, ShieldCheck, ScrollText, Download, Brain, CheckCircle, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -27,40 +51,33 @@ interface AppSettings {
 
 const dailyOperationsItems = [
   { title: "Dashboard", url: "/", icon: Home },
+];
+
+const aiBrainsItems = [
+  { title: "Intelligence Bot", url: "/ai-assistant", icon: Brain },
+  { title: "Information AI", url: "/information-ai-chat", icon: MessageSquare },
+  { title: "Review Queue", url: "/review-queue", icon: CheckCircle },
   { title: "Ready Execution", url: "/ready-execution", icon: ShieldCheck },
-  { title: "AI Voice", url: "/ai-receptionist", icon: Phone },
-  { title: "Information AI Chat", url: "/information-ai-chat", icon: MessageSquare },
-  { title: "Action Console", url: "/action-console", icon: Terminal },
-  { title: "Email", url: "/emails", icon: Mail },
-  { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
+  { title: "Automation Ledger", url: "/automation-ledger", icon: ScrollText },
 ];
 
 const workManagementItems = [
-  { title: "Jobs", url: "/jobs", icon: Briefcase },
-  { title: "Calendar", url: "/calendar", icon: Calendar },
+  { title: "Contacts", url: "/contacts", icon: Users },
+  { title: "Projects", url: "/jobs", icon: Briefcase },
   { title: "Pipeline", url: "/pipeline", icon: TrendingUp },
+  { title: "Calendar", url: "/calendar", icon: Calendar },
   { title: "Estimates", url: "/estimates", icon: FileText },
-  { title: "Payments", url: "/payments", icon: CreditCard },
+  { title: "Invoices", url: "/invoices", icon: CreditCard },
+  { title: "Export Center", url: "/exports", icon: Download },
+];
+
+const toolsAndIntegrationsItems = [
+  { title: "AI Voice", url: "/ai-receptionist", icon: Phone },
+  { title: "Intake Builder", url: "/intake-builder", icon: FormInput },
+  { title: "Price Book", url: "/pricebook", icon: BookOpen },
 ];
 
 const configurationItems = [
-  { title: "Price Book", url: "/pricebook", icon: BookOpen },
-  { title: "Contacts", url: "/contacts", icon: Users },
-  { title: "Intake", url: "/intake-builder", icon: FormInput },
-  { title: "Google Workspace", url: "/google-workspace", icon: Cloud },
-];
-
-const oversightItems = [
-  { title: "Review Queue", url: "/review-queue", icon: Network },
-];
-
-const advancedItems = [
-  { title: "ActionGPT", url: "/chatgpt-actions", icon: Zap },
-  { title: "AI Settings", url: "/crm-agent-config", icon: Bot },
-  { title: "Automation Ledger", url: "/automation-ledger", icon: ScrollText },
-  { title: "Funnels", url: "/funnels", icon: Layers },
-  { title: "Social Planner", url: "/social-media", icon: Share2 },
-  { title: "Marketplace", url: "/marketplace", icon: Store },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -109,15 +126,24 @@ export default function AppSidebar() {
   );
 
   return (
-    <Sidebar className="bg-gradient-to-b from-sidebar via-sidebar/98 to-sidebar/95">
+    <Sidebar className="bg-sidebar border-r border-sidebar-border/60">
       <SidebarHeader className="px-4 py-8 border-b border-sidebar-border/40">
         <img src={smart_klix_header_and_Footer___copia} alt="Company Logo" className="h-40 w-auto max-w-full object-contain mx-auto" />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Operations</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             {renderMenuItems(dailyOperationsItems)}
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator className="my-2" />
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">AI Brains</SidebarGroupLabel>
+          <SidebarGroupContent>
+            {renderMenuItems(aiBrainsItems)}
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -133,27 +159,18 @@ export default function AppSidebar() {
         <SidebarSeparator className="my-2" />
 
         <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Tools & Integrations</SidebarGroupLabel>
+          <SidebarGroupContent>
+            {renderMenuItems(toolsAndIntegrationsItems)}
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator className="my-2" />
+
+        <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Configuration</SidebarGroupLabel>
           <SidebarGroupContent>
             {renderMenuItems(configurationItems)}
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator className="my-2" />
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Oversight</SidebarGroupLabel>
-          <SidebarGroupContent>
-            {renderMenuItems(oversightItems)}
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator className="my-2" />
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Advanced</SidebarGroupLabel>
-          <SidebarGroupContent>
-            {renderMenuItems(advancedItems)}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

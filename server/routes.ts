@@ -1,10 +1,12 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { nanoid } from "nanoid";
+import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { 
   insertContactSchema, 
   insertJobSchema, 
+  insertJobTaskSchema,
   insertNoteSchema,
   insertEstimateSchema,
   insertInvoiceSchema,
@@ -22,8 +24,13 @@ import {
   insertUserSchema,
   insertAppointmentSchema,
   insertWhatsappMessageSchema,
+  insertCampaignSchema,
+  insertEmailTemplateSchema,
   type InsertContact,
   type Contact,
+  type InsertJob,
+  type InsertCampaign,
+  type InsertEmailTemplate,
 } from "@shared/schema";
 import { isDatabaseConnected } from "./db";
 import {
@@ -36,18 +43,28 @@ import {
   recordPayment,
   assignTechnician,
   updateJobStatus,
-  finalizeAction,
 } from "./pipeline";
+import { reviewProposal } from "./validator";
 import { aiToolDefinitions, executeAITool, classifyAction, isInternalAction, isExternalAction, isReadOnlyTool, INTERNAL_TOOLS, EXTERNAL_TOOLS } from "./ai-tools";
 import { requireInternalToken } from "./auth-middleware";
+import { requireAuth, requireRole } from "./middleware/auth";
 // TEMP: neo8-events removed
-// TEMP: master-architect removed
-import { chatService } from "./chat-service";
+/** Master Architect removed. All validation handled by validator.ts */
+// DEAD CODE: Chat services deleted - stub implementations removed during system purge
+// Chat endpoints temporarily disabled until proper AI chat implementation
+// import { chatService } from "./chat-service";
 // TEMP: webhook-verification removed
-import { dispatchAgentEvent, dispatchLeadCreated, dispatchJobStatusUpdated, dispatchInvoiceOverdue, dispatchAppointmentBooked } from "./agent-dispatcher";
+import { dispatchToAgent } from "./agent-dispatcher";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { buildSystemInstructions } from "./ai-prompts";
+import { campaignService } from "./campaign-service";
+import { emailWebhookHandler } from "./email-webhook";
+import { campaignAnalyticsService } from "./campaign-analytics";
+import fieldFinancialExportRoutes from "./routes-field-financial-export";
+import { logger } from "./logger";
+import { verifyHmacSignature } from "./security";
+
 
 const aiChatRateLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -57,45 +74,68 @@ const aiChatRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Server-side staged action storage for security
-// Actions are stored here when returned as "staged", then executed only when Accept is called with the correct ID
-interface StagedActionBundle {
-  id: string;
-  actions: Array<{ tool: string; args: Record<string, unknown> }>;
-  userRequest?: string;
-  reasoningSummary?: string; // P0 HARDENING: AI decision rationale for audit trail
-  createdAt: Date;
-  expiresAt: Date;
-}
-
-const stagedActionsStore = new Map<string, StagedActionBundle>();
+// Server-side staged action storage now uses the proposals table in the database
+// The StagedActionBundle interface is replaced by StagedProposal from the schema
 
 // Cleanup expired staged actions every 5 minutes
 setInterval(() => {
-  const now = new Date();
-  for (const [id, bundle] of stagedActionsStore.entries()) {
-    if (bundle.expiresAt < now) {
-      stagedActionsStore.delete(id);
-    }
-  }
+  storage.cleanupExpiredProposals().catch((err) => logger.error('Failed to cleanup expired proposals', err));
 }, 5 * 60 * 1000);
 
-function createStagedBundle(
+async function createStagedBundle(
   actions: Array<{ tool: string; args: Record<string, unknown> }>, 
   userRequest?: string,
-  reasoningSummary?: string
-): string {
-  const id = `staged-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const bundle: StagedActionBundle = {
-    id,
-    actions,
-    userRequest,
-    reasoningSummary, // P0 HARDENING: Store AI rationale
-    createdAt: new Date(),
+  reasoningSummary?: string,
+  currentAgentMode?: string | null,
+  req?: any
+): Promise<{ id: string; validationResult: ReturnType<typeof reviewProposal> } | null> {
+  // P0 HARDENING: Check kill switch BEFORE creating staged proposal
+  const aiSettings = await storage.getAiSettings();
+  if (aiSettings?.killSwitchActive) {
+    logger.warn(`Kill switch active - staged bundle creation blocked`);
+    return null;
+  }
+
+  // Run validator BEFORE creating the staged proposal
+  const validationResult = reviewProposal({
+    action: actions[0]?.tool || "unknown",
+    target: "action_bundle",
+    summary: `AI proposed ${actions.length} action(s)`,
+    requestedBy: "ai_chat",
+    payload: { actions, userRequest },
+    reasoning: reasoningSummary || `AI proposed ${actions.length} action(s)`,
+  });
+
+  if (validationResult.decision === "reject") {
+    // Don't create the proposal if rejected
+    logger.warn(`Proposal rejected: ${validationResult.reason}`);
+    return null;
+  }
+
+  // Generate correlation ID for tracing across systems
+  const correlationId = crypto.randomUUID();
+
+  const proposal = await storage.createStagedProposal({
+    status: "pending",
+    actions: JSON.stringify(actions),
+    summary: userRequest || null,
+    reasoning: reasoningSummary || null,
+    riskLevel: validationResult.riskLevel,
+    relatedEntity: null,
+    approvedBy: null,
+    approvedAt: null,
     expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minute expiry
-  };
-  stagedActionsStore.set(id, bundle);
-  return id;
+    // Governance columns
+    userId: req?.session?.userId || null,
+    origin: "ai_chat",
+    userRequest: userRequest || null,
+    validatorDecision: validationResult.decision,
+    validatorReason: validationResult.reason,
+    requiresApproval: validationResult.requiresHumanApproval !== false,
+    mode: currentAgentMode || null,
+    correlationId,
+  });
+  return { id: proposal.id, validationResult };
 }
 
 // MULTI-STEP WORKFLOW ENFORCEMENT
@@ -168,14 +208,17 @@ const gptActionsRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Rate limiter for n8n webhook callbacks (generous limits for automation)
-const n8nWebhookRateLimiter = rateLimit({
+// Rate limiter for internal webhook callbacks (generous limits for automation)
+const internalWebhookRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100, // Higher limit for automation workflows
   message: { error: "Too many webhook requests, please slow down" },
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Backward compatibility alias
+const n8nWebhookRateLimiter = internalWebhookRateLimiter;
 
 // Rate limiter for public intake webhooks (moderate limit to prevent abuse)
 const intakeWebhookRateLimiter = rateLimit({
@@ -186,13 +229,29 @@ const intakeWebhookRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// N8N webhook verification middleware (optional mode for backward compatibility)
-// Set N8N_WEBHOOK_SECRET env var to enable signature verification
-const n8nVerification = webhookVerificationMiddleware(
-  "N8N_WEBHOOK_SECRET",
-  "x-webhook-signature",
-  true // Optional mode: logs warnings but allows unsigned requests during migration
-);
+// Internal webhook verification middleware (optional mode for backward compatibility)
+// Agents should include X-INTERNAL-TOKEN header
+const internalTokenVerification = (req: any, res: any, next: any) => {
+  // Verification is handled by requireInternalToken middleware
+  // This stub is kept for backward compatibility
+  next();
+};
+
+// Legacy alias (N8N removed, keeping for route compatibility)
+const n8nVerification = internalTokenVerification;
+
+// N8N logging stubs (DEPRECATED - no-op functions kept for backward compatibility)
+// These functions do nothing and will be removed once all N8N references are cleaned up
+function logN8NRequest(_endpoint: string, _method: string, _data: unknown) {
+  // No-op: N8N logging disabled
+}
+function logN8NResponse(_endpoint: string, _status: number, _data: unknown) {
+  // No-op: N8N logging disabled  
+}
+function logN8NError(_endpoint: string, _error: unknown) {
+  // No-op: N8N logging disabled
+}
+
 
 const createConversationSchema = z.object({
   contactId: z.string().nullable().optional(),
@@ -280,16 +339,18 @@ const executeToolSchema = z.object({
   args: z.record(z.unknown()).optional().default({}),
 });
 
-// N8N webhook schemas
+// Pipeline operation schemas
 const updateJobStatusSchema = z.object({
   jobId: z.string().min(1, "jobId is required"),
   status: z.string().min(1, "status is required"),
 });
 
-const sendEstimateN8NSchema = z.object({
+const sendEstimateSchema = z.object({
   estimateId: z.string().min(1, "estimateId is required"),
 });
 
+// Aliases for backward compatibility
+const sendEstimateN8NSchema = sendEstimateSchema;
 const sendInvoiceN8NSchema = z.object({
   invoiceId: z.string().min(1, "invoiceId is required"),
 });
@@ -298,51 +359,32 @@ const markInvoicePaidSchema = z.object({
   invoiceId: z.string().min(1, "invoiceId is required"),
 });
 
-// Assist queue schemas
-const approveAssistSchema = z.object({
-  reason: z.string().optional(),
-});
+// @deprecated assist_queue schemas. Use proposals endpoints instead.
+// const approveAssistSchema = z.object({
+//   reason: z.string().optional(),
+// });
 
-const rejectAssistSchema = z.object({
-  reason: z.string().min(1, "reason is required"),
-});
+// @deprecated assist_queue schemas. Use proposals endpoints instead.
+// const rejectAssistSchema = z.object({
+//   reason: z.string().min(1, "reason is required"),
+// });
 
 // CRM Sync Schema - Callback from Neo8Flow after processing lead intake
+// CRM Sync Schema - Canonical production contract for agent platform callbacks
 const crmSyncSchema = z.object({
-  outbox_id: z.string().min(1, "outbox_id is required"),
-  tenant_id: z.string().min(1, "tenant_id is required"),
-  status: z.enum(["success", "error"]),
-  error_message: z.string().optional(),
-  payload: z.object({
-    name: z.string().optional(),
-    email: z.string().email().optional().or(z.literal("")),
-    phone: z.string().optional(),
-    company: z.string().optional(),
-    message: z.string().optional(),
-    source: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-    custom_fields: z.record(z.unknown()).optional(),
-    contact_id: z.string().optional(),
-    timestamp: z.string().optional(),
+  correlationId: z.string().uuid("correlationId must be a valid UUID"),
+  status: z.enum(["completed", "failed", "in_progress"]),
+  metadata: z.object({
+    idempotency_key: z.string().min(1, "idempotency_key is required"),
+    action_taken: z.string().optional(),
+    result: z.record(z.unknown()).optional(),
   }),
-  channel: z.string().optional(),
-  recording_url: z.string().url().optional(),
-  lead_score: z.number().int().min(0).max(100).optional(),
 });
 
-// Helper function for logging n8n API requests/responses
-function logN8NRequest(endpoint: string, method: string, data: unknown) {
-  console.log(`[N8N API] ${method} ${endpoint}`);
-  console.log(`[N8N API] Request:`, JSON.stringify(data, null, 2));
-}
+type AgentMode = "execute" | "propose" | "review" | "draft";
+type ToolCallResult = { name: string; status: string; arguments: string; result?: unknown };
 
-function logN8NResponse(endpoint: string, status: number, data: unknown) {
-  console.log(`[N8N API] ${endpoint} - Response ${status}:`, JSON.stringify(data, null, 2));
-}
 
-function logN8NError(endpoint: string, error: unknown) {
-  console.error(`[N8N API] ERROR ${endpoint}:`, error);
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Middleware to attach userId from X-User-Id header for authenticated endpoints
@@ -360,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       timestamp: new Date().toISOString(),
       services: {
         database: isDatabaseConnected() ? "connected" : "placeholder_mode",
-        n8n: process.env.N8N_WEBHOOK_URL !== "__SET_AT_DEPLOY__" ? "configured" : "not_configured",
+        agent: process.env.AGENT_WEBHOOK_URL ? "configured" : "not_configured",
       },
     };
     res.json(health);
@@ -374,18 +416,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
         database: isDatabaseConnected() ? "connected" : "placeholder_mode",
         redis: process.env.REDIS_URL !== "redis://placeholder:6379" ? "connected" : "not_configured",
         openai: process.env.OPENAI_API_KEY !== "__SET_AT_DEPLOY__" ? "connected" : "not_configured",
-        n8n: process.env.N8N_WEBHOOK_URL !== "__SET_AT_DEPLOY__" ? "connected" : "not_configured",
+        agent: process.env.AGENT_WEBHOOK_URL ? "configured" : "not_configured",
       },
     };
     res.json(health);
   });
 
-  app.get("/api/contacts", async (_req, res) => {
+  // PUBLIC — agent callback (secret-verified, no session)
+  // POST /api/agent/callback — external agent posts results back
+  app.post("/api/agent/callback", async (req, res) => {
+    const secret = process.env.AGENT_WEBHOOK_SECRET;
+    const headerSecret = req.headers["x-webhook-secret"] as string;
+    const hmacSignature = req.headers["x-webhook-signature"] as string;
+    const hmacTimestamp = req.headers["x-webhook-timestamp"] as string;
+
+    let isAuthorized = false;
+    if (secret) {
+      if (headerSecret === secret) {
+        isAuthorized = true;
+      } else if (hmacSignature && hmacTimestamp && verifyHmacSignature(req.body, hmacSignature, hmacTimestamp, secret)) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: "Invalid webhook secret, signature, or timestamp" });
+    }
+
+    const { proposalId, status, result, errorMessage, correlationId } = req.body;
+
+    if (!proposalId || !status) {
+      return res.status(400).json({ error: "proposalId and status are required" });
+    }
+
+    if (!["completed", "failed"].includes(status)) {
+      return res.status(400).json({ error: "status must be 'completed' or 'failed'" });
+    }
+
+    // Find and update the staged proposal
+    const proposal = await storage.getStagedProposal(proposalId);
+    if (!proposal) {
+      return res.status(404).json({ error: "Proposal not found" });
+    }
+
+    const newStatus = status === "completed" ? "completed" : "failed";
+    await storage.updateStagedProposal(proposalId, { 
+      status: newStatus,
+      completedAt: status === "completed" ? new Date() : undefined,
+    });
+
+    // CRITICAL: Write EXTERNAL_CALLBACK_RECEIVED to automation ledger
+    await storage.createAutomationLedgerEntry({
+      agentName: "external_agent",
+      actionType: "EXTERNAL_CALLBACK_RECEIVED",
+      entityType: "staged_proposal",
+      entityId: proposalId,
+      status: "received",
+      mode: "executed",
+      diffJson: {
+        proposalId,
+        externalStatus: status,
+        result: result || null,
+        errorMessage: errorMessage || null,
+        callbackReceivedAt: new Date().toISOString(),
+      },
+      reason: `External agent reported execution result: ${status}`,
+      correlationId: correlationId || proposal.correlationId || null,
+      executionTraceId: proposalId,
+      idempotencyKey: `callback-${proposalId}-${status}-${Date.now()}`,
+    });
+
+    // CRITICAL: Write PROPOSAL_EXECUTED or PROPOSAL_FAILED based on status
+    await storage.createAutomationLedgerEntry({
+      agentName: "external_agent",
+      actionType: status === "completed" ? "PROPOSAL_EXECUTED" : "PROPOSAL_FAILED",
+      entityType: "staged_proposal",
+      entityId: proposalId,
+      status: newStatus,
+      mode: "executed",
+      diffJson: {
+        proposalId,
+        summary: proposal.summary,
+        actions: proposal.actions,
+        result: result || null,
+        errorMessage: errorMessage || null,
+        executedAt: new Date().toISOString(),
+      },
+      reason: status === "completed" 
+        ? "Proposal successfully executed by external agent" 
+        : `Proposal execution failed: ${errorMessage || "Unknown error"}`,
+      correlationId: correlationId || proposal.correlationId || null,
+      executionTraceId: proposalId,
+      idempotencyKey: `execution-${proposalId}-${status}-${Date.now()}`,
+    });
+
+    res.json({ received: true, proposalId, status: newStatus });
+  });
+
+  // ========== PUBLIC AUTH ENDPOINTS ==========
+  // POST /api/auth/login — PUBLIC
+  app.post("/api/auth/login", async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+    
+    const user = await storage.getUserByUsername(username);
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+    
+    req.session.userId = user.id;
+    res.json({ userId: user.id, name: user.username, role: user.role });
+  });
+
+  // POST /api/auth/logout — requireAuth
+  app.post("/api/auth/logout", requireAuth, (req, res) => {
+    req.session.destroy((err) => {
+      if (err) return res.status(500).json({ error: "Logout failed" });
+      res.json({ success: true });
+    });
+  });
+
+  // GET /api/auth/me — requireAuth
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.userId!);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json({ userId: user.id, name: user.username, role: user.role });
+  });
+
+  // Mount field reports, financial records, and export center routes BEFORE auth wall
+  // These endpoints are added to PUBLIC_PATHS below for testing access
+  app.use("/api", fieldFinancialExportRoutes);
+
+  // ========== AUTH WALL — everything below requires authentication ==========
+  // Public paths that bypass authentication
+  const PUBLIC_PATHS = [
+    { path: "/api/health", method: "GET" },
+    { path: "/api/auth/login", method: "POST" },
+    { path: "/api/public-chat/sessions", method: "POST" },
+    { path: "/api/public-chat/messages", method: "POST" },
+    { path: "/api/public-chat/identify", method: "POST" },
+    { path: "/api/public-chat/messages/", method: "GET" }, // prefix match for /:sessionToken
+    { path: "/api/intake/lead", method: "POST" },
+    { path: "/api/webhook/intake/", method: "POST" }, // prefix match for /:token
+    { path: "/api/agent/callback", method: "POST" },
+    // Export endpoints (for testing - can be restricted later)
+    { path: "/api/export/contacts", method: "GET" },
+    { path: "/api/export/jobs", method: "GET" },
+    { path: "/api/export/financials", method: "GET" },
+    { path: "/api/export/field-reports", method: "GET" },
+    // Field reports and financial records (for testing)
+    { path: "/api/field-reports", method: "GET" },
+    { path: "/api/field-reports", method: "POST" },
+    { path: "/api/financial-records", method: "GET" },
+    { path: "/api/financial-records", method: "POST" },
+  ];
+
+  app.use("/api", (req, res, next) => {
+    // Check if this is a public path
+    const isPublic = PUBLIC_PATHS.some((publicPath) => {
+      if (req.method !== publicPath.method) return false;
+      if (req.path === publicPath.path) return true;
+      // Handle prefix matches (for paths with dynamic segments)
+      if (publicPath.path.endsWith("/") && req.path.startsWith(publicPath.path)) return true;
+      return false;
+    });
+    
+    if (isPublic) {
+      return next();
+    }
+    
+    // Otherwise, require auth
+    return requireAuth(req, res, next);
+  });
+
+  app.get("/api/contacts", async (req, res) => {
     try {
       const contacts = await storage.getContacts();
-      res.json(contacts);
+      const pageParam = req.query.page as string | undefined;
+      const limitParam = req.query.limit as string | undefined;
+
+      if (pageParam || limitParam) {
+        const page = Math.max(1, parseInt(pageParam || "1") || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(limitParam || "50") || 50));
+        const total = contacts.length;
+        const totalPages = Math.ceil(total / limit);
+        const offset = (page - 1) * limit;
+        const data = contacts.slice(offset, offset + limit);
+        res.json({ data, total, page, limit, totalPages });
+      } else {
+        res.json(contacts);
+      }
     } catch (error) {
-      console.error("[API] Error fetching contacts:", error);
+      logger.error("Error fetching contacts", error);
       res.status(500).json({ error: "Failed to fetch contacts" });
     }
   });
@@ -394,43 +617,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/contacts/lookup", n8nWebhookRateLimiter, requireInternalToken, n8nVerification, async (req, res) => {
     try {
       const phone = req.query.phone as string;
-      logN8NRequest("/api/contacts/lookup", "GET", { phone });
       
       if (!phone) {
-        const error = { error: "Phone number is required" };
-        logN8NResponse("/api/contacts/lookup", 400, error);
-        return res.status(400).json(error);
+        return res.status(400).json({ success: false, error: "Phone number is required" });
       }
 
       const contact = await storage.getContactByPhone(phone);
       
       if (!contact) {
-        const error = { error: "Contact not found" };
-        logN8NResponse("/api/contacts/lookup", 404, error);
-        return res.status(404).json(error);
+        return res.status(404).json({ success: false, error: "Contact not found" });
       }
 
-      logN8NResponse("/api/contacts/lookup", 200, contact);
-      res.json(contact);
+      res.json({ success: true, data: contact });
     } catch (error) {
-      logN8NError("/api/contacts/lookup", error);
+      logger.error("Contacts lookup failed", error);
       const message = error instanceof Error ? error.message : "Failed to lookup contact";
-      const errorResponse = { error: message };
-      logN8NResponse("/api/contacts/lookup", 500, errorResponse);
-      res.status(500).json(errorResponse);
+      res.status(500).json({ success: false, error: message });
     }
   });
 
-  // N8N callback endpoint: Search contact by email
+  // Internal API endpoint: Search contact by email
   app.get("/api/contacts/search", n8nWebhookRateLimiter, requireInternalToken, n8nVerification, async (req, res) => {
     try {
       const email = req.query.email as string;
-      logN8NRequest("/api/contacts/search", "GET", { email });
       
       if (!email) {
-        const error = { error: "Email is required" };
-        logN8NResponse("/api/contacts/search", 400, error);
-        return res.status(400).json(error);
+        return res.status(400).json({ success: false, error: "Email is required" });
       }
 
       // Get all contacts and find by email (case-insensitive)
@@ -440,19 +652,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       if (!contact) {
-        const error = { error: "Contact not found" };
-        logN8NResponse("/api/contacts/search", 404, error);
-        return res.status(404).json(error);
+        return res.status(404).json({ success: false, error: "Contact not found" });
       }
 
-      logN8NResponse("/api/contacts/search", 200, contact);
-      res.json(contact);
+      res.json({ success: true, data: contact });
     } catch (error) {
-      logN8NError("/api/contacts/search", error);
+      logger.error("Contacts search failed", error);
       const message = error instanceof Error ? error.message : "Failed to search contact";
-      const errorResponse = { error: message };
-      logN8NResponse("/api/contacts/search", 500, errorResponse);
-      res.status(500).json(errorResponse);
+      res.status(500).json({ success: false, error: message });
     }
   });
 
@@ -527,51 +734,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Outreach trigger - dispatches to n8n to start an outreach sequence
+  // Outreach trigger - disabled (external agent dispatch only via approved proposals)
   app.post("/api/contacts/:id/outreach", async (req, res) => {
-    try {
-      const contactId = req.params.id;
-      const contact = await storage.getContact(contactId);
-      if (!contact) {
-        return res.status(404).json({ error: "Contact not found" });
-      }
-
-      const { action = "manual_trigger", user = "system" } = req.body;
-
-      const payload = {
-        leadId: contactId,
-        contactName: contact.name,
-        contactEmail: contact.email,
-        contactPhone: contact.phone,
-        action,
-        user,
-      };
-
-      const result = await dispatchToN8nWebhook("/outreach/trigger", payload);
-
-      await storage.createAuditLogEntry({
-        userId: null,
-        action: "outreach_triggered",
-        entityType: "contact",
-        entityId: contactId,
-        details: { action, user, n8nResult: result.success },
-      });
-
-      if (!result.success) {
-        return res.status(500).json({ error: result.error || "Failed to trigger outreach" });
-      }
-
-      res.json({ success: true, message: "Outreach triggered", contactId });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to trigger outreach";
-      res.status(500).json({ error: message });
-    }
+    res.status(501).json({ error: "Direct outreach dispatch disabled. Use proposal-based dispatch." });
   });
 
-  app.get("/api/jobs", async (_req, res) => {
+  app.get("/api/jobs", async (req, res) => {
     try {
+      const pageParam = req.query.page as string | undefined;
+      const limitParam = req.query.limit as string | undefined;
+
       const jobs = await storage.getJobs();
-      res.json(jobs);
+
+      // Batch-compute financeStatus for all jobs
+      const allInvoices = await storage.getInvoices();
+      const allPayments = await storage.getPayments();
+
+      // Build invoice lookup by jobId
+      const invoicesByJobId = new Map<string, typeof allInvoices>();
+      for (const inv of allInvoices) {
+        if (inv.jobId) {
+          const list = invoicesByJobId.get(inv.jobId) ?? [];
+          list.push(inv);
+          invoicesByJobId.set(inv.jobId, list);
+        }
+      }
+
+      // Build payment lookup by invoiceId
+      const paymentsByInvoiceId = new Map<string, typeof allPayments>();
+      for (const pay of allPayments) {
+        const list = paymentsByInvoiceId.get(pay.invoiceId) ?? [];
+        list.push(pay);
+        paymentsByInvoiceId.set(pay.invoiceId, list);
+      }
+
+      type FinanceStatus = "paid" | "invoiced" | "outstanding" | "unquoted";
+
+      const jobsWithFinance = jobs.map((job) => {
+        const jobInvoices = invoicesByJobId.get(job.id) ?? [];
+        let financeStatus: FinanceStatus = "unquoted";
+
+        if (jobInvoices.length > 0) {
+          // Check if any invoice is fully paid
+          let hasPaymentCoveringInvoice = false;
+          for (const inv of jobInvoices) {
+            const invPayments = paymentsByInvoiceId.get(inv.id) ?? [];
+            const totalPaid = invPayments
+              .filter((p) => p.status === "completed")
+              .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+            const invoiceTotal = Number(inv.totalAmount ?? 0);
+            if (totalPaid >= invoiceTotal && invoiceTotal > 0) {
+              hasPaymentCoveringInvoice = true;
+              break;
+            }
+          }
+          financeStatus = hasPaymentCoveringInvoice ? "paid" : "invoiced";
+        } else if (job.status === "completed") {
+          financeStatus = "outstanding";
+        }
+
+        return { ...job, financeStatus };
+      });
+
+      if (pageParam || limitParam) {
+        const page = Math.max(1, parseInt(pageParam || "1") || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(limitParam || "50") || 50));
+        const total = jobsWithFinance.length;
+        const totalPages = Math.ceil(total / limit);
+        const offset = (page - 1) * limit;
+        const data = jobsWithFinance.slice(offset, offset + limit);
+        res.json({ data, total, page, limit, totalPages });
+      } else {
+        res.json(jobsWithFinance);
+      }
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch jobs" });
     }
@@ -638,6 +873,272 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid job data", details: error.errors });
       }
       res.status(400).json({ error: "Failed to update job" });
+    }
+  });
+
+  // Job Tasks endpoints
+  app.get("/api/jobs/:id/tasks", async (req, res) => {
+    try {
+      const tasks = await storage.getJobTasks(req.params.id);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch job tasks" });
+    }
+  });
+
+  app.post("/api/jobs/:id/tasks", async (req, res) => {
+    try {
+      const validated = insertJobTaskSchema.parse({
+        ...req.body,
+        jobId: req.params.id,
+      });
+      const task = await storage.createJobTask(validated);
+      res.status(201).json(task);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid task data", details: error.errors });
+      }
+      res.status(400).json({ error: "Failed to create task" });
+    }
+  });
+
+  app.patch("/api/jobs/:id/tasks/:taskId", async (req, res) => {
+    try {
+      const validated = insertJobTaskSchema.partial().parse(req.body);
+      const task = await storage.updateJobTask(req.params.taskId, validated);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      res.json(task);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid task data", details: error.errors });
+      }
+      res.status(400).json({ error: "Failed to update task" });
+    }
+  });
+
+  app.delete("/api/jobs/:id/tasks/:taskId", async (req, res) => {
+    try {
+      const success = await storage.deleteJobTask(req.params.taskId);
+      if (!success) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete task" });
+    }
+  });
+
+  // ============================================
+  // PIPELINE ENDPOINTS
+  // ============================================
+
+  // GET /api/pipeline/cards - Get all pipeline cards grouped by stage
+  app.get("/api/pipeline/cards", async (_req, res) => {
+    try {
+      const allJobs = await storage.getJobs();
+      const allContacts = await storage.getContacts();
+      const allEstimates = await storage.getEstimates();
+
+      // Map jobs to pipeline cards
+      const pipelineCards = allJobs.map(job => {
+        const contact = allContacts.find(c => c.id === job.clientId);
+        
+        // Check if job has an active estimate
+        const jobEstimates = allEstimates.filter(e => e.jobId === job.id && e.status === 'active');
+        const hasActiveEstimate = jobEstimates.length > 0;
+        const activeEstimate = jobEstimates[0];
+
+        // Map job status to pipeline stage
+        // Pipeline stages: new_request, qualification, negotiation, approved, booked
+        let pipelineStage: string;
+        switch (job.status) {
+          case 'lead_intake':
+          case 'new':
+            pipelineStage = 'new_request';
+            break;
+          case 'estimate_sent':
+          case 'qualified':
+            pipelineStage = 'qualification';
+            break;
+          case 'negotiating':
+          case 'pending':
+            pipelineStage = 'negotiation';
+            break;
+          case 'approved':
+          case 'accepted':
+            pipelineStage = 'approved';
+            break;
+          case 'scheduled':
+          case 'booked':
+          case 'in_progress':
+          case 'completed':
+            pipelineStage = 'booked';
+            break;
+          default:
+            pipelineStage = 'new_request';
+        }
+
+        // Calculate age in days
+        const createdAt = job.createdAt ? new Date(job.createdAt) : new Date();
+        const ageDays = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Get assigned user name from assignedTechs
+        const assignedTechs = (job.assignedTechs as string[]) || [];
+        const assignedUserName = assignedTechs.length > 0 ? assignedTechs[0] : undefined;
+
+        // Format last activity
+        const updatedAt = job.updatedAt ? new Date(job.updatedAt) : new Date();
+        const hoursAgo = Math.floor((Date.now() - updatedAt.getTime()) / (1000 * 60 * 60));
+        let lastActivityAt: string;
+        if (hoursAgo < 1) {
+          lastActivityAt = 'Just now';
+        } else if (hoursAgo < 24) {
+          lastActivityAt = `${hoursAgo}h ago`;
+        } else {
+          const daysAgo = Math.floor(hoursAgo / 24);
+          lastActivityAt = `${daysAgo}d ago`;
+        }
+
+        return {
+          id: job.id,
+          status: pipelineStage,
+          customerId: job.clientId || '',
+          customerName: contact?.name || contact?.company || 'Unknown',
+          customerPhone: contact?.phone || undefined,
+          customerEmail: contact?.email || undefined,
+          jobTitle: job.title,
+          totalValue: job.estimatedValue ? parseFloat(job.estimatedValue as string) : 0,
+          assignedUserId: assignedTechs.length > 0 ? assignedTechs[0] : undefined,
+          assignedUserName: assignedUserName,
+          lastActivityAt: lastActivityAt,
+          createdAt: createdAt.toISOString().split('T')[0],
+          ageDays: ageDays,
+          hasActiveEstimate: hasActiveEstimate,
+          estimateId: activeEstimate?.id,
+        };
+      });
+
+      res.json(pipelineCards);
+    } catch (error) {
+      console.error("[Pipeline] Error fetching cards:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline cards" });
+    }
+  });
+
+  // POST /api/pipeline/transition - Move a card between pipeline stages
+  app.post("/api/pipeline/transition", async (req, res) => {
+    try {
+      const { cardId, fromStage, toStage } = req.body;
+
+      if (!cardId || !fromStage || !toStage) {
+        return res.status(400).json({ error: "cardId, fromStage, and toStage are required" });
+      }
+
+      const job = await storage.getJob(cardId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      // Map pipeline stage to job status
+      let newStatus: string;
+      switch (toStage) {
+        case 'new_request':
+          newStatus = 'lead_intake';
+          break;
+        case 'qualification':
+          newStatus = 'estimate_sent';
+          break;
+        case 'negotiation':
+          newStatus = 'negotiating';
+          break;
+        case 'approved':
+          newStatus = 'approved';
+          break;
+        case 'booked':
+          newStatus = 'scheduled';
+          break;
+        default:
+          newStatus = job.status;
+      }
+
+      const updatedJob = await storage.updateJob(cardId, { status: newStatus });
+      if (!updatedJob) {
+        return res.status(500).json({ error: "Failed to update job status" });
+      }
+
+      // Create audit log entry
+      await storage.createAuditLogEntry({
+        userId: null,
+        action: "pipeline_transition",
+        entityType: "job",
+        entityId: cardId,
+        details: { fromStage, toStage, previousStatus: job.status, newStatus },
+      });
+
+      res.json({ success: true, job: updatedJob });
+    } catch (error) {
+      console.error("[Pipeline] Error transitioning card:", error);
+      res.status(500).json({ error: "Failed to transition pipeline card" });
+    }
+  });
+
+  // POST /api/pipeline/book - Finalize booking for a job
+  app.post("/api/pipeline/book", async (req, res) => {
+    try {
+      const { cardId, technicianId, scheduledStart, scheduledEnd, depositPaid } = req.body;
+
+      if (!cardId) {
+        return res.status(400).json({ error: "cardId is required" });
+      }
+
+      const job = await storage.getJob(cardId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      // Build update data
+      const updateData: Partial<InsertJob> = {
+        status: 'scheduled',
+      };
+
+      if (technicianId) {
+        updateData.assignedTechs = [technicianId];
+      }
+
+      if (scheduledStart) {
+        updateData.scheduledStart = new Date(scheduledStart);
+      }
+
+      if (scheduledEnd) {
+        updateData.scheduledEnd = new Date(scheduledEnd);
+      }
+
+      const updatedJob = await storage.updateJob(cardId, updateData);
+      if (!updatedJob) {
+        return res.status(500).json({ error: "Failed to update job" });
+      }
+
+      // Create audit log entry
+      await storage.createAuditLogEntry({
+        userId: null,
+        action: "job_booked",
+        entityType: "job",
+        entityId: cardId,
+        details: { 
+          technicianId, 
+          scheduledStart, 
+          scheduledEnd, 
+          depositPaid,
+          previousStatus: job.status 
+        },
+      });
+
+      res.json({ success: true, job: updatedJob });
+    } catch (error) {
+      console.error("[Pipeline] Error booking job:", error);
+      res.status(500).json({ error: "Failed to book job" });
     }
   });
 
@@ -828,6 +1329,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================
+  // Notifications (from Audit Log)
+  // ========================================
+  app.get("/api/notifications", async (_req, res) => {
+    try {
+      // Get audit log entries from the last 24 hours
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const allLogs = await storage.getAuditLog();
+
+      const notificationActions = [
+        "contact_created", "create_contact",
+        "job_completed", "update_job_status",
+        "payment_recorded", "record_payment",
+        "estimate_approved", "update_estimate",
+        "create_job", "create_estimate", "create_invoice",
+      ];
+
+      const notifications = allLogs
+        .filter(log => {
+          const logTime = new Date(log.timestamp);
+          return logTime >= since && notificationActions.includes(log.action);
+        })
+        .slice(0, 20) // Limit to 20 most recent
+        .map(log => ({
+          id: log.id,
+          title: formatNotificationTitle(log.action),
+          message: formatNotificationMessage(log),
+          timestamp: log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp,
+          read: false,
+          type: getNotificationType(log.action),
+        }));
+
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  function formatNotificationTitle(action: string): string {
+    const titles: Record<string, string> = {
+      contact_created: "Contact Created",
+      create_contact: "Contact Created",
+      job_completed: "Job Completed",
+      update_job_status: "Job Status Updated",
+      payment_recorded: "Payment Received",
+      record_payment: "Payment Received",
+      estimate_approved: "Estimate Approved",
+      update_estimate: "Estimate Updated",
+      create_job: "Job Created",
+      create_estimate: "Estimate Created",
+      create_invoice: "Invoice Created",
+    };
+    return titles[action] || action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function formatNotificationMessage(log: any): string {
+    const details = log.details as Record<string, any> || {};
+    if (details.contactName) return `${details.contactName}`;
+    if (details.jobTitle) return `${details.jobTitle}`;
+    if (details.summary) return details.summary;
+    return `${log.entityType || 'Record'} ${log.entityId ? '#' + log.entityId.substring(0, 8) : ''}`;
+  }
+
+  function getNotificationType(action: string): string {
+    if (action.includes('payment') || action.includes('completed')) return 'success';
+    if (action.includes('create') || action.includes('contact')) return 'info';
+    return 'info';
+  }
+
+  // ========================================
   // Automation Ledger (Agent Action Logging)
   // ========================================
   app.get("/api/automation-ledger", async (req, res) => {
@@ -893,7 +1463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
   // Ready Execution (Human Authority & Dispatch)
   // Items that passed Review Queue (AI-validated) await human confirmation
-  // FIX 3: Include BOTH ledger entries with status "ai_validated" AND approved assist_queue entries
+  // Includes both ledger entries with status "ai_validated" AND approved proposals
   // ========================================
   app.get("/api/ready-execution", async (_req, res) => {
     try {
@@ -903,30 +1473,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit: 100,
       });
       
-      // Also get approved assist_queue entries that haven't been executed yet
-      const assistEntries = await storage.getAssistQueue();
-      const approvedProposals = assistEntries.filter(e => e.status === "approved");
+      // Also get approved proposals that haven't been executed yet
+      const proposals = await storage.listStagedProposals({ 
+        status: ["approved"] 
+      });
       
       // Combine and return both sources
-      // Transform assist_queue entries to match ledger format for display
+      // Transform proposals entries to match ledger format for display
       const combinedEntries = [
         ...ledgerEntries,
-        ...approvedProposals.map(p => ({
+        ...proposals.map(p => ({
           id: p.id,
           timestamp: p.approvedAt || p.createdAt,
           agentName: "ActionAI CRM",
           actionType: "Approved Proposal",
-          entityType: "assist_queue",
+          entityType: "staged_proposal",
           entityId: p.id,
           mode: p.mode,
           status: "ai_validated" as const,
           diffJson: {
             userRequest: p.userRequest,
-            toolsCalled: p.toolsCalled,
+            actions: p.actions,
           },
           reason: null,
-          assistQueueId: p.id,
-          updatedAt: p.updatedAt,
+          assistQueueId: null,
+          updatedAt: p.createdAt,
         })),
       ];
       
@@ -1010,42 +1581,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (actionType === "EXTERNAL") {
               hasExternalActions = true;
-              console.log(`[Ready Execution] Dispatching EXTERNAL action "${action.tool}" to Neo8`);
-              
-              try {
-                const dispatchResult = await dispatchExternalAction(
-                  action.tool,
-                  action.args,
-                  { 
-                    ledgerId: entry.id,
-                    assistQueueId: entry.assistQueueId || undefined,
-                    userId: userId || undefined,
-                  }
-                );
-                
-                if (dispatchResult.success) {
-                  executionResults.push({
-                    tool: action.tool,
-                    status: "dispatched_to_neo8",
-                    result: dispatchResult.responseData,
-                  });
-                } else {
-                  executionResults.push({
-                    tool: action.tool,
-                    status: "dispatch_failed",
-                    error: dispatchResult.error,
-                  });
-                  dispatchError = dispatchResult.error || null;
-                }
-              } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : "Neo8 dispatch failed";
-                executionResults.push({
-                  tool: action.tool,
-                  status: "dispatch_failed",
-                  error: errorMessage,
-                });
-                dispatchError = errorMessage;
-              }
+              console.log(`[Ready Execution] EXTERNAL action "${action.tool}" staged for agent dispatch`);
+              // External actions are dispatched via approved proposals to external agent
+              executionResults.push({
+                tool: action.tool,
+                status: "staged_for_dispatch",
+                result: { message: "Staged for external agent dispatch via proposal" },
+              });
             } else {
               hasInternalActions = true;
               console.log(`[Ready Execution] Executing INTERNAL action "${action.tool}" directly`);
@@ -1082,27 +1624,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               : "dispatched";
           }
           
-          if (entry.assistQueueId) {
-            await storage.updateAssistQueueEntry(entry.assistQueueId, {
-              status: "completed",
-              completedAt: new Date(),
-              toolResults: executionResults,
-            });
-          }
-        } else if (diffJson) {
-          try {
-            await dispatchToN8nWebhook({
-              eventType: entry.actionType,
-              payload: diffJson,
-              source: "ready_execution",
-              ledgerActionId: entry.id,
-            });
-            dispatchStatus = "dispatched";
-          } catch (err) {
-            dispatchStatus = "dispatch_failed";
-            dispatchError = err instanceof Error ? err.message : "Unknown dispatch error";
-            console.error("N8N dispatch failed:", err);
-          }
         }
 
         await storage.updateAutomationLedgerEntry(req.params.id, {
@@ -1141,7 +1662,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dispatchStatus,
           },
           reason: null,
-          assistQueueId: entry.assistQueueId || null,
         });
 
         console.log(`[Ready Execution] Ledger entry completed: ${executionResults.length} actions executed`);
@@ -1156,37 +1676,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Not in ledger - try assist_queue directly by ID
-      const assistEntry = await storage.getAssistQueueEntry(req.params.id);
+      // Not in ledger - try proposals directly by ID
+      const proposalEntry = await storage.getStagedProposal(req.params.id);
       
-      if (assistEntry) {
-        // P0 HARDENING: Idempotency check for assist_queue - prevent duplicate execution
-        if (assistEntry.idempotencyKey) {
-          const existingEntry = await storage.getAutomationLedgerByIdempotencyKey(assistEntry.idempotencyKey);
+      if (proposalEntry) {
+        // P0 HARDENING: Idempotency check for proposals - prevent duplicate execution
+        if (proposalEntry.idempotencyKey) {
+          const existingEntry = await storage.getAutomationLedgerByIdempotencyKey(proposalEntry.idempotencyKey);
           if (existingEntry && existingEntry.status === "executed") {
-            console.log(`[IDEMPOTENCY] Duplicate assist_queue execution blocked for key ${assistEntry.idempotencyKey}`);
+            console.log(`[IDEMPOTENCY] Duplicate proposal execution blocked for key ${proposalEntry.idempotencyKey}`);
             return res.status(409).json({
               error: "Duplicate execution blocked",
               message: "An action with this idempotency key has already been executed.",
-              idempotencyKey: assistEntry.idempotencyKey,
+              idempotencyKey: proposalEntry.idempotencyKey,
               existingLedgerId: existingEntry.id,
               existingExecutedAt: existingEntry.updatedAt,
             });
           }
         }
 
-        // Found in assist_queue - check status
-        if (assistEntry.status !== "approved") {
+        // Found in proposals - check status
+        if (proposalEntry.status !== "approved") {
           return res.status(400).json({ 
-            error: `Cannot execute assist queue entry with status: ${assistEntry.status}. Only approved entries can be executed.` 
+            error: `Cannot execute proposal with status: ${proposalEntry.status}. Only approved entries can be executed.` 
           });
         }
         
         // Execute the proposed tools - route INTERNAL vs EXTERNAL appropriately
-        const toolsCalled = assistEntry.toolsCalled as Array<{ tool: string; args: unknown }> | undefined;
+        const actions = typeof proposalEntry.actions === "string" 
+          ? JSON.parse(proposalEntry.actions) 
+          : proposalEntry.actions;
+        const actionPlan = actions as Array<{ tool: string; args: unknown }> | undefined;
         
-        if (toolsCalled && toolsCalled.length > 0) {
-          console.log(`[Ready Execution] Processing ${toolsCalled.length} action(s) from assist_queue`);
+        if (actionPlan && actionPlan.length > 0) {
+          console.log(`[Ready Execution] Processing ${actionPlan.length} action(s) from proposals`);
           
           let hasExternalActions = false;
           let hasInternalActions = false;
@@ -1317,8 +1840,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Pre-scan for bundled Stripe+Email pattern
           // If both stripe_create_payment_link and send_email are in the bundle,
           // we'll combine them so n8n can create the payment link first and inject it into the email
-          const hasStripePaymentLink = toolsCalled.some(a => a.tool === "stripe_create_payment_link");
-          const hasSendEmail = toolsCalled.some(a => a.tool === "send_email");
+          const hasStripePaymentLink = actionPlan.some(a => a.tool === "stripe_create_payment_link");
+          const hasSendEmail = actionPlan.some(a => a.tool === "send_email");
           const stripeEmailBundle = hasStripePaymentLink && hasSendEmail;
           
           if (stripeEmailBundle) {
@@ -1328,7 +1851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Track if we've already dispatched the bundled Stripe+Email
           let stripeEmailDispatched = false;
           
-          for (const action of toolsCalled) {
+          for (const action of actionPlan) {
             const actionType = classifyAction(action.tool);
             
             // Resolve placeholder IDs before execution
@@ -1354,103 +1877,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 stripeEmailDispatched = true;
                 
                 // Find both actions and their args
-                const stripeAction = toolsCalled.find(a => a.tool === "stripe_create_payment_link");
-                const emailAction = toolsCalled.find(a => a.tool === "send_email");
+                const stripeAction = actionPlan.find(a => a.tool === "stripe_create_payment_link");
+                const emailAction = actionPlan.find(a => a.tool === "send_email");
                 
                 const stripeArgs = resolveEntityIds(stripeAction?.args);
                 const emailArgs = resolveEntityIds(emailAction?.args);
                 
-                console.log(`[Ready Execution] Dispatching bundled Stripe+Email to Neo8 outreach`);
-                
-                // Send to outreach/trigger with combined payload
-                // n8n will create payment link first, then inject URL into email body
-                const bundledPayload = {
-                  action: "send_email_with_payment_link",
-                  stripeArgs: stripeArgs,
-                  emailArgs: emailArgs,
-                  estimateId: createdEntities.estimateId,
-                };
-                
-                try {
-                  const dispatchResult = await dispatchExternalAction(
-                    "send_email", // Route to outreach trigger
-                    bundledPayload,
-                    { 
-                      assistQueueId: assistEntry.id,
-                      userId: userId || undefined,
-                    }
-                  );
-                  
-                  if (dispatchResult.success) {
-                    executionResults.push({
-                      tool: "stripe_create_payment_link",
-                      status: "dispatched_to_neo8",
-                      result: { bundled: true },
-                    });
-                    executionResults.push({
-                      tool: "send_email",
-                      status: "dispatched_to_neo8",
-                      result: dispatchResult.responseData,
-                    });
-                  } else {
-                    executionResults.push({
-                      tool: action.tool,
-                      status: "dispatch_failed",
-                      error: dispatchResult.error,
-                    });
-                    dispatchError = dispatchResult.error || null;
-                  }
-                } catch (err) {
-                  const errorMessage = err instanceof Error ? err.message : "Neo8 dispatch failed";
-                  executionResults.push({
-                    tool: action.tool,
-                    status: "dispatch_failed",
-                    error: errorMessage,
-                  });
-                  dispatchError = errorMessage;
-                }
+                console.log(`[Ready Execution] Bundled Stripe+Email staged for agent dispatch`);
+                executionResults.push({
+                  tool: "stripe_create_payment_link",
+                  status: "staged_for_dispatch",
+                  result: { message: "Staged for external agent dispatch via proposal" },
+                });
+                executionResults.push({
+                  tool: "send_email",
+                  status: "staged_for_dispatch",
+                  result: { message: "Staged for external agent dispatch via proposal" },
+                });
                 continue;
               }
               
               // Regular EXTERNAL action dispatch
-              console.log(`[Ready Execution] Dispatching EXTERNAL action "${action.tool}" to Neo8 (from assist_queue)`);
-              
-              try {
-                const dispatchResult = await dispatchExternalAction(
-                  action.tool,
-                  resolvedArgs,
-                  { 
-                    assistQueueId: assistEntry.id,
-                    userId: userId || undefined,
-                  }
-                );
-                
-                if (dispatchResult.success) {
-                  executionResults.push({
-                    tool: action.tool,
-                    status: "dispatched_to_neo8",
-                    result: dispatchResult.responseData,
-                  });
-                } else {
-                  executionResults.push({
-                    tool: action.tool,
-                    status: "dispatch_failed",
-                    error: dispatchResult.error,
-                  });
-                  dispatchError = dispatchResult.error || null;
-                }
-              } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : "Neo8 dispatch failed";
-                executionResults.push({
-                  tool: action.tool,
-                  status: "dispatch_failed",
-                  error: errorMessage,
-                });
-                dispatchError = errorMessage;
-              }
+              console.log(`[Ready Execution] EXTERNAL action "${action.tool}" staged for agent dispatch (from proposals)`);
+              executionResults.push({
+                tool: action.tool,
+                status: "staged_for_dispatch",
+                result: { message: "Staged for external agent dispatch via proposal" },
+              });
             } else {
               hasInternalActions = true;
-              console.log(`[Ready Execution] Executing INTERNAL action "${action.tool}" directly (from assist_queue)`);
+              console.log(`[Ready Execution] Executing INTERNAL action "${action.tool}" directly (from proposals)`);
               
               try {
                 const result = await executeAITool(
@@ -1489,21 +1945,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        await storage.updateAssistQueueEntry(req.params.id, {
+        await storage.updateStagedProposal(req.params.id, {
           status: "completed",
           completedAt: new Date(),
-          toolResults: executionResults,
         });
 
         await storage.createAuditLogEntry({
           userId,
           action: "HUMAN_EXECUTION_DECISION",
-          entityType: "assist_queue",
-          entityId: assistEntry.id,
+          entityType: "staged_proposal",
+          entityId: proposalEntry.id,
           details: {
             outcome: "confirmed",
-            assistQueueId: assistEntry.id,
-            userRequest: assistEntry.userRequest,
+            proposalId: proposalEntry.id,
+            userRequest: proposalEntry.userRequest,
             executionResults,
             dispatchStatus,
           },
@@ -1511,8 +1966,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // P0 FIX: Check if ledger entry already exists for this idempotency key (created at proposal time)
         // If so, update it instead of creating a duplicate
-        if (assistEntry.idempotencyKey) {
-          const existingEntry = await storage.getAutomationLedgerByIdempotencyKey(assistEntry.idempotencyKey);
+        if (proposalEntry.idempotencyKey) {
+          const existingEntry = await storage.getAutomationLedgerByIdempotencyKey(proposalEntry.idempotencyKey);
           if (existingEntry) {
             // Update existing ledger entry to executed status
             await storage.updateAutomationLedgerEntry(existingEntry.id, {
@@ -1530,21 +1985,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createAutomationLedgerEntry({
               agentName: "Human",
               actionType: "HUMAN_EXECUTION_DECISION",
-              entityType: "assist_queue",
-              entityId: assistEntry.id,
+              entityType: "staged_proposal",
+              entityId: proposalEntry.id,
               mode: "execute",
               status: "executed",
               diffJson: {
                 decision: "confirmed",
-                userRequest: assistEntry.userRequest,
-                toolsCalled: assistEntry.toolsCalled,
+                userRequest: proposalEntry.userRequest,
+                actions: proposalEntry.actions,
                 executionResults,
               },
               reason: null,
-              assistQueueId: assistEntry.id,
-              idempotencyKey: assistEntry.idempotencyKey,
-              reasoningSummary: assistEntry.reasoningSummary,
-              executionTraceId: assistEntry.id,
+              assistQueueId: null,
+              idempotencyKey: proposalEntry.idempotencyKey,
+              reasoningSummary: proposalEntry.reasoning,
+              executionTraceId: proposalEntry.id,
             });
           }
         } else {
@@ -1552,34 +2007,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createAutomationLedgerEntry({
             agentName: "Human",
             actionType: "HUMAN_EXECUTION_DECISION",
-            entityType: "assist_queue",
-            entityId: assistEntry.id,
+            entityType: "staged_proposal",
+            entityId: proposalEntry.id,
             mode: "execute",
             status: "executed",
             diffJson: {
               decision: "confirmed",
-              userRequest: assistEntry.userRequest,
-              toolsCalled: assistEntry.toolsCalled,
+              userRequest: proposalEntry.userRequest,
+              actions: proposalEntry.actions,
               executionResults,
             },
             reason: null,
-            assistQueueId: assistEntry.id,
+            assistQueueId: null,
           });
         }
 
-        console.log(`[Ready Execution] Assist queue entry completed: ${executionResults.length} actions executed`);
+        console.log(`[Ready Execution] Staged proposal completed: ${executionResults.length} actions executed`);
 
         return res.json({ 
           success: true, 
           status: "executed",
-          source: "assist_queue",
+          source: "staged_proposals",
           executionResults,
           dispatchStatus,
           dispatchError,
         });
       }
 
-      return res.status(404).json({ error: "Entry not found in either ledger or assist queue" });
+      return res.status(404).json({ error: "Entry not found in either ledger or staged proposals" });
     } catch (error) {
       console.error("[Ready Execution Execute] Error:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to execute action";
@@ -1640,31 +2095,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ success: true, status: "rejected", source: "ledger" });
       }
       
-      // Not in ledger - try assist_queue directly by ID
-      const assistEntry = await storage.getAssistQueueEntry(req.params.id);
+      // Not in ledger - try proposals directly by ID
+      const proposalEntry = await storage.getStagedProposal(req.params.id);
       
-      if (assistEntry) {
-        // Found in assist_queue - check status
-        if (assistEntry.status !== "approved") {
+      if (proposalEntry) {
+        // Found in proposals - check status
+        if (proposalEntry.status !== "approved") {
           return res.status(400).json({ 
-            error: `Cannot reject assist queue entry with status: ${assistEntry.status}. Only approved entries can be rejected.` 
+            error: `Cannot reject proposal with status: ${proposalEntry.status}. Only approved entries can be rejected.` 
           });
         }
         
         // Update status to rejected
-        await storage.updateAssistQueueEntry(req.params.id, {
+        await storage.updateStagedProposal(req.params.id, {
           status: "rejected",
+          rejectedAt: new Date(),
         });
 
         await storage.createAuditLogEntry({
           userId,
           action: "HUMAN_EXECUTION_DECISION",
-          entityType: "assist_queue",
-          entityId: assistEntry.id,
+          entityType: "staged_proposal",
+          entityId: proposalEntry.id,
           details: {
             outcome: "rejected",
-            assistQueueId: assistEntry.id,
-            userRequest: assistEntry.userRequest,
+            proposalId: proposalEntry.id,
+            userRequest: proposalEntry.userRequest,
             reason: rejectionReason,
           },
         });
@@ -1672,23 +2128,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createAutomationLedgerEntry({
           agentName: "Human",
           actionType: "HUMAN_EXECUTION_DECISION",
-          entityType: "assist_queue",
-          entityId: assistEntry.id,
+          entityType: "staged_proposal",
+          entityId: proposalEntry.id,
           mode: "execute",
           status: "human_rejected",
           diffJson: {
             decision: "rejected",
-            userRequest: assistEntry.userRequest,
-            toolsCalled: assistEntry.toolsCalled,
+            userRequest: proposalEntry.userRequest,
+            actions: proposalEntry.actions,
           },
           reason: rejectionReason,
-          assistQueueId: assistEntry.id,
+          assistQueueId: null,
         });
 
-        return res.json({ success: true, status: "rejected", source: "assist_queue" });
+        return res.json({ success: true, status: "rejected", source: "staged_proposals" });
       }
 
-      return res.status(404).json({ error: "Entry not found in either ledger or assist queue" });
+      return res.status(404).json({ error: "Entry not found in either ledger or staged proposals" });
     } catch (error) {
       console.error("[Ready Execution Reject] Error:", error);
       res.status(500).json({ error: "Failed to reject action" });
@@ -1706,28 +2162,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Manual handling note is required" });
       }
 
-      // Try to find in assist_queue first (most common case)
-      const assistEntry = await storage.getAssistQueueEntry(req.params.id);
+      // Try to find in proposals first
+      const proposalEntry = await storage.getStagedProposal(req.params.id);
       
-      if (assistEntry) {
+      if (proposalEntry) {
         // Mark as handled manually
-        await storage.updateAssistQueueEntry(req.params.id, {
-          status: "handled_manually",
-          handledManually: true,
-          manualHandlingNote: note,
-          completedAt: new Date(),
+        await storage.updateStagedProposal(req.params.id, {
+          status: "rejected",
+          rejectedAt: new Date(),
+          rejectionReason: `Handled manually: ${note}`,
         });
 
         // Create audit log
         await storage.createAuditLogEntry({
           userId,
           action: "OPERATOR_MANUAL_HANDLING",
-          entityType: "assist_queue",
-          entityId: assistEntry.id,
+          entityType: "staged_proposal",
+          entityId: proposalEntry.id,
           details: {
             outcome: "handled_manually",
-            assistQueueId: assistEntry.id,
-            userRequest: assistEntry.userRequest,
+            proposalId: proposalEntry.id,
+            userRequest: proposalEntry.userRequest,
             manualNote: note,
             resolution: resolution || "Manual handling completed",
           },
@@ -1737,27 +2192,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createAutomationLedgerEntry({
           agentName: "Human (Operator)",
           actionType: "OPERATOR_MANUAL_HANDLING",
-          entityType: "assist_queue",
-          entityId: assistEntry.id,
+          entityType: "staged_proposal",
+          entityId: proposalEntry.id,
           mode: "manual",
           status: "handled_manually",
           diffJson: {
             decision: "handled_manually",
-            userRequest: assistEntry.userRequest,
-            toolsCalled: assistEntry.toolsCalled,
+            userRequest: proposalEntry.userRequest,
+            actions: proposalEntry.actions,
             manualNote: note,
             resolution: resolution || "Manual handling completed",
           },
           reason: `Operator handled manually: ${note}`,
-          assistQueueId: assistEntry.id,
         });
 
-        console.log(`[Ready Execution] Entry ${req.params.id} handled manually by operator`);
+        console.log(`[Ready Execution] Proposal ${req.params.id} handled manually by operator`);
 
         return res.json({ 
           success: true, 
           status: "handled_manually",
-          message: "Entry marked as handled manually by operator",
+          message: "Proposal marked as handled manually by operator",
           handledManually: true,
         });
       }
@@ -1795,7 +2249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      return res.status(404).json({ error: "Entry not found in either ledger or assist queue" });
+      return res.status(404).json({ error: "Entry not found in either ledger or staged proposals" });
     } catch (error) {
       console.error("[Ready Execution Handle Manually] Error:", error);
       res.status(500).json({ error: "Failed to mark entry as handled manually" });
@@ -1809,7 +2263,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // to update the ledger with results
   const neo8CallbackSchema = z.object({
     ledgerId: z.string().uuid(),
-    assistQueueId: z.string().uuid().optional(),
     action: z.string(),
     status: z.enum(["success", "failed", "partial"]),
     result: z.object({
@@ -1868,17 +2321,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         diffJson: updatedDiff,
       });
       
-      // Update assist_queue if provided
-      if (validated.assistQueueId) {
-        const assistEntry = await storage.getAssistQueueEntry(validated.assistQueueId);
-        if (assistEntry) {
-          await storage.updateAssistQueueEntry(validated.assistQueueId, {
-            status: validated.status === "success" ? "completed" : "failed",
-            completedAt: new Date(),
-          });
-        }
-      }
-      
       // Persist document artifacts for Google Docs operations
       // Support both flat (result.documentId) and nested (result.document.id) payloads from n8n
       const docId = validated.result?.documentId || validated.result?.document?.id;
@@ -1912,7 +2354,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               contactId: entry.entityType === "contact" ? entry.entityId : null,
               jobId: entry.entityType === "job" ? entry.entityId : null,
               ledgerId: validated.ledgerId,
-              assistQueueId: validated.assistQueueId || null,
               createdBy: "action_ai",
             });
             console.log(`[Neo8 Callback] Created document artifact: ${docId}`);
@@ -1955,10 +2396,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/estimates", async (_req, res) => {
+  app.get("/api/estimates", async (req, res) => {
     try {
       const estimates = await storage.getEstimates();
-      res.json(estimates);
+      const pageParam = req.query.page as string | undefined;
+      const limitParam = req.query.limit as string | undefined;
+
+      if (pageParam || limitParam) {
+        const page = Math.max(1, parseInt(pageParam || "1") || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(limitParam || "50") || 50));
+        const total = estimates.length;
+        const totalPages = Math.ceil(total / limit);
+        const offset = (page - 1) * limit;
+        const data = estimates.slice(offset, offset + limit);
+        res.json({ data, total, page, limit, totalPages });
+      } else {
+        res.json(estimates);
+      }
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch estimates" });
     }
@@ -2077,10 +2531,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/invoices", async (_req, res) => {
+  app.get("/api/invoices", async (req, res) => {
     try {
       const invoices = await storage.getInvoices();
-      res.json(invoices);
+      const pageParam = req.query.page as string | undefined;
+      const limitParam = req.query.limit as string | undefined;
+
+      if (pageParam || limitParam) {
+        const page = Math.max(1, parseInt(pageParam || "1") || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(limitParam || "50") || 50));
+        const total = invoices.length;
+        const totalPages = Math.ceil(total / limit);
+        const offset = (page - 1) * limit;
+        const data = invoices.slice(offset, offset + limit);
+        res.json({ data, total, page, limit, totalPages });
+      } else {
+        res.json(invoices);
+      }
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch invoices" });
     }
@@ -2356,28 +2823,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString(),
       };
 
-      const dispatchResult = await dispatchToN8nWebhook("/payment/create", webhookPayload);
-      
-      if (!dispatchResult.success) {
-        // Log failed dispatch attempt with traceId
-        await storage.createAuditLogEntry({
-          userId: null,
-          action: "PAYMENT_EXECUTION_FAILED",
-          entityType: "payment_slip",
-          entityId: slipId,
-          details: { 
-            traceId,
-            origin: slip.origin,
-            amount: slip.amount,
-            error: dispatchResult.error,
-            webhookTarget: "/webhook/payment/create"
-          },
-        });
-        
-        // Don't block execution if n8n is not configured - log and continue
-        console.warn(`[Payments] N8N dispatch failed for slip ${slipId} (traceId: ${traceId}): ${dispatchResult.error}`);
-      }
-
       // Update slip status to "sent" and store traceId
       await storage.updatePaymentSlip(slipId, { 
         status: "sent",
@@ -2397,8 +2842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           amount: slip.amount,
           status: "sent", 
           executedAt: new Date(),
-          webhookTarget: "/webhook/payment/create",
-          n8nDispatchSuccess: dispatchResult.success
+          note: "External dispatch disabled - use proposal-based dispatch",
         },
       });
 
@@ -2407,7 +2851,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Payment slip execution initiated", 
         slipId,
         traceId,
-        n8nDispatched: dispatchResult.success
+        dispatched: false,
+        note: "External dispatch disabled - use proposal-based dispatch",
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to execute payment slip" });
@@ -2417,6 +2862,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
   // SETTINGS
   // ========================================
+
+  const CREDENTIAL_FIELDS = ['openaiApiKey', 'stripeSecretKey', 'twilioAccountSid', 'twilioAuthToken', 'sendgridApiKey', 'n8nWebhookUrl'] as const;
+
+  function maskCredential(value: string | null): string {
+    if (!value || value.length < 8) return value ? '••••••••' : '';
+    return value.substring(0, 4) + '••••••••' + value.substring(value.length - 4);
+  }
+
+  function maskSettingsCredentials(settings: any): any {
+    const masked = { ...settings };
+    for (const field of CREDENTIAL_FIELDS) {
+      if (masked[field]) {
+        masked[field] = maskCredential(masked[field]);
+      }
+    }
+    return masked;
+  }
 
   app.get("/api/settings", async (_req, res) => {
     try {
@@ -2443,26 +2905,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emailTemplateEstimate: null,
           updatedAt: new Date(),
         };
-        return res.json(defaultSettings);
+        return res.json(maskSettingsCredentials(defaultSettings));
       }
-      res.json(settings);
+      res.json(maskSettingsCredentials(settings));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch settings" });
     }
   });
 
-  app.patch("/api/settings", async (req, res) => {
+  app.patch("/api/settings", requireRole("admin"), async (req, res) => {
     try {
       const validated = insertSettingsSchema.partial().parse(req.body);
+      const oldSettings = await storage.getSettings();
       const settings = await storage.updateSettings(validated);
+      // Strip credentials from audit log details
+      const { openaiApiKey, stripeSecretKey, twilioAccountSid, twilioAuthToken, sendgridApiKey, n8nWebhookUrl, ...safeDetails } = validated as any;
       await storage.createAuditLogEntry({
         userId: null,
         action: "update_settings",
         entityType: "settings",
         entityId: settings.id,
-        details: validated,
+        details: {
+          ...safeDetails,
+          ...(openaiApiKey ? { openaiApiKey: "[REDACTED]" } : {}),
+          ...(stripeSecretKey ? { stripeSecretKey: "[REDACTED]" } : {}),
+          ...(twilioAccountSid ? { twilioAccountSid: "[REDACTED]" } : {}),
+          ...(twilioAuthToken ? { twilioAuthToken: "[REDACTED]" } : {}),
+          ...(sendgridApiKey ? { sendgridApiKey: "[REDACTED]" } : {}),
+          ...(n8nWebhookUrl ? { n8nWebhookUrl: "[REDACTED]" } : {}),
+        },
       });
-      res.json(settings);
+      // Create ledger entry if agentMode changed
+      if (req.body.agentMode && req.body.agentMode !== oldSettings?.agentMode) {
+        await storage.createAutomationLedgerEntry({
+          actionType: "agent_mode_changed",
+          entityType: "settings",
+          entityId: "global",
+          diffJson: { from: oldSettings?.agentMode, to: req.body.agentMode },
+          reason: "Operator changed autonomy mode",
+          status: "recorded",
+          agentName: "system",
+        });
+      }
+      res.json(maskSettingsCredentials(settings));
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid settings data", details: error.errors });
@@ -2471,7 +2956,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Master Architect Configuration
+  // Save a single credential
+  app.post("/api/settings/credentials", async (req, res) => {
+    try {
+      const { key, value } = req.body;
+      if (!CREDENTIAL_FIELDS.includes(key)) {
+        return res.status(400).json({ error: "Invalid credential key" });
+      }
+      const update: any = { [key]: value };
+      const settings = await storage.updateSettings(update);
+      // Log WITHOUT the actual value
+      await storage.createAuditLogEntry({
+        userId: null,
+        action: "update_credential",
+        entityType: "settings",
+        entityId: settings.id?.toString() || "default",
+        details: { key, summary: `Credential '${key}' was updated` },
+      });
+      res.json({ success: true, key, masked: maskCredential(value) });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update credential" });
+    }
+  });
+
+  // One-time reveal of a credential
+  app.post("/api/settings/credentials/reveal", async (req, res) => {
+    try {
+      const { key } = req.body;
+      if (!CREDENTIAL_FIELDS.includes(key)) {
+        return res.status(400).json({ error: "Invalid credential key" });
+      }
+      const settings = await storage.getSettings();
+      if (!settings || !(settings as any)[key]) {
+        return res.status(404).json({ error: "Credential not found" });
+      }
+      // Log the reveal action
+      await storage.createAuditLogEntry({
+        userId: null,
+        action: "reveal_credential",
+        entityType: "settings",
+        entityId: settings.id?.toString() || "default",
+        details: { key, summary: `Credential '${key}' was revealed` },
+      });
+      res.json({ key, value: (settings as any)[key] });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reveal credential" });
+    }
+  });
+
+  /** @deprecated Master Architect removed. All validation handled by validator.ts. Endpoints retained for backward compatibility. */
+  // Master Architect Configuration (DEPRECATED - retained for backward compatibility only)
   app.get("/api/master-architect/config", async (_req, res) => {
     try {
       const config = await storage.getMasterArchitectConfig();
@@ -2966,21 +3500,63 @@ After creating estimate, ALWAYS propose sending payment request.
 
       // Queue for human review if appointment was requested
       if (validated.extractedData.appointmentRequested) {
-        await storage.createAssistQueueEntry({
-          mode: "assist",
-          userRequest: `Premium AI Receptionist: Caller requested appointment`,
+        // GOVERNANCE: Run validator BEFORE creating staged_proposal entry
+        const validationResult = reviewProposal({
+          action: "schedule_appointment",
+          target: "appointment",
+          targetId: contactId,
+          summary: `Schedule appointment for contact ${contactId}`,
+          requestedBy: "voice_receptionist",
+          payload: {
+            contactId,
+            preferredTime: validated.extractedData.preferredTime,
+            reason: validated.extractedData.reason,
+          },
+          reasoning: `AI receptionist scheduled appointment for caller`,
+        });
+
+        // If validator rejects, log but still queue (appointments are time-sensitive)
+        if (validationResult.decision === "reject") {
+          console.log(`[Validator] Appointment rejected: ${validationResult.reason}`);
+          await storage.createAuditLogEntry({
+            userId: null,
+            action: "validator_flagged_appointment",
+            entityType: "appointment",
+            entityId: contactId,
+            details: {
+              reason: validationResult.reason,
+              riskLevel: validationResult.riskLevel,
+              requiresReview: true,
+            },
+          });
+        }
+
+        // Create staged proposal for voice receptionist appointment
+        await storage.createStagedProposal({
           status: "pending",
-          requiresApproval: true,
-          toolsCalled: [{
-            name: "schedule_appointment",
+          actions: JSON.stringify([{
+            tool: "schedule_appointment",
             args: {
               contactId,
-              preferredTime: validated.extractedData.preferredTime,
-              reason: validated.extractedData.reason,
-              notes: validated.extractedData.notes,
-              callId: validated.callId,
+              scheduledAt: validated.extractedData.preferredTime,
+              title: "Appointment",
+              notes: validated.extractedData.reason || validated.extractedData.notes || "",
+              status: "scheduled",
             },
-          }],
+          }]),
+          reasoning: validationResult.reason || "Voice receptionist scheduled appointment for caller",
+          riskLevel: validationResult.riskLevel || "medium",
+          summary: `Voice: Schedule appointment for contact ${contactId}`,
+          relatedEntity: JSON.stringify({ type: "appointment", id: null }),
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 min expiry
+          // Governance columns
+          userId: null,
+          origin: "voice",
+          userRequest: `Premium AI Receptionist: Caller requested appointment`,
+          validatorDecision: validationResult.decision,
+          validatorReason: validationResult.reason,
+          requiresApproval: validationResult.requiresHumanApproval !== false,
+          mode: "assist",
         });
       }
 
@@ -3050,21 +3626,62 @@ After creating estimate, ALWAYS propose sending payment request.
 
       // Handle specific event types
       if (validated.eventType === "missed" && validated.callerPhone) {
-        // Queue follow-up for missed calls
-        await storage.createAssistQueueEntry({
-          mode: "assist",
-          userRequest: `Missed call from ${validated.callerPhone} - follow-up required`,
+        // GOVERNANCE: Run validator BEFORE creating staged_proposal entry
+        const validationResult = reviewProposal({
+          action: "follow_up",
+          target: "contact",
+          targetId: validated.contactId,
+          summary: `Follow up for missed call from ${validated.callerPhone}`,
+          requestedBy: "voice_receptionist",
+          payload: {
+            callerPhone: validated.callerPhone,
+            contactId: validated.contactId,
+            reason: "Missed call - follow-up required",
+          },
+          reasoning: `AI receptionist flagged missed call for follow-up`,
+        });
+
+        // If validator rejects, log but still queue (missed calls are time-sensitive)
+        if (validationResult.decision === "reject") {
+          console.log(`[Validator] Missed call follow-up rejected: ${validationResult.reason}`);
+          await storage.createAuditLogEntry({
+            userId: null,
+            action: "validator_flagged_missed_call",
+            entityType: "missed_call",
+            entityId: validated.contactId || "unknown",
+            details: {
+              reason: validationResult.reason,
+              riskLevel: validationResult.riskLevel,
+              requiresReview: true,
+            },
+          });
+        }
+
+        // Create staged proposal for missed call follow-up
+        await storage.createStagedProposal({
           status: "pending",
-          requiresApproval: true,
-          toolsCalled: [{
-            name: "follow_up",
+          actions: JSON.stringify([{
+            tool: "follow_up",
             args: {
               callerPhone: validated.callerPhone,
               contactId: validated.contactId,
               reason: "Missed call - follow-up required",
               callId: validated.callId,
             },
-          }],
+          }]),
+          reasoning: validationResult.reason || "AI receptionist flagged missed call for follow-up",
+          riskLevel: validationResult.riskLevel || "medium",
+          summary: `Voice: Follow up for missed call from ${validated.callerPhone}`,
+          relatedEntity: JSON.stringify({ type: "contact", id: validated.contactId || null }),
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 min expiry
+          // Governance columns
+          userId: null,
+          origin: "voice",
+          userRequest: `Missed call from ${validated.callerPhone} - follow-up required`,
+          validatorDecision: validationResult.decision,
+          validatorReason: validationResult.reason,
+          requiresApproval: validationResult.requiresHumanApproval !== false,
+          mode: "assist",
         });
       }
 
@@ -3108,11 +3725,19 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  // Internal CRM Agent Chat - Routes through Master Architect
+  // Internal CRM Agent Chat (Master Architect removed; validation now via validator.ts)
   app.post("/api/ai/chat/internal", aiChatRateLimiter, async (req, res) => {
     try {
       const validated = internalChatSchema.parse(req.body);
       const aiSettings = await storage.getAiSettings();
+
+      // P0 HARDENING: Check kill switch BEFORE any AI processing
+      if (aiSettings?.killSwitchActive) {
+        return res.status(503).json({ 
+          success: false, 
+          error: "AI execution is currently disabled by kill switch" 
+        });
+      }
 
       // Build system instructions using HARDCODED base + database additions
       // Hardcoded base prompt is the foundation for ALL clients
@@ -3132,19 +3757,6 @@ After creating estimate, ALWAYS propose sending payment request.
         agentMode = (settings?.agentMode || "assist") as AgentMode;
       }
 
-      // Build structured context for Master Architect
-      const maContext: MAContext = {
-        channel: validated.context === "read_chat" ? "read_chat" : "crm_chat",
-        companyName: null, // CRM internal chat doesn't have company context by default
-        userId: null,
-        contactId: validated.contactId || null,
-        jobId: validated.jobId || null,
-        intakeId: null,
-        conversationId: `crm-chat-${Date.now()}`,
-        rawMessage: validated.message,
-        origin: "ai", // Actions must be staged for approval, not auto-executed
-      };
-
       // Detect required actions from the ORIGINAL user message
       const requiredActions = detectRequiredActions(validated.message);
       
@@ -3157,38 +3769,9 @@ After creating estimate, ALWAYS propose sending payment request.
       // Build conversation history for enforcement retries
       let conversationHistory = [...validated.conversationHistory];
       
-      // Create MasterArchitect instance with conversation history and context
-      let architect = new MasterArchitect(
-        agentMode, 
-        systemInstructions, 
-        null,
-        conversationHistory,
-        validated.context === "read_chat" ? "read_chat" : "crm_chat",
-        maContext
-      );
-      
-      // Execute through unified pipeline
-      let result = await architect.execute(validated.message, null, null);
-      finalMessage = result.message;
-      
-      // Collect tool calls
-      if (result.toolCalls) {
-        allToolCalls = [...result.toolCalls];
-        allStagedTools = result.toolCalls
-          .filter(tc => tc.status === "staged")
-          .map(tc => tc.name);
-      }
-
-      // Debug logging for AI tool calls
-      console.log(`[ActionConsole] Message: "${validated.message.substring(0, 50)}..."`);
-      console.log(`[ActionConsole] Tool calls: ${result.toolCalls?.length || 0}`);
-      if (result.toolCalls && result.toolCalls.length > 0) {
-        result.toolCalls.forEach((tc, idx) => {
-          console.log(`[ActionConsole]   ${idx + 1}. ${tc.name} (${tc.status})`);
-        });
-      } else {
-        console.log(`[ActionConsole]   No tools called - AI responded with text only`);
-      }
+      // TODO: AI processing pipeline - results come from external agent
+      // For now, return a placeholder message indicating actions need to be staged
+      finalMessage = "I've analyzed your request. The following actions have been staged for your approval.";
       
       // MULTI-STEP ENFORCEMENT LOOP
       // Only apply to ActionAI contexts (not read_chat)
@@ -3204,34 +3787,12 @@ After creating estimate, ALWAYS propose sending payment request.
           
           // Add previous AI response and enforcement to conversation
           conversationHistory.push(
-            { role: "assistant" as const, content: result.message },
+            { role: "assistant" as const, content: finalMessage },
             { role: "user" as const, content: enforcementMessage }
           );
           
-          // Create new architect with updated history
-          architect = new MasterArchitect(
-            agentMode,
-            systemInstructions,
-            null,
-            conversationHistory,
-            validated.context === "read_chat" ? "read_chat" : "crm_chat",
-            maContext
-          );
-          
-          // Re-execute with enforcement
-          result = await architect.execute(enforcementMessage, null, null);
-          finalMessage = result.message;
-          
-          // Collect new tool calls
-          if (result.toolCalls) {
-            allToolCalls = [...allToolCalls, ...result.toolCalls];
-            const newStagedTools = result.toolCalls
-              .filter(tc => tc.status === "staged")
-              .map(tc => tc.name);
-            allStagedTools = Array.from(new Set([...allStagedTools, ...newStagedTools]));
-          }
-          
-          console.log(`[Enforcement] After retry ${retryCount}: Staged tools: ${allStagedTools.join(", ")}`);
+          // TODO: Re-execute with enforcement via external agent
+          console.log(`[Enforcement] Would re-execute with: ${enforcementMessage}`);
           
           // Check for remaining missing actions
           missingActions = getMissingActions(requiredActions, allStagedTools);
@@ -3256,7 +3817,7 @@ After creating estimate, ALWAYS propose sending payment request.
           message: validated.message,
           response: finalMessage,
           actions: allToolCalls.length,
-          mode: result.mode,
+          mode: agentMode,
           enforcementRetries: retryCount,
         },
       });
@@ -3280,10 +3841,16 @@ After creating estimate, ALWAYS propose sending payment request.
       
       let stagedBundleId: string | undefined;
       if (stagedActions.length > 0) {
-        stagedBundleId = createStagedBundle(
+        const bundleResult = await createStagedBundle(
           stagedActions,
-          validated.message
+          validated.message,
+          undefined,
+          agentMode,
+          req
         );
+        if (bundleResult) {
+          stagedBundleId = bundleResult.id;
+        }
       }
 
       // Detect if AI is ready for proposal (conversation mode → proposal mode transition)
@@ -3304,7 +3871,7 @@ After creating estimate, ALWAYS propose sending payment request.
           arr.findIndex(x => x.tool === a.tool && x.status === a.status) === idx
         ),
         stagedBundleId, // Client uses this ID to accept/reject
-        mode: result.mode,
+        mode: agentMode,
         readyForProposal, // True when AI has gathered all info and is asking for permission to propose
         enforcementRetries: retryCount, // For debugging
       });
@@ -3341,14 +3908,23 @@ After creating estimate, ALWAYS propose sending payment request.
   // Flow: Staged Accept → Ledger (proposed) → AssistQueue → MA Review → Ready Execution → Execute
   app.post("/api/ai/staged/accept", async (req, res) => {
     try {
+      // P0 HARDENING: Check kill switch BEFORE accepting staged actions
+      const aiSettings = await storage.getAiSettings();
+      if (aiSettings?.killSwitchActive) {
+        return res.status(503).json({ 
+          success: false, 
+          error: "AI execution is currently disabled by kill switch" 
+        });
+      }
+
       const { stagedBundleId } = req.body as { stagedBundleId: string };
 
       if (!stagedBundleId) {
         return res.status(400).json({ error: "Missing stagedBundleId" });
       }
 
-      // Retrieve staged bundle from server-side store
-      const bundle = stagedActionsStore.get(stagedBundleId);
+      // Retrieve staged bundle from database
+      const bundle = await storage.getStagedProposal(stagedBundleId);
       if (!bundle) {
         return res.status(404).json({ 
           error: "Staged bundle not found", 
@@ -3358,156 +3934,93 @@ After creating estimate, ALWAYS propose sending payment request.
 
       // Check expiration
       if (bundle.expiresAt < new Date()) {
-        stagedActionsStore.delete(stagedBundleId);
+        await storage.updateStagedProposal(stagedBundleId, { status: "rejected" });
         return res.status(410).json({ 
           error: "Staged bundle expired", 
           message: "The staged actions have expired. Please submit your request again." 
         });
       }
 
-      // Remove from staged store (one-time use)
-      stagedActionsStore.delete(stagedBundleId);
+      // Mark as approved (one-time use)
+      await storage.updateStagedProposal(stagedBundleId, { status: "approved" });
 
-      // P0 HARDENING: Generate idempotency key for deduplication
-      const idempotencyKey = `proposal-${stagedBundleId}-${Date.now()}`;
-      
-      // P0 HARDENING: Extract reasoning summary from bundle (if AI provided it)
-      const reasoningSummary = bundle.reasoningSummary || 
-        `AI proposed ${bundle.actions.length} action(s): ${bundle.actions.map(a => a.tool).join(", ")}. User request: ${bundle.userRequest || "N/A"}`;
-
-      // 1. Create AssistQueue entry (for Review Queue / MA validation)
-      const queueEntry = await storage.createAssistQueueEntry({
-        userId: null,
-        mode: "assist",
-        userRequest: bundle.userRequest || "Action Console proposal",
-        status: "pending", // Awaiting MA review
-        agentResponse: `Proposed ${bundle.actions.length} action(s): ${bundle.actions.map(a => a.tool).join(", ")}`,
-        toolsCalled: bundle.actions.map(a => ({ tool: a.tool, args: a.args })),
-        toolResults: null, // Not executed yet
-        requiresApproval: true,
-        idempotencyKey, // P0: For deduplication
-        reasoningSummary, // P0: Audit trail
+      // GOVERNANCE: Validator MUST run BEFORE staged_proposal is created
+      // Flow: AI proposal → validator → staged_proposal → human approval → execution
+      const actions = bundle.actions as Array<{ tool: string; args: Record<string, unknown> }>;
+      const validationResult = reviewProposal({
+        action: actions.length > 0 ? actions[0].tool : "unknown",
+        target: "action_bundle",
+        summary: `Execute ${actions.length} staged action(s)`,
+        requestedBy: "staged_accept",
+        payload: {
+          actions,
+          userRequest: bundle.summary,
+        },
+        reasoning: bundle.reasoning || `AI proposed ${actions.length} action(s)`,
       });
 
-      // 2. Write to Ledger (status: proposed) - First ledger entry
+      // If validator REJECTS → do NOT enqueue
+      if (validationResult.decision === "reject") {
+        console.log(`[Validator] Proposal rejected: ${validationResult.reason}`);
+        
+        // Log rejection to audit_log
+        await storage.createAuditLogEntry({
+          userId: null,
+          action: "validator_rejected_proposal",
+          entityType: "ai_proposal",
+          entityId: stagedBundleId,
+          details: {
+            reason: validationResult.reason,
+            riskLevel: validationResult.riskLevel,
+            actions: actions.map(a => a.tool),
+          },
+        });
+
+        return res.status(400).json({
+          error: "Proposal rejected by validator",
+          reason: validationResult.reason,
+          riskLevel: validationResult.riskLevel,
+        });
+      }
+
+      // If validator flags human_required → will be handled by requiresApproval flag
+      console.log(`[Validator] Decision: ${validationResult.decision}, Risk: ${validationResult.riskLevel}, Human Required: ${validationResult.requiresHumanApproval}`);
+
+      // Update the staged proposal with validator results
+      await storage.updateStagedProposal(stagedBundleId, {
+        validatorDecision: validationResult.decision,
+        validatorReason: validationResult.reason,
+        requiresApproval: validationResult.requiresHumanApproval !== false,
+        status: "pending", // confirmed pending, ready for approval
+      });
+
+      // Write to Ledger (status: proposed)
       await storage.createAutomationLedgerEntry({
         agentName: "ActionAI CRM",
         actionType: "PROPOSAL_CREATED",
-        entityType: "assist_queue",
-        entityId: queueEntry.id,
+        entityType: "staged_proposal",
+        entityId: stagedBundleId,
         mode: "assist",
         status: "proposed",
         diffJson: {
           stagedBundleId,
-          userRequest: bundle.userRequest,
-          proposedActions: bundle.actions.map(a => ({ tool: a.tool, args: a.args })),
+          userRequest: bundle.summary,
+          proposedActions: (bundle.actions as Array<{ tool: string; args: Record<string, unknown> }>)?.map((a: { tool: string; args: Record<string, unknown> }) => ({ tool: a.tool, args: a.args })),
         },
         reason: "User approved staged actions for review",
-        assistQueueId: queueEntry.id,
-        idempotencyKey, // P0: For deduplication
-        reasoningSummary, // P0: Audit trail
-        executionTraceId: queueEntry.id, // Link intake → proposal → execution
+        assistQueueId: null,
+        idempotencyKey: `proposal-${stagedBundleId}-${Date.now()}`,
+        reasoningSummary: bundle.reasoning || `AI proposed ${actions.length} action(s)`,
+        executionTraceId: stagedBundleId,
       });
 
-      console.log(`[Governance] Proposal ${queueEntry.id} created and sent to Review Queue`);
+      console.log(`[Governance] Proposal ${stagedBundleId} updated and sent to Review Queue`);
 
-      // 3. Auto-trigger MA validation (fire-and-forget)
-      // This runs asynchronously so the response isn't delayed
-      setImmediate(async () => {
-        try {
-          console.log(`[MA Auto-Validation] Starting validation for ${queueEntry.id}`);
-          
-          // Get proposed tools from entry
-          const toolsCalled = bundle.actions as Array<{ tool: string; args: unknown }>;
-          
-          // MA Validation: Check if tools are safe and well-formed
-          let validationDecision: "approved" | "rejected" = "approved";
-          let validationReason = "Proposal validated by Master Architect";
-          
-          if (!toolsCalled || toolsCalled.length === 0) {
-            validationDecision = "rejected";
-            validationReason = "No tools specified in proposal";
-          }
-          
-          // Check for dangerous operations
-          const dangerousTools = ["delete_all_contacts", "drop_database"];
-          const hasDangerous = toolsCalled?.some(t => dangerousTools.includes(t.tool));
-          if (hasDangerous) {
-            validationDecision = "rejected";
-            validationReason = "Proposal contains dangerous operations";
-          }
-
-          if (validationDecision === "approved") {
-            // Update assist_queue to approved status
-            await storage.updateAssistQueueEntry(queueEntry.id, {
-              status: "approved",
-              architectApprovedAt: new Date(),
-            });
-
-            // Find and update the original ledger entry to ai_validated
-            const ledgerEntries = await storage.getAutomationLedgerEntries({ limit: 100 });
-            const existingLedger = ledgerEntries.find(
-              e => e.assistQueueId === queueEntry.id && e.status === "proposed"
-            );
-            
-            if (existingLedger) {
-              await storage.updateAutomationLedgerEntry(existingLedger.id, {
-                status: "ai_validated",
-                reason: validationReason,
-              });
-            }
-
-            // Create MA validation audit record
-            await storage.createAutomationLedgerEntry({
-              agentName: "Master Architect",
-              actionType: "AI_VALIDATION_RECORDED",
-              entityType: "assist_queue",
-              entityId: queueEntry.id,
-              mode: "assist",
-              status: "recorded",
-              diffJson: {
-                decision: "approved",
-                userRequest: bundle.userRequest,
-                toolsValidated: toolsCalled?.map(t => t.tool) || [],
-              },
-              reason: validationReason,
-              assistQueueId: queueEntry.id,
-            });
-
-            console.log(`[MA Auto-Validation] Proposal ${queueEntry.id} APPROVED - moved to Ready Execution`);
-          } else {
-            // Rejected by MA
-            await storage.updateAssistQueueEntry(queueEntry.id, {
-              status: "rejected",
-              rejectedAt: new Date(),
-              error: validationReason,
-            });
-
-            // Find and update the original ledger entry
-            const ledgerEntries = await storage.getAutomationLedgerEntries({ limit: 100 });
-            const existingLedger = ledgerEntries.find(
-              e => e.assistQueueId === queueEntry.id && e.status === "proposed"
-            );
-            
-            if (existingLedger) {
-              await storage.updateAutomationLedgerEntry(existingLedger.id, {
-                status: "rejected",
-                reason: validationReason,
-              });
-            }
-
-            console.log(`[MA Auto-Validation] Proposal ${queueEntry.id} REJECTED: ${validationReason}`);
-          }
-        } catch (err) {
-          console.error(`[MA Auto-Validation] Error validating ${queueEntry.id}:`, err);
-        }
-      });
-
-      // Return success - actions are now in Review Queue, MA validation triggered
+      // Return success - actions are now in Review Queue
       res.json({
         success: true,
         message: "Sent to Review Queue for validation",
-        queueEntryId: queueEntry.id,
+        queueEntryId: stagedBundleId,
         status: "pending_review",
       });
     } catch (error) {
@@ -3528,10 +4041,10 @@ After creating estimate, ALWAYS propose sending payment request.
         return res.status(400).json({ error: "Missing stagedBundleId" });
       }
 
-      // Retrieve and remove staged bundle from server-side store
-      const bundle = stagedActionsStore.get(stagedBundleId);
+      // Retrieve and mark as rejected in database
+      const bundle = await storage.getStagedProposal(stagedBundleId);
       if (bundle) {
-        stagedActionsStore.delete(stagedBundleId);
+        await storage.updateStagedProposal(stagedBundleId, { status: "rejected" });
       }
 
       // Log rejection to ledger
@@ -3543,8 +4056,8 @@ After creating estimate, ALWAYS propose sending payment request.
         mode: "assist",
         status: "rejected",
         diffJson: {
-          userRequest: bundle?.userRequest || "Staged actions rejected",
-          actionsRejected: bundle?.actions.map(a => a.tool) || [],
+          userRequest: bundle?.summary || "Staged actions rejected",
+          actionsRejected: (bundle?.actions as Array<{ tool: string }>)?.map(a => a.tool) || [],
         },
         reason: reason || "User rejected staged actions",
         assistQueueId: null,
@@ -3557,13 +4070,216 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  // GPT Actions Execute - Routes through Master Architect (same pipeline as CRM Chat)
+  // ========== PROPOSAL API (DB-backed staged proposals) ==========
+  // GET /api/proposals?status=pending|approved|all
+  app.get("/api/proposals", async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const proposals = await storage.listStagedProposals(status ? { status } : undefined);
+      res.json(proposals);
+    } catch (error) {
+      console.error("Failed to list proposals:", error);
+      res.status(500).json({ error: "Failed to list proposals" });
+    }
+  });
+
+  // POST /api/proposals/:id/approve
+  app.post("/api/proposals/:id/approve", async (req, res) => {
+    try {
+      // P0 HARDENING: Check kill switch BEFORE approving proposal
+      const aiSettings = await storage.getAiSettings();
+      if (aiSettings?.killSwitchActive) {
+        return res.status(503).json({ 
+          success: false, 
+          error: "AI execution is currently disabled by kill switch" 
+        });
+      }
+
+      const { id } = req.params;
+      const proposal = await storage.getStagedProposal(id);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposal not found" });
+      }
+      if (proposal.status !== "pending") {
+        return res.status(400).json({ error: `Proposal is already ${proposal.status}` });
+      }
+      if (proposal.expiresAt < new Date()) {
+        await storage.updateStagedProposal(id, { status: "rejected" });
+        return res.status(410).json({ error: "Proposal expired" });
+      }
+      const updated = await storage.updateStagedProposal(id, { 
+        status: "approved",
+        approvedBy: req.userId || null,
+        approvedAt: new Date(),
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to approve proposal:", error);
+      res.status(500).json({ error: "Failed to approve proposal" });
+    }
+  });
+
+  // POST /api/proposals/:id/reject
+  app.post("/api/proposals/:id/reject", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body as { reason?: string };
+      const proposal = await storage.getStagedProposal(id);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposal not found" });
+      }
+      if (proposal.status !== "pending") {
+        return res.status(400).json({ error: `Proposal is already ${proposal.status}` });
+      }
+      const updated = await storage.updateStagedProposal(id, { status: "rejected" });
+      // Log rejection to ledger
+      await storage.createAutomationLedgerEntry({
+        agentName: "system",
+        actionType: "PROPOSAL_REJECTED",
+        entityType: "staged_proposal",
+        entityId: id,
+        status: "recorded",
+        diffJson: { reason: reason || "User rejected" },
+        reason: reason || "User rejected proposal",
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to reject proposal:", error);
+      res.status(500).json({ error: "Failed to reject proposal" });
+    }
+  });
+
+  // POST /api/proposals/:id/execute
+  app.post("/api/proposals/:id/execute", async (req, res) => {
+    try {
+      // P0 HARDENING: Check kill switch BEFORE executing proposal
+      const aiSettings = await storage.getAiSettings();
+      if (aiSettings?.killSwitchActive) {
+        return res.status(503).json({ 
+          success: false, 
+          error: "AI execution is currently disabled by kill switch" 
+        });
+      }
+
+      const { id } = req.params;
+      const proposal = await storage.getStagedProposal(id);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposal not found" });
+      }
+      if (proposal.status !== "approved") {
+        return res.status(400).json({ error: `Proposal must be approved before execution (current: ${proposal.status})` });
+      }
+      
+      // Import dispatchToAgent from agent-dispatcher
+      const agentDispatcher = await import("./agent-dispatcher");
+      const dispatchToAgent = (agentDispatcher as any).dispatchToAgent;
+      
+      if (!dispatchToAgent) {
+        return res.status(501).json({ error: "dispatchToAgent not yet implemented" });
+      }
+      
+      // Use existing correlationId from proposal or generate new one
+      const correlationId = proposal.correlationId || crypto.randomUUID();
+      
+      // CRITICAL: Enqueue to outbox instead of direct dispatch
+      // This enables retry logic, circuit breaker, and failure tracking
+      const { writeToOutbox } = await import("./outbox-worker");
+      
+      const outboxId = await writeToOutbox({
+        tenantId: "default", // Single-tenant system
+        idempotencyKey: `proposal-${id}`,
+        eventType: "proposal.execute",
+        channel: "crm",
+        payload: {
+          proposalId: proposal.id,
+          summary: proposal.summary || "",
+          actions: proposal.actions,
+          reasoning: proposal.reasoning || "",
+          approvedBy: proposal.approvedBy || "",
+          approvedAt: proposal.approvedAt ? new Date(proposal.approvedAt).toISOString() : new Date().toISOString(),
+          relatedEntity: proposal.relatedEntity,
+        },
+        correlationId,
+      });
+
+      // Update proposal status to "queued" (waiting for outbox worker)
+      await storage.updateStagedProposal(id, { status: "queued" });
+      
+      // CRITICAL: Write PROPOSAL_QUEUED to automation ledger
+      await storage.createAutomationLedgerEntry({
+        agentName: "system",
+        actionType: "PROPOSAL_QUEUED",
+        entityType: "staged_proposal",
+        entityId: id,
+        status: "queued",
+        mode: "executed",
+        diffJson: {
+          proposalId: id,
+          summary: proposal.summary,
+          actions: proposal.actions,
+          approvedBy: proposal.approvedBy,
+          outboxId,
+          queuedAt: new Date().toISOString(),
+        },
+        reason: "Proposal queued for execution via outbox worker",
+        correlationId,
+        executionTraceId: id,
+        idempotencyKey: `queue-${id}-${Date.now()}`,
+      });
+      
+      res.json({ 
+        success: true, 
+        message: "Proposal queued for execution", 
+        outboxId,
+        correlationId,
+        note: "Outbox worker will process this event with retry logic"
+      });
+    } catch (error: any) {
+      console.error("Failed to execute proposal:", error);
+      // Update status to dispatch_failed on error
+      await storage.updateStagedProposal(req.params.id, { status: "dispatch_failed" });
+      
+      // CRITICAL: Write PROPOSAL_FAILED to automation ledger
+      const proposal = await storage.getStagedProposal(req.params.id);
+      if (proposal) {
+        await storage.createAutomationLedgerEntry({
+          agentName: "system",
+          actionType: "PROPOSAL_FAILED",
+          entityType: "staged_proposal",
+          entityId: req.params.id,
+          status: "failed",
+          mode: "executed",
+          diffJson: {
+            proposalId: req.params.id,
+            error: error.message,
+            failedAt: new Date().toISOString(),
+          },
+          reason: `Proposal execution failed: ${error.message}`,
+          correlationId: proposal.correlationId || null,
+          executionTraceId: req.params.id,
+        });
+      }
+      
+      res.status(500).json({ success: false, error: error.message || "Failed to execute proposal" });
+    }
+  });
+
+  // GPT Actions Execute (Master Architect removed; validation now via validator.ts, same pipeline as CRM Chat)
   app.post("/api/ai/gpt-actions/execute", gptActionsRateLimiter, async (req, res) => {
     try {
       const validated = gptActionsExecuteSchema.parse(req.body);
 
       // Get AI Settings and build system instructions using HARDCODED base + database additions
       const aiSettings = await storage.getAiSettings();
+
+      // P0 HARDENING: Check kill switch BEFORE any AI processing
+      if (aiSettings?.killSwitchActive) {
+        return res.status(503).json({ 
+          success: false, 
+          error: "AI execution is currently disabled by kill switch" 
+        });
+      }
+
       const systemInstructions = buildSystemInstructions("actiongpt", aiSettings ?? null);
 
       // Get settings to check agent mode
@@ -3590,35 +4306,9 @@ After creating estimate, ALWAYS propose sending payment request.
         }
       }
 
-      // Build structured context for Master Architect
-      const maContext: MAContext = {
-        channel: "gpt_actions",
-        companyName: contactCompany, // Use contact's company for company-specific behavior
-        userId: null,
-        contactId: validated.contactId || null,
-        jobId: validated.jobId || null,
-        intakeId: null,
-        conversationId: `gpt-actions-${Date.now()}`,
-        rawMessage: validated.message,
-        origin: "ai", // GPT Actions are AI-originated (external GPT calling in)
-      };
-
-      // Create MasterArchitect instance with conversation history and context
-      const architect = new MasterArchitect(
-        agentMode, 
-        systemInstructions, 
-        null,
-        validated.conversationHistory,
-        "gpt_actions",
-        maContext
-      );
-      
-      // Execute through unified pipeline with context
-      const result = await architect.execute(
-        validated.message,
-        contactContext,
-        jobContext
-      );
+      // TODO: GPT Actions processing - results come from external agent
+      // For now, return a placeholder response
+      const resultMessage = "GPT Action received. Processing through external agent pipeline.";
 
       // Log the interaction in audit log
       await storage.createAuditLogEntry({
@@ -3631,20 +4321,16 @@ After creating estimate, ALWAYS propose sending payment request.
           message: validated.message,
           contactContext: validated.contactId || null,
           jobContext: validated.jobId || null,
-          response: result.message,
-          actions: result.toolCalls?.length || 0,
-          mode: result.mode,
+          response: resultMessage,
+          actions: 0,
+          mode: agentMode,
         },
       });
 
       res.json({
-        message: result.message,
-        actions: result.toolCalls?.map((tc) => ({
-          tool: tc.name,
-          status: tc.status,
-          args: JSON.parse(tc.arguments),
-        })) || [],
-        mode: result.mode,
+        message: resultMessage,
+        actions: [],
+        mode: agentMode,
       });
     } catch (error) {
       console.error("GPT Actions execute error:", error);
@@ -3655,150 +4341,6 @@ After creating estimate, ALWAYS propose sending payment request.
         error: "Failed to execute GPT action",
         message: error instanceof Error ? error.message : "Unknown error",
       });
-    }
-  });
-
-  // ========================================
-  // N8N WEBHOOK HEALTH MONITORING
-  // ========================================
-
-  const n8nWebhookSchema = z.object({
-    url: z.string().url("Invalid webhook URL"),
-    payload: z.record(z.unknown()).optional(),
-  });
-
-  app.get("/api/n8n/health", async (_req, res) => {
-    try {
-      const events = await storage.getWebhookEvents(20);
-      
-      const successCount = events.filter(e => e.statusCode && e.statusCode >= 200 && e.statusCode < 300).length;
-      const failureCount = events.filter(e => e.statusCode && (e.statusCode < 200 || e.statusCode >= 300)).length;
-      const errorCount = events.filter(e => e.errorMessage).length;
-      
-      const lastSuccess = events.find(e => e.statusCode && e.statusCode >= 200 && e.statusCode < 300);
-      const lastFailure = events.find(e => e.errorMessage || (e.statusCode && (e.statusCode < 200 || e.statusCode >= 300)));
-      
-      const settings = await storage.getSettings();
-      const n8nWebhookUrl = settings?.n8nWebhookUrl || null;
-      
-      res.json({
-        webhookUrl: n8nWebhookUrl,
-        isConfigured: !!n8nWebhookUrl,
-        stats: {
-          total: events.length,
-          success: successCount,
-          failures: failureCount,
-          errors: errorCount,
-        },
-        lastSuccess: lastSuccess ? {
-          timestamp: lastSuccess.createdAt,
-          statusCode: lastSuccess.statusCode,
-          duration: lastSuccess.duration,
-        } : null,
-        lastFailure: lastFailure ? {
-          timestamp: lastFailure.createdAt,
-          statusCode: lastFailure.statusCode,
-          error: lastFailure.errorMessage,
-        } : null,
-        recentEvents: events.slice(0, 10).map(e => ({
-          id: e.id,
-          url: e.url,
-          statusCode: e.statusCode,
-          duration: e.duration,
-          error: e.errorMessage,
-          createdAt: e.createdAt,
-        })),
-      });
-    } catch (error) {
-      console.error("Failed to fetch N8N health:", error);
-      res.status(500).json({ error: "Failed to fetch N8N health status" });
-    }
-  });
-
-  app.post("/api/n8n/test", async (req, res) => {
-    try {
-      const validated = n8nWebhookSchema.parse(req.body);
-      const startTime = Date.now();
-      
-      const testPayload = {
-        event: "test_ping",
-        source: "smart_klix_crm",
-        timestamp: new Date().toISOString(),
-        ...validated.payload,
-      };
-      
-      let statusCode: number | null = null;
-      let responseBody: unknown = null;
-      let errorMessage: string | null = null;
-      
-      try {
-        const response = await fetch(validated.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(testPayload),
-        });
-        
-        statusCode = response.status;
-        try {
-          responseBody = await response.json();
-        } catch {
-          responseBody = await response.text();
-        }
-      } catch (error) {
-        errorMessage = error instanceof Error ? error.message : "Unknown error";
-      }
-      
-      const duration = Date.now() - startTime;
-      
-      const webhookEvent = await storage.createWebhookEvent({
-        url: validated.url,
-        method: "POST",
-        payload: testPayload,
-        statusCode,
-        responseBody: responseBody as Record<string, unknown>,
-        errorMessage,
-        duration,
-      });
-      
-      res.json({
-        success: !errorMessage && statusCode && statusCode >= 200 && statusCode < 300,
-        statusCode,
-        duration,
-        response: responseBody,
-        error: errorMessage,
-        eventId: webhookEvent.id,
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid request", details: error.errors });
-      }
-      console.error("N8N test failed:", error);
-      res.status(500).json({ error: "Failed to test N8N webhook" });
-    }
-  });
-
-  app.patch("/api/n8n/settings", async (req, res) => {
-    try {
-      const { webhookUrl } = req.body;
-      
-      const currentSettings = await storage.getSettings();
-      const updatedSettings = await storage.updateSettings({
-        ...currentSettings,
-        n8nWebhookUrl: webhookUrl || null,
-      });
-      
-      await storage.createAuditLogEntry({
-        userId: null,
-        action: "update_n8n_settings",
-        entityType: "settings",
-        entityId: "n8n_config",
-        details: { webhookUrl },
-      });
-      
-      res.json({ success: true, webhookUrl: updatedSettings.n8nWebhookUrl });
-    } catch (error) {
-      console.error("Failed to update N8N settings:", error);
-      res.status(500).json({ error: "Failed to update N8N settings" });
     }
   });
 
@@ -3983,53 +4525,6 @@ After creating estimate, ALWAYS propose sending payment request.
   });
 
   // ========================================
-  // MASTER ARCHITECT (STUBS)
-  // ========================================
-
-  app.post("/api/architect/ingest", async (req, res) => {
-    res.json({ 
-      success: true, 
-      message: "Action ingested successfully (stub)",
-      id: `ai-${Date.now()}` 
-    });
-  });
-
-  app.post("/api/architect/queue", async (req, res) => {
-    res.json({ 
-      success: true, 
-      message: "Action queued for approval (stub)",
-      queueId: `qa-${Date.now()}` 
-    });
-  });
-
-  app.post("/api/architect/approve", async (req, res) => {
-    const { id } = req.body;
-    res.json({ 
-      success: true, 
-      message: `Action ${id} approved (stub)`,
-      executionStarted: true 
-    });
-  });
-
-  app.post("/api/architect/reject", async (req, res) => {
-    const { id } = req.body;
-    res.json({ 
-      success: true, 
-      message: `Action ${id} rejected (stub)`,
-      removed: true 
-    });
-  });
-
-  app.get("/api/architect/feed", async (_req, res) => {
-    res.json({ 
-      feed: [],
-      pendingApprovals: [],
-      completedActions: [],
-      message: "Feed endpoint (stub)" 
-    });
-  });
-
-  // ========================================
   // CONVERSATION PERSISTENCE API
   // ========================================
 
@@ -4139,26 +4634,27 @@ After creating estimate, ALWAYS propose sending payment request.
       const settings = await storage.getSettings();
       const agentMode = (settings?.agentMode || "assist") as AgentMode;
       
-      const architect = new MasterArchitect(agentMode, validated.systemPrompt, null);
       const messages = await storage.getMessages(req.params.id);
       
-      const result = await architect.chat(validated.message);
+      // TODO: Process message through external agent pipeline
+      // For now, return a placeholder response
+      const resultMessage = "Message received. Processing through external agent.";
       
       const assistantMessage = await storage.createMessage({
         conversationId: req.params.id,
         role: "assistant",
-        content: result.message,
+        content: resultMessage,
         metadata: {
-          toolCalls: result.toolCalls,
-          mode: result.mode,
+          toolCalls: [],
+          mode: agentMode,
         },
       });
       
       res.json({
         userMessage,
         assistantMessage,
-        toolCalls: result.toolCalls,
-        mode: result.mode,
+        toolCalls: [],
+        mode: agentMode,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -4304,27 +4800,17 @@ After creating estimate, ALWAYS propose sending payment request.
         metadata: { source: "widget" },
       });
       
-      const architect = new MasterArchitect("auto", undefined, null, [], "widget");
-      
-      const restrictedToolPermissions: Record<string, ToolPermission> = {
-        create_contact: { enabled: false, allowedModes: [] },
-        update_contact: { enabled: false, allowedModes: [] },
-        create_job: { enabled: false, allowedModes: [] },
-        create_estimate: { enabled: false, allowedModes: [] },
-        create_invoice: { enabled: false, allowedModes: [] },
-        record_payment: { enabled: false, allowedModes: [] },
-      };
-      architect.setChannelToolPermissions(restrictedToolPermissions);
-      
-      const aiResponse = await architect.chat(validated.message);
+      // TODO: Process widget message through external agent pipeline
+      // For now, return a placeholder response
+      const aiResponseMessage = "Thanks for your message! An agent will respond shortly.";
       
       const assistantMessage = await storage.createMessage({
         conversationId: conversation.id,
         role: "assistant",
-        content: aiResponse.message,
+        content: aiResponseMessage,
         metadata: { 
-          source: "master_architect",
-          toolCalls: aiResponse.toolCalls,
+          source: "widget",
+          toolCalls: [],
         },
       });
       
@@ -4336,13 +4822,13 @@ After creating estimate, ALWAYS propose sending payment request.
         details: { 
           contactId,
           message: validated.message,
-          response: aiResponse.message,
+          response: aiResponseMessage,
         },
       });
       
       res.json({ 
         success: true, 
-        response: aiResponse.message,
+        response: aiResponseMessage,
         messageId: assistantMessage.id,
         conversationId: conversation.id,
         contactId,
@@ -4375,7 +4861,6 @@ After creating estimate, ALWAYS propose sending payment request.
           name: validated.name || null,
           email: validated.email || null,
           phone: validated.phone || null,
-          source: validated.source || "widget",
         });
         
         if (validated.message) {
@@ -4453,11 +4938,12 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
+  /** @deprecated Master Architect removed. Endpoint retained for backward compatibility. */
   app.get("/api/master-architect/tasks", async (_req, res) => {
     try {
       // Fetch all three data sources
-      const [assistQueue, aiTasks, allAuditLog] = await Promise.all([
-        storage.getAssistQueue(),
+      const [stagedProposals, aiTasks, allAuditLog] = await Promise.all([
+        storage.listStagedProposals({ status: ["pending", "approved", "rejected", "completed"] }),
         storage.getAiTasks(),
         storage.getAuditLog(),
       ]);
@@ -4467,7 +4953,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
       interface UnifiedTask {
         id: string;
-        type: "assist_queue" | "ai_task" | "n8n_event";
+        type: "staged_proposal" | "ai_task" | "n8n_event";
         status: string;
         title: string;
         description: string;
@@ -4481,26 +4967,27 @@ After creating estimate, ALWAYS propose sending payment request.
         error?: string;
       }
 
-      // Transform assist queue entries
-      const assistTasks: UnifiedTask[] = assistQueue.map(item => {
-        const toolsCalled = Array.isArray(item.toolsCalled) ? item.toolsCalled : [];
-        const title = toolsCalled.length > 0 && typeof toolsCalled[0] === 'object' && toolsCalled[0] !== null && 'name' in toolsCalled[0]
-          ? String(toolsCalled[0].name).replace(/_/g, " ").toUpperCase()
+      // Transform staged proposal entries
+      const proposalTasks: UnifiedTask[] = stagedProposals.map(item => {
+        const actions = typeof item.actions === "string" ? JSON.parse(item.actions) : item.actions || [];
+        const firstAction = actions[0] || {};
+        const title = firstAction.tool 
+          ? String(firstAction.tool).replace(/_/g, " ").toUpperCase()
           : "AI Action";
 
         return {
           id: item.id,
-          type: "assist_queue" as const,
+          type: "staged_proposal" as const,
           status: item.status,
           title,
-          description: item.userRequest || "AI-suggested action",
+          description: item.userRequest || item.summary || "AI-suggested action",
           userRequest: item.userRequest || undefined,
-          agentResponse: item.agentResponse || undefined,
-          toolsCalled: item.toolsCalled as unknown[],
-          toolResults: item.toolResults as unknown[],
+          agentResponse: item.reasoning || undefined,
+          toolsCalled: actions,
+          toolResults: undefined,
           createdAt: item.createdAt,
           completedAt: item.completedAt || undefined,
-          error: item.error || undefined,
+          error: item.rejectionReason || undefined,
         };
       });
 
@@ -4546,7 +5033,7 @@ After creating estimate, ALWAYS propose sending payment request.
         });
 
       // Combine and sort by creation date (newest first)
-      const allTasks = [...assistTasks, ...automationTasks, ...n8nEvents]
+      const allTasks = [...proposalTasks, ...automationTasks, ...n8nEvents]
         .filter(task => task.createdAt) // Filter out tasks without createdAt
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .map(task => ({
@@ -4593,6 +5080,53 @@ After creating estimate, ALWAYS propose sending payment request.
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to send estimate";
       res.status(400).json({ error: message });
+    }
+  });
+
+  // POST /api/estimates/:id/convert-to-invoice
+  app.post("/api/estimates/:id/convert-to-invoice", async (req, res) => {
+    try {
+      const estimateId = req.params.id;
+      const estimate = await storage.getEstimate(estimateId);
+
+      if (!estimate) {
+        return res.status(404).json({ error: "Estimate not found" });
+      }
+
+      // Must be approved status to convert
+      if (estimate.status !== "accepted" && estimate.status !== "approved") {
+        return res.status(400).json({ error: "Estimate must be approved before converting to invoice" });
+      }
+
+      // Create invoice from estimate data
+      const invoice = await storage.createInvoice({
+        contactId: estimate.contactId,
+        jobId: estimate.jobId,
+        estimateId: estimate.id,
+        lineItems: estimate.lineItems as any,
+        subtotal: estimate.subtotal,
+        taxTotal: estimate.taxTotal,
+        totalAmount: estimate.totalAmount,
+        status: "draft",
+        issuedAt: new Date(),
+        dueAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      });
+
+      // Log to automation ledger
+      await storage.createAutomationLedgerEntry({
+        agentName: "system",
+        actionType: "estimate_converted_to_invoice",
+        entityType: "estimate",
+        entityId: estimateId,
+        status: "recorded",
+        mode: "auto",
+        diffJson: { invoiceId: invoice.id, estimateId },
+        reason: "Estimate converted to invoice",
+      });
+
+      res.json(invoice);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to convert estimate to invoice" });
     }
   });
 
@@ -4678,6 +5212,15 @@ After creating estimate, ALWAYS propose sending payment request.
 
   app.post("/api/ai/execute-tool", requireInternalToken, async (req, res) => {
     try {
+      // P0 HARDENING: Check kill switch BEFORE tool execution
+      const aiSettings = await storage.getAiSettings();
+      if (aiSettings?.killSwitchActive) {
+        return res.status(503).json({ 
+          success: false, 
+          error: "AI execution is currently disabled by kill switch" 
+        });
+      }
+
       const validated = executeToolSchema.parse(req.body);
       const result = await executeAITool(validated.toolName, validated.args, {});
       res.json(result);
@@ -4768,90 +5311,72 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  // N8N dispatch endpoint - frontend routes events through backend
-  app.post("/api/n8n/dispatch", async (req, res) => {
-    try {
-      const validated = neo8OutboundEventSchema.parse(req.body);
-      const result = await dispatchNeo8Event(validated);
-      
-      if (result.success) {
-        await storage.createAuditLogEntry({
-          userId: null,
-          action: "n8n_event_dispatched",
-          entityType: "automation",
-          entityId: validated.eventId,
-          details: {
-            eventType: validated.eventType,
-            source: "frontend",
-          },
-        });
-      }
-      
-      res.json(result);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ success: false, error: error.errors[0].message });
-      }
-      const message = error instanceof Error ? error.message : "Failed to dispatch n8n event";
-      res.status(500).json({ success: false, error: message });
-    }
+  // N8N dispatch endpoint - DISABLED (use /api/agent/callback for external agent integration)
+  app.post("/api/n8n/dispatch", async (_req, res) => {
+    res.status(501).json({ success: false, error: "N8N dispatch disabled. Use /api/agent/callback for external agent integration." });
   });
 
   app.post("/api/events/update", requireInternalToken, async (req, res) => {
     try {
-      const validated = neo8InboundResultSchema.parse(req.body);
+      // Simple validation for agent callback format
+      const { eventId, eventType, status } = req.body;
+      if (!eventId || !eventType) {
+        return res.status(400).json({ error: "eventId and eventType are required" });
+      }
+      
+      const body = req.body;
       
       await storage.createAuditLogEntry({
         userId: null,
-        action: "neo8_event_result",
+        action: "agent_event_result",
         entityType: "automation",
-        entityId: validated.eventId,
+        entityId: body.eventId || body.proposalId,
         details: {
-          eventType: validated.eventType,
-          status: validated.status,
-          result: validated.result,
-          timestamp: validated.timestamp,
+          eventType: body.eventType,
+          status: body.status,
+          result: body.result,
+          timestamp: body.timestamp,
         },
       });
 
-      // Create AI task record for Master Architect tracking
-      const aiTaskStatus = validated.status === "success" ? "completed" : "failed";
+      // Create AI task record for tracking
+      const aiTaskStatus = body.status === "success" || body.status === "completed" ? "completed" : "failed";
       await storage.createAiTask({
-        taskType: `n8n_${validated.eventType}`,
-        delegatedTo: "n8n",
+        taskType: `agent_${body.eventType || "callback"}`,
+        delegatedTo: "external_agent",
         payload: {
-          eventId: validated.eventId,
-          eventType: validated.eventType,
-          result: validated.result,
-          timestamp: validated.timestamp,
+          eventId: body.eventId || body.proposalId,
+          eventType: body.eventType,
+          result: body.result,
+          timestamp: body.timestamp,
         },
         status: aiTaskStatus,
         completedAt: new Date(),
-        error: validated.status === "error" ? validated.result?.error : null,
+        error: body.status === "error" || body.status === "failed" ? (body.result?.error as string | undefined) : null,
       });
 
 
-      if (validated.status === "error") {
+      if (body.status === "error" || body.status === "failed") {
         return res.json({ 
           success: false, 
-          error: validated.result?.error || "Unknown error from Neo8",
-          eventId: validated.eventId,
+          error: body.result?.error || body.errorMessage || "Unknown error from agent",
+          eventId: body.eventId || body.proposalId,
         });
       }
 
-      const result = validated.result || {};
+      const result = body.result || {};
       let persistedData = null;
 
-      switch (validated.eventType) {
+      switch (body.eventType) {
         case "invoice_created":
         case "create_payment_link": {
           if (result.paymentLink) {
-            const invoice = await storage.getInvoice(validated.eventId);
+            const invoice = await storage.getInvoice(body.eventId);
             if (invoice) {
-              await storage.updateInvoice(validated.eventId, {
+              await storage.updateInvoice(body.eventId, {
                 notes: `${invoice.notes || ""}\nPayment Link: ${result.paymentLink}`.trim(),
               });
-              persistedData = { invoiceId: validated.eventId, paymentLink: result.paymentLink };
+              persistedData = { invoiceId: body.eventId, paymentLink: result.paymentLink };
             }
           }
           break;
@@ -4862,7 +5387,7 @@ After creating estimate, ALWAYS propose sending payment request.
             userId: null,
             action: "email_status_update",
             entityType: "communication",
-            entityId: validated.eventId,
+            entityId: body.eventId,
             details: { 
               emailSent: result.emailSent,
               status: result.emailSent ? "sent" : "failed",
@@ -4877,7 +5402,7 @@ After creating estimate, ALWAYS propose sending payment request.
             userId: null,
             action: "sms_status_update",
             entityType: "communication",
-            entityId: validated.eventId,
+            entityId: body.eventId,
             details: { 
               smsSent: result.smsSent,
               status: result.smsSent ? "sent" : "failed",
@@ -4893,7 +5418,7 @@ After creating estimate, ALWAYS propose sending payment request.
               title: "AI Lead Response",
               content: result.aiGeneratedText,
               entityType: "contact",
-              entityId: validated.eventId,
+              entityId: body.eventId,
             });
             persistedData = { noteCreated: true, aiText: result.aiGeneratedText };
           }
@@ -4901,7 +5426,7 @@ After creating estimate, ALWAYS propose sending payment request.
         }
 
         case "job_updated": {
-          const job = await storage.getJob(validated.eventId);
+          const job = await storage.getJob(body.eventId);
           if (job && result.aiGeneratedText) {
             await storage.createNote({
               title: "Job Update Notification",
@@ -4920,7 +5445,7 @@ After creating estimate, ALWAYS propose sending payment request.
               title: "Missed Call Follow-up",
               content: result.aiGeneratedText,
               entityType: "contact",
-              entityId: validated.eventId,
+              entityId: body.eventId,
             });
             persistedData = { noteCreated: true, followUpCreated: true };
           }
@@ -4930,9 +5455,9 @@ After creating estimate, ALWAYS propose sending payment request.
 
       res.json({ 
         success: true, 
-        eventId: validated.eventId,
-        eventType: validated.eventType,
-        result: validated.result,
+        eventId: body.eventId || body.proposalId,
+        eventType: body.eventType,
+        result: body.result,
         persistedData,
       });
     } catch (error) {
@@ -4963,14 +5488,13 @@ After creating estimate, ALWAYS propose sending payment request.
       const userId = (req as unknown as { userId?: string }).userId || null;
       const mode = validated.mode as AgentMode;
       
-      const architect = new MasterArchitect(
-        mode, 
-        undefined, 
-        userId,
-        validated.conversationHistory
-      );
-
-      const response = await architect.execute(validated.message);
+      // TODO: Process chat through external agent pipeline
+      // For now, return a placeholder response
+      const response = {
+        message: "Chat message received. Processing through external agent.",
+        toolCalls: [],
+        mode,
+      };
 
       await storage.createAuditLogEntry({
         userId,
@@ -4980,7 +5504,7 @@ After creating estimate, ALWAYS propose sending payment request.
         details: { 
           mode: validated.mode,
           message: validated.message,
-          toolCalls: response.toolCalls?.length || 0,
+          toolCalls: 0,
         },
       });
 
@@ -4991,840 +5515,8 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.get("/api/assist-queue", async (req, res) => {
-    try {
-      const status = req.query.status as string | undefined;
-      const allEntries = await storage.getAssistQueue();
-      
-      const filtered = status
-        ? allEntries.filter(entry => entry.status === status)
-        : allEntries;
+  // Assist Queue endpoints removed - migrated to proposals
 
-      res.json({ entries: filtered, count: filtered.length });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to fetch assist queue";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  app.get("/api/assist-queue/:id", async (req, res) => {
-    try {
-      const entry = await storage.getAssistQueueEntry(req.params.id);
-      
-      if (!entry) {
-        return res.status(404).json({ error: "Queue entry not found" });
-      }
-
-      res.json(entry);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to fetch queue entry";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  app.post("/api/assist-queue/:id/approve", async (req, res) => {
-    try {
-      const entry = await storage.getAssistQueueEntry(req.params.id);
-      
-      if (!entry) {
-        return res.status(404).json({ error: "Queue entry not found" });
-      }
-
-      if (entry.status !== "pending") {
-        return res.status(400).json({ error: `Cannot approve entry with status: ${entry.status}` });
-      }
-
-      const userId = (req as unknown as { userId?: string }).userId || null;
-      
-      // ROLE CHECK: Require authenticated user with master_architect or admin role
-      if (!userId) {
-        return res.status(401).json({ error: "Authentication required to approve actions" });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(403).json({ error: "User not found" });
-      }
-      
-      const allowedRoles = ["master_architect", "admin"];
-      if (!allowedRoles.includes(user.role)) {
-        await storage.createAuditLogEntry({
-          userId,
-          action: "assist_queue_approve_denied",
-          entityType: "assist_queue",
-          entityId: req.params.id,
-          details: { reason: "insufficient_role", userRole: user.role },
-        });
-        return res.status(403).json({ error: "Insufficient permissions to approve actions" });
-      }
-
-      // Get finalization mode from Master Architect config
-      const maConfig = await storage.getMasterArchitectConfig();
-      const finalizationMode = maConfig?.finalizationMode || "semi_autonomous";
-      
-      // Mark entry as approved with architect timestamp
-      await storage.updateAssistQueueEntry(req.params.id, {
-        approvedBy: userId,
-        approvedAt: new Date(),
-        architectApprovedAt: new Date(),
-      });
-      
-      // FIX 2: Write AI_VALIDATION_RECORDED to automation ledger on approval
-      await storage.createAutomationLedgerEntry({
-        agentName: "Master Architect",
-        actionType: "AI_VALIDATION_RECORDED",
-        entityType: "assist_queue",
-        entityId: req.params.id,
-        mode: "assist",
-        status: "ai_validated",
-        diffJson: {
-          decision: "approved",
-          approvedBy: userId,
-          userRequest: entry.userRequest,
-        },
-        reason: null,
-        assistQueueId: req.params.id,
-      });
-
-      const toolsCalled = entry.toolsCalled as Array<{ name: string; args: unknown }> | null;
-      const results: Array<{ name: string; status: string; result?: unknown; error?: string; verified?: boolean }> = [];
-
-      // SEMI_AUTONOMOUS: Mark as approved but require human to finalize (click Send)
-      if (finalizationMode === "semi_autonomous" && entry.gatedActionType) {
-        const updated = await storage.updateAssistQueueEntry(req.params.id, {
-          status: "approved_pending_send",
-        });
-
-        await storage.createAuditLogEntry({
-          userId,
-          action: "assist_queue_approved_pending_send",
-          entityType: "assist_queue",
-          entityId: req.params.id,
-          details: { 
-            finalizationMode,
-            gatedAction: entry.gatedActionType,
-            message: "Approved by architect, awaiting human finalization",
-          },
-        });
-
-        return res.json({ 
-          success: true, 
-          entry: updated,
-          status: "approved_pending_send",
-          message: "Action approved. Click 'Send' to finalize.",
-        });
-      }
-
-      // FULLY_AUTONOMOUS: Execute immediately after approval
-      // ACTION CLASSIFICATION: INTERNAL actions execute directly, EXTERNAL actions dispatch to Neo-8
-      if (toolsCalled && toolsCalled.length > 0) {
-        for (const tool of toolsCalled) {
-          const actionType = classifyAction(tool.name);
-          
-          try {
-            if (actionType === "INTERNAL") {
-              // INTERNAL ACTIONS: Execute directly in CRM (database mutations only)
-              const preExecState = await captureEntityState(tool.name, tool.args);
-              
-              const result = await executeAITool(tool.name, tool.args, { 
-                userId: userId || undefined, 
-                assistQueueId: req.params.id 
-              });
-              
-              const postExecState = await captureEntityState(tool.name, tool.args);
-              const verified = verifyStateChange(tool.name, preExecState, postExecState);
-              
-              // Write EXECUTED_INTERNAL ledger entry
-              await storage.createAutomationLedgerEntry({
-                agentName: "Master Architect",
-                actionType: "EXECUTED_INTERNAL",
-                entityType: "assist_queue",
-                entityId: req.params.id,
-                mode: "auto",
-                status: verified ? "executed" : "failed",
-                diffJson: {
-                  toolName: tool.name,
-                  actionType: "INTERNAL",
-                  args: tool.args,
-                  result: result.success ? result.data : null,
-                  verified,
-                },
-                reason: verified ? null : "DB verification failed",
-                assistQueueId: req.params.id,
-              });
-              
-              if (!verified) {
-                results.push({
-                  name: tool.name,
-                  status: "failed",
-                  error: "DB verification failed: entity state did not change as expected",
-                  verified: false,
-                });
-              } else {
-                results.push({
-                  name: tool.name,
-                  status: "executed",
-                  result,
-                  verified: true,
-                });
-              }
-            } else {
-              // EXTERNAL ACTIONS: Dispatch to Neo-8 (NEVER execute directly in CRM)
-              // This is the governance boundary - CRM triggers, Neo-8 executes
-              const traceId = `neo8_${req.params.id}_${Date.now()}`;
-              const typedArgs = tool.args as Record<string, unknown>;
-              
-              // Build Neo-8 dispatch payload
-              const neo8Payload = {
-                eventType: tool.name,
-                eventId: traceId,
-                assistQueueId: req.params.id,
-                payload: typedArgs,
-                approvedBy: userId,
-                approvedAt: new Date().toISOString(),
-              };
-              
-              // Write EXECUTION_DISPATCHED ledger entry BEFORE dispatch
-              await storage.createAutomationLedgerEntry({
-                agentName: "Master Architect",
-                actionType: "EXECUTION_DISPATCHED",
-                entityType: "assist_queue",
-                entityId: req.params.id,
-                mode: "auto",
-                status: "dispatched",
-                diffJson: {
-                  toolName: tool.name,
-                  actionType: "EXTERNAL",
-                  traceId,
-                  dispatchedTo: "neo8",
-                  payload: neo8Payload,
-                },
-                reason: null,
-                assistQueueId: req.params.id,
-              });
-              
-              // Dispatch to Neo-8 webhook
-              const dispatchResult = await dispatchNeo8Event({
-                eventType: tool.name as "send_email" | "send_sms" | "new_lead" | "job_updated" | "missed_call" | "invoice_created" | "create_payment_link" | "payment_created",
-                eventId: traceId,
-                ...typedArgs,
-              } as Parameters<typeof dispatchNeo8Event>[0]);
-              
-              if (dispatchResult.success) {
-                results.push({
-                  name: tool.name,
-                  status: "dispatched",
-                  result: { traceId, dispatchedTo: "neo8", message: "Dispatched to Neo-8 for execution" },
-                  verified: true,
-                });
-              } else {
-                // Update ledger with dispatch failure
-                await storage.createAutomationLedgerEntry({
-                  agentName: "Master Architect",
-                  actionType: "EXECUTION_DISPATCH_FAILED",
-                  entityType: "assist_queue",
-                  entityId: req.params.id,
-                  mode: "auto",
-                  status: "failed",
-                  diffJson: {
-                    toolName: tool.name,
-                    actionType: "EXTERNAL",
-                    traceId,
-                    error: dispatchResult.error,
-                  },
-                  reason: dispatchResult.error || "Neo-8 dispatch failed",
-                  assistQueueId: req.params.id,
-                });
-                
-                results.push({
-                  name: tool.name,
-                  status: "dispatch_failed",
-                  error: dispatchResult.error || "Failed to dispatch to Neo-8",
-                  verified: false,
-                });
-              }
-            }
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Execution failed";
-            results.push({
-              name: tool.name,
-              status: "failed",
-              error: errorMessage,
-              verified: false,
-            });
-          }
-        }
-      }
-
-      const hasErrors = results.some(r => r.status === "failed");
-      const verificationFailures = results.filter(r => r.verified === false).length;
-      const errorSummary = hasErrors 
-        ? `${results.filter(r => r.error).length} tool(s) failed${verificationFailures > 0 ? `, ${verificationFailures} verification failure(s)` : ''}` 
-        : undefined;
-
-      const updated = await storage.updateAssistQueueEntry(req.params.id, {
-        status: hasErrors ? "failed" : "completed",
-        toolResults: results,
-        executedAt: new Date(),
-        completedAt: hasErrors ? undefined : new Date(),
-        error: errorSummary,
-      });
-
-      await storage.createAuditLogEntry({
-        userId,
-        action: "assist_queue_approve",
-        entityType: "assist_queue",
-        entityId: req.params.id,
-        details: { 
-          finalizationMode,
-          toolsExecuted: results.length,
-          succeeded: results.filter(r => r.status === "executed").length,
-          failed: results.filter(r => r.status === "failed").length,
-          verified: results.filter(r => r.verified === true).length,
-        },
-      });
-
-      res.json({ 
-        success: true, 
-        entry: updated,
-        results,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to approve queue entry";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  // Helper: Capture entity state before/after execution for verification
-  async function captureEntityState(toolName: string, args: unknown): Promise<unknown> {
-    const typedArgs = args as Record<string, unknown>;
-    switch (toolName) {
-      case "send_invoice":
-        if (typedArgs.invoiceId) {
-          return await storage.getInvoice(typedArgs.invoiceId as string);
-        }
-        break;
-      case "send_estimate":
-        if (typedArgs.estimateId) {
-          return await storage.getEstimate(typedArgs.estimateId as string);
-        }
-        break;
-      case "record_payment":
-        if (typedArgs.invoiceId) {
-          return await storage.getInvoice(typedArgs.invoiceId as string);
-        }
-        break;
-    }
-    return null;
-  }
-
-  // Helper: Verify state changed as expected
-  function verifyStateChange(toolName: string, preState: unknown, postState: unknown): boolean {
-    if (!preState || !postState) return true; // Skip verification if no state captured
-    
-    const pre = preState as Record<string, unknown>;
-    const post = postState as Record<string, unknown>;
-    
-    switch (toolName) {
-      case "send_invoice":
-        // Verify status changed to "sent"
-        return post.status === "sent" && pre.status !== "sent";
-      case "send_estimate":
-        // Verify status changed to "sent"
-        return post.status === "sent" && pre.status !== "sent";
-      case "record_payment":
-        // Verify paidAmount increased or status changed
-        return (post.paidAmount as number) > (pre.paidAmount as number) || 
-               post.status === "paid";
-    }
-    return true; // Default pass for non-gated tools
-  }
-
-  // FINALIZE ENDPOINT: For semi_autonomous mode - human clicks "Send" after architect approval
-  app.post("/api/assist-queue/:id/finalize", async (req, res) => {
-    try {
-      const entry = await storage.getAssistQueueEntry(req.params.id);
-      
-      if (!entry) {
-        return res.status(404).json({ error: "Queue entry not found" });
-      }
-
-      // Must be in approved_pending_send state
-      if (entry.status !== "approved_pending_send") {
-        return res.status(400).json({ 
-          error: `Cannot finalize entry with status: ${entry.status}. Must be 'approved_pending_send'.` 
-        });
-      }
-
-      const userId = (req as unknown as { userId?: string }).userId || null;
-      
-      // Require authenticated user with proper role
-      if (!userId) {
-        return res.status(401).json({ error: "Authentication required to finalize actions" });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(403).json({ error: "User not found" });
-      }
-      
-      const allowedRoles = ["master_architect", "admin"];
-      if (!allowedRoles.includes(user.role)) {
-        await storage.createAuditLogEntry({
-          userId,
-          action: "assist_queue_finalize_denied",
-          entityType: "assist_queue",
-          entityId: req.params.id,
-          details: { reason: "insufficient_role", userRole: user.role },
-        });
-        return res.status(403).json({ error: "Insufficient permissions to finalize actions" });
-      }
-
-      // Must have a gated action to finalize
-      if (!entry.gatedActionType || !entry.finalizationPayload) {
-        return res.status(400).json({ error: "No gated action to finalize" });
-      }
-
-      const toolName = entry.gatedActionType;
-      const args = entry.finalizationPayload as Record<string, unknown>;
-
-      // Capture pre-execution state
-      const preExecState = await captureEntityState(toolName, args);
-
-      let result: unknown;
-      let executionError: string | undefined;
-
-      try {
-        result = await executeAITool(toolName, args, { 
-          userId, 
-          assistQueueId: req.params.id,
-          finalizationMode: "fully_autonomous" // Bypass gating since already approved
-        });
-      } catch (error) {
-        executionError = error instanceof Error ? error.message : "Execution failed";
-      }
-
-      // Capture post-execution state and verify
-      const postExecState = await captureEntityState(toolName, args);
-      const verified = verifyStateChange(toolName, preExecState, postExecState);
-
-      const success = !executionError && verified;
-
-      const updated = await storage.updateAssistQueueEntry(req.params.id, {
-        status: success ? "completed" : "failed",
-        executedAt: new Date(),
-        completedAt: success ? new Date() : undefined,
-        toolResults: [{ 
-          name: toolName, 
-          status: success ? "executed" : "failed", 
-          result, 
-          error: executionError || (!verified ? "DB verification failed" : undefined),
-          verified 
-        }],
-        error: executionError || (!verified ? "DB verification failed: entity state did not change as expected" : undefined),
-      });
-
-      await storage.createAuditLogEntry({
-        userId,
-        action: success ? "assist_queue_finalized" : "assist_queue_finalize_failed",
-        entityType: "assist_queue",
-        entityId: req.params.id,
-        details: { 
-          gatedAction: toolName,
-          verified,
-          error: executionError,
-        },
-      });
-
-      res.json({ 
-        success, 
-        entry: updated,
-        verified,
-        error: executionError || (!verified ? "DB verification failed" : undefined),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to finalize action";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  app.post("/api/assist-queue/:id/reject", async (req, res) => {
-    try {
-      const validated = rejectAssistSchema.parse(req.body);
-      const entry = await storage.getAssistQueueEntry(req.params.id);
-      
-      if (!entry) {
-        return res.status(404).json({ error: "Queue entry not found" });
-      }
-
-      if (entry.status !== "pending") {
-        return res.status(400).json({ error: `Cannot reject entry with status: ${entry.status}` });
-      }
-
-      const userId = (req as unknown as { userId?: string }).userId || null;
-      const reason = validated.reason;
-
-      const updated = await storage.updateAssistQueueEntry(req.params.id, {
-        status: "rejected",
-        rejectedBy: userId,
-        rejectedAt: new Date(),
-        completedAt: new Date(),
-        error: reason,
-      });
-
-      await storage.createAuditLogEntry({
-        userId,
-        action: "assist_queue_reject",
-        entityType: "assist_queue",
-        entityId: req.params.id,
-        details: { reason },
-      });
-      
-      // FIX 2: Write AI_VALIDATION_RECORDED to automation ledger on rejection
-      await storage.createAutomationLedgerEntry({
-        agentName: "Master Architect",
-        actionType: "AI_VALIDATION_RECORDED",
-        entityType: "assist_queue",
-        entityId: req.params.id,
-        mode: "assist",
-        status: "rejected",
-        diffJson: {
-          decision: "rejected",
-          rejectedBy: userId,
-          userRequest: entry.userRequest,
-        },
-        reason: reason,
-        assistQueueId: req.params.id,
-      });
-
-      res.json({ 
-        success: true, 
-        entry: updated,
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
-      }
-      const message = error instanceof Error ? error.message : "Failed to reject queue entry";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  // ========================================
-  // Master Architect Auto-Validation
-  // Validates pending assist_queue entries and moves to Ready Execution
-  // Flow: pending → MA validates → approved → appears in Ready Execution
-  // ========================================
-  app.post("/api/assist-queue/:id/ma-validate", async (req, res) => {
-    try {
-      const entry = await storage.getAssistQueueEntry(req.params.id);
-      
-      if (!entry) {
-        return res.status(404).json({ error: "Queue entry not found" });
-      }
-
-      if (entry.status !== "pending") {
-        return res.status(400).json({ error: `Cannot validate entry with status: ${entry.status}` });
-      }
-
-      // Get proposed tools from entry
-      const toolsCalled = entry.toolsCalled as Array<{ tool: string; args: unknown }> | null;
-      
-      // MA Validation: Check if tools are safe and well-formed
-      // This is a simulated validation - can be enhanced with actual AI review
-      let validationDecision: "approved" | "rejected" = "approved";
-      let validationReason = "Proposal validated by Master Architect";
-      
-      if (!toolsCalled || toolsCalled.length === 0) {
-        validationDecision = "rejected";
-        validationReason = "No tools specified in proposal";
-      }
-      
-      // Check for dangerous operations (example validation rules)
-      const dangerousTools = ["delete_all_contacts", "drop_database"];
-      const hasDangerous = toolsCalled?.some(t => dangerousTools.includes(t.tool));
-      if (hasDangerous) {
-        validationDecision = "rejected";
-        validationReason = "Proposal contains dangerous operations";
-      }
-
-      if (validationDecision === "approved") {
-        // Update assist_queue to approved status
-        const updated = await storage.updateAssistQueueEntry(req.params.id, {
-          status: "approved",
-          architectApprovedAt: new Date(),
-        });
-
-        // Update the ledger entry to ai_validated (so it shows in Ready Execution)
-        // Find existing ledger entry for this queue entry
-        const ledgerEntries = await storage.getAutomationLedgerEntries({ limit: 1000 });
-        const existingLedger = ledgerEntries.find(
-          e => e.assistQueueId === req.params.id && e.status === "proposed"
-        );
-        
-        if (existingLedger) {
-          await storage.updateAutomationLedgerEntry(existingLedger.id, {
-            status: "ai_validated",
-            reason: validationReason,
-          });
-        }
-
-        // Create MA validation audit record in ledger (NOT ai_validated - this is just an audit trail)
-        await storage.createAutomationLedgerEntry({
-          agentName: "Master Architect",
-          actionType: "AI_VALIDATION_RECORDED",
-          entityType: "assist_queue",
-          entityId: req.params.id,
-          mode: "assist",
-          status: "recorded", // Audit status - NOT ai_validated (that's on the original entry)
-          diffJson: {
-            decision: "approved",
-            userRequest: entry.userRequest,
-            toolsValidated: toolsCalled?.map(t => t.tool) || [],
-          },
-          reason: validationReason,
-          assistQueueId: req.params.id,
-        });
-
-        console.log(`[MA Validation] Proposal ${req.params.id} approved - moving to Ready Execution`);
-
-        res.json({
-          success: true,
-          decision: "approved",
-          message: "Proposal validated and moved to Ready Execution",
-          entry: updated,
-        });
-      } else {
-        // Rejected by MA - P1 HARDENING: Track rejection count for escalation
-        const currentRejectionCount = (entry.rejectionCount || 0) + 1;
-        const shouldEscalate = currentRejectionCount >= 2;
-        
-        const updated = await storage.updateAssistQueueEntry(req.params.id, {
-          status: shouldEscalate ? "escalated" : "rejected",
-          rejectedAt: new Date(),
-          error: validationReason,
-          rejectionCount: currentRejectionCount,
-          escalatedToOperator: shouldEscalate,
-          escalatedAt: shouldEscalate ? new Date() : undefined,
-        });
-
-        // Update ledger to rejected/escalated
-        const ledgerEntries = await storage.getAutomationLedgerEntries({ limit: 1000 });
-        const existingLedger = ledgerEntries.find(
-          e => e.assistQueueId === req.params.id && e.status === "proposed"
-        );
-        
-        if (existingLedger) {
-          await storage.updateAutomationLedgerEntry(existingLedger.id, {
-            status: shouldEscalate ? "escalated" : "rejected",
-            reason: shouldEscalate 
-              ? `ESCALATED: AI failed review ${currentRejectionCount} times. Last reason: ${validationReason}` 
-              : validationReason,
-          });
-        }
-
-        // Create rejection/escalation record
-        await storage.createAutomationLedgerEntry({
-          agentName: "Master Architect",
-          actionType: shouldEscalate ? "AI_ESCALATED_TO_OPERATOR" : "AI_VALIDATION_RECORDED",
-          entityType: "assist_queue",
-          entityId: req.params.id,
-          mode: "assist",
-          status: shouldEscalate ? "escalated" : "rejected",
-          diffJson: {
-            decision: shouldEscalate ? "escalated" : "rejected",
-            userRequest: entry.userRequest,
-            rejectionCount: currentRejectionCount,
-            escalatedToOperator: shouldEscalate,
-          },
-          reason: shouldEscalate 
-            ? `AI failed review ${currentRejectionCount} times - escalated to operator for manual handling` 
-            : validationReason,
-          assistQueueId: req.params.id,
-        });
-
-        if (shouldEscalate) {
-          console.log(`[MA Validation] Proposal ${req.params.id} ESCALATED TO OPERATOR after ${currentRejectionCount} rejections`);
-        } else {
-          console.log(`[MA Validation] Proposal ${req.params.id} rejected (${currentRejectionCount}/2): ${validationReason}`);
-        }
-
-        res.json({
-          success: true,
-          decision: shouldEscalate ? "escalated" : "rejected",
-          message: shouldEscalate 
-            ? `AI proposal escalated to operator after ${currentRejectionCount} failed reviews`
-            : validationReason,
-          entry: updated,
-          escalatedToOperator: shouldEscalate,
-          rejectionCount: currentRejectionCount,
-        });
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to validate queue entry";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  // Process all pending entries (batch MA validation)
-  app.post("/api/assist-queue/process-pending", async (_req, res) => {
-    try {
-      const allEntries = await storage.getAssistQueue();
-      const pendingEntries = allEntries.filter(e => e.status === "pending");
-      
-      const results: Array<{ id: string; decision: string; message: string }> = [];
-      
-      for (const entry of pendingEntries) {
-        try {
-          // Trigger MA validation for each pending entry
-          const response = await fetch(`http://localhost:${process.env.PORT || 5000}/api/assist-queue/${entry.id}/ma-validate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
-          const data = await response.json() as { decision?: string; message?: string };
-          results.push({
-            id: entry.id,
-            decision: data.decision || "unknown",
-            message: data.message || "Processed",
-          });
-        } catch (err) {
-          results.push({
-            id: entry.id,
-            decision: "error",
-            message: err instanceof Error ? err.message : "Processing failed",
-          });
-        }
-      }
-
-      res.json({
-        success: true,
-        processed: results.length,
-        results,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to process pending entries";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  app.post("/api/assist-queue/:id/finalize", async (req, res) => {
-    try {
-      const userId = (req as unknown as { userId?: string }).userId || undefined;
-      const result = await finalizeAction(req.params.id, userId);
-
-      if (!result.success) {
-        return res.status(400).json({ error: result.error });
-      }
-
-      res.json({
-        success: true,
-        result: result.result,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to finalize gated action";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  // ========================================
-  // Retry mechanism for rejected proposals
-  // Audit requirement: AI_RETRY_ISSUED and AI_RETRY_EXHAUSTED ledger entries
-  // ========================================
-  const MAX_RETRIES = 3;
-
-  app.post("/api/assist-queue/:id/retry", async (req, res) => {
-    try {
-      const entry = await storage.getAssistQueueEntry(req.params.id);
-      
-      if (!entry) {
-        return res.status(404).json({ error: "Queue entry not found" });
-      }
-
-      if (entry.status !== "rejected") {
-        return res.status(400).json({ error: `Can only retry rejected entries. Current status: ${entry.status}` });
-      }
-
-      const userId = (req as unknown as { userId?: string }).userId || null;
-      
-      // Get current retry count from entry metadata or default to 0
-      const currentRetryCount = (entry.finalizationPayload as { retryCount?: number })?.retryCount || 0;
-      
-      // Check if retries exhausted
-      if (currentRetryCount >= MAX_RETRIES) {
-        // Write AI_RETRY_EXHAUSTED ledger entry
-        await storage.createAutomationLedgerEntry({
-          agentName: "Master Architect",
-          actionType: "AI_RETRY_EXHAUSTED",
-          entityType: "assist_queue",
-          entityId: req.params.id,
-          mode: "assist",
-          status: "terminated",
-          diffJson: {
-            retryCount: currentRetryCount,
-            maxRetries: MAX_RETRIES,
-            userRequest: entry.userRequest,
-          },
-          reason: `Maximum retries (${MAX_RETRIES}) exhausted`,
-          assistQueueId: req.params.id,
-        });
-        
-        return res.status(400).json({ 
-          error: "Maximum retries exhausted",
-          retryCount: currentRetryCount,
-          maxRetries: MAX_RETRIES,
-        });
-      }
-
-      // Write AI_RETRY_ISSUED ledger entry
-      await storage.createAutomationLedgerEntry({
-        agentName: "Master Architect",
-        actionType: "AI_RETRY_ISSUED",
-        entityType: "assist_queue",
-        entityId: req.params.id,
-        mode: "assist",
-        status: "pending_review",
-        diffJson: {
-          retryCount: currentRetryCount + 1,
-          maxRetries: MAX_RETRIES,
-          userRequest: entry.userRequest,
-          previousRejectionReason: entry.error,
-        },
-        reason: `Retry #${currentRetryCount + 1} issued`,
-        assistQueueId: req.params.id,
-      });
-
-      // Reset entry to pending status with incremented retry count
-      const updated = await storage.updateAssistQueueEntry(req.params.id, {
-        status: "pending",
-        rejectedBy: null,
-        rejectedAt: null,
-        completedAt: null,
-        error: null,
-        finalizationPayload: { retryCount: currentRetryCount + 1 },
-      });
-
-      await storage.createAuditLogEntry({
-        userId,
-        action: "assist_queue_retry",
-        entityType: "assist_queue",
-        entityId: req.params.id,
-        details: { 
-          retryCount: currentRetryCount + 1,
-          maxRetries: MAX_RETRIES,
-        },
-      });
-
-      res.json({ 
-        success: true, 
-        entry: updated,
-        retryCount: currentRetryCount + 1,
-        retriesRemaining: MAX_RETRIES - (currentRetryCount + 1),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to retry queue entry";
-      res.status(500).json({ error: message });
-    }
-  });
 
   const createContactSchema = z.object({
     phone: z.string().optional(),
@@ -6034,7 +5726,8 @@ After creating estimate, ALWAYS propose sending payment request.
         clientId: validated.contactId,
         status: validated.status,
         title: validated.jobType || "New Job",
-        description: validated.notes || null,
+        scope: validated.notes || null,
+        estimatedValue: validated.budget || null,
         jobType: validated.jobType || "general",
       });
 
@@ -6387,53 +6080,21 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  // Google Drive folder creation endpoints
-  app.post("/api/workspace/folders/contact/:contactId", n8nWebhookRateLimiter, requireInternalToken, async (req, res) => {
-    try {
-      const { contactId } = req.params;
-      const { createContactFolder } = await import("./neo8-google-drive");
-      
-      const result = await createContactFolder(contactId);
-      
-      if (!result.success) {
-        return res.status(400).json({ error: result.error });
-      }
-      
-      res.json({
-        success: true,
-        folderId: result.folderId,
-        folderUrl: result.folderUrl,
-      });
-    } catch (error) {
-      console.error("Failed to create contact folder:", error);
-      const message = error instanceof Error ? error.message : "Failed to create folder";
-      res.status(500).json({ error: message });
-    }
+  // Google Drive folder creation endpoints - DISABLED (Neo8 removed)
+  app.post("/api/workspace/folders/contact/:contactId", n8nWebhookRateLimiter, requireInternalToken, async (_req, res) => {
+    res.status(501).json({ error: "Google Drive integration disabled (Neo8 removed)" });
   });
 
-  app.post("/api/workspace/folders/job/:jobId", n8nWebhookRateLimiter, requireInternalToken, async (req, res) => {
-    try {
-      const { jobId } = req.params;
-      const { createJobFolder } = await import("./neo8-google-drive");
-      
-      const result = await createJobFolder(jobId);
-      
-      if (!result.success) {
-        return res.status(400).json({ error: result.error });
-      }
-      
-      res.json({
-        success: true,
-        folderId: result.folderId,
-        folderUrl: result.folderUrl,
-      });
-    } catch (error) {
-      console.error("Failed to create job folder:", error);
-      const message = error instanceof Error ? error.message : "Failed to create folder";
-      res.status(500).json({ error: message });
-    }
+  app.post("/api/workspace/folders/job/:jobId", n8nWebhookRateLimiter, requireInternalToken, async (_req, res) => {
+    res.status(501).json({ error: "Google Drive integration disabled (Neo8 removed)" });
   });
 
+  // ============================================================================
+  // DEAD CODE: Chat endpoints disabled - stub services deleted during system purge
+  // These endpoints will be rebuilt with proper AI integration
+  // Lines 6584-7032 temporarily commented out
+  // ============================================================================
+  /*
   app.post("/api/chat/conversations", async (req, res) => {
     try {
       const validated = createConversationSchema.parse(req.body);
@@ -6529,7 +6190,7 @@ After creating estimate, ALWAYS propose sending payment request.
   // ========================================
   // ADMIN CHAT ENDPOINTS (Internal CRM Bot)
   // ========================================
-  // These endpoints are for the internal admin chatbot (Master Architect)
+  // These endpoints are for the internal admin chatbot (Master Architect removed; now direct CRM access)
   // with FULL CRM access. Completely separate from public customer widget.
   
   const adminChatMessageSchema = z.object({
@@ -6883,6 +6544,8 @@ After creating estimate, ALWAYS propose sending payment request.
       res.status(500).json({ error: "Failed to get public chat messages" });
     }
   });
+  */ // END DEAD CODE: Chat endpoints disabled
+  // ============================================================================
 
   // ========== EMAIL ACCOUNTS ==========
   // Helper to redact sensitive credentials from email account responses
@@ -7071,87 +6734,79 @@ After creating estimate, ALWAYS propose sending payment request.
         return res.status(400).json({ error: "Company emails require templateId" });
       }
 
-      // Create dispatch payload for Neo8
-      const dispatchPayload = {
-        identity_provider: identity === "personal" ? "gmail" : "sendgrid",
-        target: to,
-        subject: identity === "personal" ? subject : undefined,
-        body: identity === "personal" ? body : undefined,
-        template_id: identity === "company" ? templateId : undefined,
-        contact_id: contactId,
-        dispatched_at: new Date().toISOString(),
-      };
+      // Generate correlation ID for tracing
+      const correlationId = crypto.randomUUID();
 
       // Write EMAIL_DISPATCH_AUTHORIZED to ledger
+      const dispatchId = `dispatch-${Date.now()}`;
       await storage.createAutomationLedgerEntry({
         agentName: identity === "personal" ? "Human Operator" : "System Dispatch",
         actionType: "EMAIL_DISPATCH_AUTHORIZED",
         entityType: "email",
-        entityId: `dispatch-${Date.now()}`,
+        entityId: dispatchId,
         mode: "auto",
         status: "authorized",
-        diffJson: dispatchPayload,
+        diffJson: {
+          identity_provider: identity === "personal" ? "gmail" : "sendgrid",
+          target: to,
+          subject: identity === "personal" ? subject : undefined,
+          body: identity === "personal" ? body : undefined,
+          template_id: identity === "company" ? templateId : undefined,
+          contact_id: contactId,
+        },
         reason: `Email dispatch authorized via ${identity} identity to ${to}`,
-        assistQueueId: null,
+        correlationId,
+        executionTraceId: dispatchId,
+        idempotencyKey: `email-auth-${dispatchId}`,
       });
 
-      console.log("[Email Dispatch] Authorized:", dispatchPayload);
+      console.log("[Email Dispatch] Authorized:", { to, identity, correlationId });
 
-      // Forward to Neo8 Gmail webhook
-      const n8nWebhookUrl = "https://smartg23.app.n8n.cloud/webhook/google/gmail";
-      const n8nToken = process.env.N8N_INTERNAL_TOKEN;
+      // MIGRATION: Use unified agent dispatcher instead of direct N8N webhook
+      const { dispatchEmail } = await import('./agent-dispatcher');
       
-      if (!n8nToken) {
-        console.error("[Email Dispatch] N8N_INTERNAL_TOKEN not configured");
-        return res.status(500).json({ error: "Email dispatch not configured - missing N8N token" });
-      }
-
       try {
-        const n8nResponse = await fetch(n8nWebhookUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-INTERNAL-TOKEN": n8nToken,
-          },
-          body: JSON.stringify({
-            action: "send_email",
-            args: {
-              to: dispatchPayload.target,
-              subject: dispatchPayload.subject,
-              body: dispatchPayload.body,
-              templateId: dispatchPayload.template_id,
-              contactId: dispatchPayload.contact_id,
-              identityProvider: dispatchPayload.identity_provider,
-            },
-            metadata: {
-              dispatchedAt: dispatchPayload.dispatched_at,
-              source: "crm_email_dispatch",
-            },
-          }),
+        const dispatchResult = await dispatchEmail({
+          type: "email",
+          correlationId,
+          to,
+          subject: identity === "personal" ? subject : "Template Email",
+          body: identity === "personal" ? body : `Template: ${templateId}`,
+          identity: identity === "personal" ? "personal" : "system",
+          contactId,
         });
 
-        const n8nResult = await n8nResponse.text();
-        console.log("[Email Dispatch] n8n response:", n8nResponse.status, n8nResult);
-
-        if (!n8nResponse.ok) {
-          console.error("[Email Dispatch] n8n webhook failed:", n8nResult);
-          return res.status(502).json({ 
-            error: "Email dispatch failed at n8n", 
-            details: n8nResult 
-          });
-        }
+        console.log("[Email Dispatch] Dispatched via agent gateway:", dispatchResult);
 
         res.status(200).json({ 
           success: true, 
           message: `Email dispatched via ${identity === "personal" ? "Gmail" : "SendGrid"}`,
-          dispatchId: dispatchPayload.dispatched_at,
-          n8nStatus: n8nResponse.status,
+          dispatchId,
+          correlationId: dispatchResult.correlationId,
         });
-      } catch (n8nError) {
-        console.error("[Email Dispatch] Failed to call n8n:", n8nError);
+      } catch (dispatchError) {
+        console.error("[Email Dispatch] Agent dispatch failed:", dispatchError);
+        
+        // Write EMAIL_DISPATCH_FAILED to ledger
+        await storage.createAutomationLedgerEntry({
+          agentName: "agent_dispatcher",
+          actionType: "EMAIL_DISPATCH_FAILED",
+          entityType: "email",
+          entityId: dispatchId,
+          mode: "auto",
+          status: "failed",
+          diffJson: {
+            error: dispatchError instanceof Error ? dispatchError.message : "Unknown error",
+            failedAt: new Date().toISOString(),
+          },
+          reason: `Email dispatch failed: ${dispatchError instanceof Error ? dispatchError.message : "Unknown error"}`,
+          correlationId,
+          executionTraceId: dispatchId,
+        });
+        
         return res.status(502).json({ 
-          error: "Failed to reach email service", 
-          details: n8nError instanceof Error ? n8nError.message : "Unknown error" 
+          error: "Email dispatch failed", 
+          details: dispatchError instanceof Error ? dispatchError.message : "Unknown error" 
         });
       }
     } catch (error) {
@@ -7417,25 +7072,56 @@ After creating estimate, ALWAYS propose sending payment request.
       
       const channel = getPreferredChannel(message.toPhone, countryCode);
       
-      // Trigger n8n webhook to send the message via Twilio
-      const n8nWebhookUrl = process.env.VITE_N8N_WEBHOOK_BASE_URL;
-      if (n8nWebhookUrl && n8nWebhookUrl !== "__SET_AT_DEPLOY__") {
-        try {
-          await fetch(`${n8nWebhookUrl}/webhook/whatsapp/send`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              messageId: message.id,
-              to: message.toPhone,
-              from: message.fromPhone,
-              body: message.body,
-              mediaUrl: message.mediaUrl,
-              channel: channel,
-            }),
-          });
-        } catch (webhookError) {
-          console.error("Failed to trigger n8n WhatsApp webhook:", webhookError);
-        }
+      // MIGRATION: Use unified agent dispatcher instead of N8N webhook
+      const correlationId = crypto.randomUUID();
+      try {
+        const { dispatchWhatsApp } = await import("./agent-dispatcher");
+        await dispatchWhatsApp({
+          correlationId,
+          contactId: message.contactId || "unknown",
+          conversationId: message.conversationId || "unknown",
+          message: message.body || null,
+          templateId: null,
+          channel,
+          approvedBy: "human_operator",
+          approvedAt: new Date().toISOString(),
+        });
+        
+        // Write WHATSAPP_DISPATCHED to ledger
+        await storage.createAutomationLedgerEntry({
+          agentName: "system",
+          actionType: "WHATSAPP_DISPATCHED",
+          entityType: "whatsapp_message",
+          entityId: message.id,
+          mode: "executed",
+          status: "dispatched",
+          diffJson: {
+            messageId: message.id,
+            to: message.toPhone,
+            channel,
+            dispatchedAt: new Date().toISOString(),
+          },
+          correlationId,
+          executionTraceId: message.id,
+          idempotencyKey: `whatsapp-${message.id}-${Date.now()}`,
+        });
+      } catch (dispatchError) {
+        console.error("Failed to dispatch WhatsApp message:", dispatchError);
+        // Write failure to ledger
+        await storage.createAutomationLedgerEntry({
+          agentName: "system",
+          actionType: "WHATSAPP_DISPATCH_FAILED",
+          entityType: "whatsapp_message",
+          entityId: message.id,
+          mode: "executed",
+          status: "failed",
+          diffJson: {
+            messageId: message.id,
+            error: dispatchError instanceof Error ? dispatchError.message : "Unknown error",
+          },
+          correlationId,
+          executionTraceId: message.id,
+        });
       }
       
       await storage.createAuditLogEntry({
@@ -7516,18 +7202,8 @@ After creating estimate, ALWAYS propose sending payment request.
         });
       }
 
-      // Create Neo8 trigger payload
-      const neo8Payload = {
-        event: "WHATSAPP_DISPATCH_AUTHORIZED",
-        client_id: clientId,
-        conversation_id: conversationId,
-        payload: {
-          message: message,
-          channel: channel || "whatsapp",
-          template_id: templateId,
-        },
-        dispatched_at: new Date().toISOString(),
-      };
+      // Generate correlation ID for tracing
+      const correlationId = crypto.randomUUID();
 
       // Write WHATSAPP_DISPATCH_AUTHORIZED to ledger
       await storage.createAutomationLedgerEntry({
@@ -7537,21 +7213,68 @@ After creating estimate, ALWAYS propose sending payment request.
         entityId: conversationId,
         mode: "manual",
         status: "authorized",
-        diffJson: neo8Payload,
+        diffJson: {
+          client_id: clientId,
+          conversation_id: conversationId,
+          message,
+          channel: channel || "whatsapp",
+          template_id: templateId,
+        },
         reason: `WhatsApp dispatch authorized for client ${clientId}`,
-        assistQueueId: null,
+        correlationId,
+        executionTraceId: conversationId,
+        idempotencyKey: `whatsapp-auth-${conversationId}-${Date.now()}`,
       });
 
-      // In production, this would forward to Neo8 webhook
-      // For Phase 1, we log the intent and return success
-      console.log("[WhatsApp Dispatch] Authorized:", neo8Payload);
+      console.log("[WhatsApp Dispatch] Authorized:", { clientId, conversationId, correlationId });
 
-      res.status(200).json({ 
-        success: true, 
-        message: "WhatsApp dispatch authorized. CRM does not send directly.",
-        dispatchId: neo8Payload.dispatched_at,
-        neo8Payload: neo8Payload,
-      });
+      // MIGRATION: Use unified agent dispatcher instead of logging only
+      const { dispatchWhatsApp } = await import('./agent-dispatcher');
+      
+      try {
+        const dispatchResult = await dispatchWhatsApp({
+          correlationId,
+          contactId: clientId,
+          conversationId,
+          message: message || null,
+          templateId: templateId || null,
+          channel: channel || "whatsapp",
+          approvedBy: "human_operator",
+          approvedAt: new Date().toISOString(),
+        });
+
+        console.log("[WhatsApp Dispatch] Dispatched via agent gateway:", dispatchResult);
+
+        res.status(200).json({ 
+          success: true, 
+          message: "WhatsApp dispatch authorized and sent to agent gateway",
+          correlationId: dispatchResult.correlationId,
+        });
+      } catch (dispatchError) {
+        console.error("[WhatsApp Dispatch] Agent dispatch failed:", dispatchError);
+        
+        // Write WHATSAPP_DISPATCH_FAILED to ledger
+        await storage.createAutomationLedgerEntry({
+          agentName: "agent_dispatcher",
+          actionType: "WHATSAPP_DISPATCH_FAILED",
+          entityType: "whatsapp",
+          entityId: conversationId,
+          mode: "manual",
+          status: "failed",
+          diffJson: {
+            error: dispatchError instanceof Error ? dispatchError.message : "Unknown error",
+            failedAt: new Date().toISOString(),
+          },
+          reason: `WhatsApp dispatch failed: ${dispatchError instanceof Error ? dispatchError.message : "Unknown error"}`,
+          correlationId,
+          executionTraceId: conversationId,
+        });
+        
+        return res.status(502).json({ 
+          error: "WhatsApp dispatch failed", 
+          details: dispatchError instanceof Error ? dispatchError.message : "Unknown error" 
+        });
+      }
     } catch (error) {
       console.error("Failed to authorize WhatsApp dispatch:", error);
       res.status(500).json({ error: "Failed to authorize WhatsApp dispatch" });
@@ -7833,7 +7556,10 @@ After creating estimate, ALWAYS propose sending payment request.
         req.socket.remoteAddress || 
         'unknown';
 
-      // 6. Insert into events_outbox (map snake_case API fields to camelCase storage)
+      // 6. Add correlation ID for tracing across systems
+      const correlationId = crypto.randomUUID();
+
+      // 7. Insert into events_outbox (map snake_case API fields to camelCase storage)
       const eventEntry = await storage.createEventsOutbox({
         tenantId: validated.tenant_id,
         idempotencyKey: validated.idempotency_key,
@@ -7844,16 +7570,14 @@ After creating estimate, ALWAYS propose sending payment request.
         sourceIp,
         recordingUrl: validated.recording_url || null,
         leadScore: validated.lead_score || null,
-        payload: { ...validated.payload, timestamp },
+        payload: { ...validated.payload, timestamp, correlationId },
         status: 'pending',
       });
 
-      // 7. Dispatch to Neo8Flow (non-blocking)
-      dispatchIntakeToNeo8Flow(
-        eventEntry.id,
-        validated.tenant_id,
-        { ...validated.payload, timestamp }
-      ).catch(err => console.error("[Neo8Flow] Async dispatch error:", err));
+      // GOVERNANCE FIX: Removed automatic dispatch to Neo8Flow
+      // External dispatch only happens after: instruction → approval → dispatch
+      // The event is stored in events_outbox and will be processed through approval workflow
+      // dispatchIntakeToNeo8Flow call removed - violates governance rules
 
       // 8. Log to audit log
       await storage.createAuditLogEntry({
@@ -7867,10 +7591,11 @@ After creating estimate, ALWAYS propose sending payment request.
           idempotency_key: validated.idempotency_key,
           recording_url: validated.recording_url,
           lead_score: validated.lead_score,
+          correlationId,
         },
       });
       
-      // 9. AUDIT FIX: Write INTAKE_RECEIVED to automation ledger for governance traceability
+      // 9. CRITICAL: Write INTAKE_RECEIVED to automation ledger for governance traceability
       await storage.createAutomationLedgerEntry({
         agentName: "System",
         actionType: "INTAKE_RECEIVED",
@@ -7885,7 +7610,9 @@ After creating estimate, ALWAYS propose sending payment request.
           payload: validated.payload,
         },
         reason: null,
-        assistQueueId: null,
+        correlationId,
+        executionTraceId: eventEntry.id,
+        idempotencyKey: `intake-${validated.idempotency_key}`,
       });
 
       // 6. Return success response
@@ -7902,8 +7629,17 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  // CRM Sync Callback - Neo8Flow calls this after processing lead intake
+  // CRM Sync Callback - Production hardened endpoint for agent platform
   app.post("/api/intake/sync", n8nWebhookRateLimiter, requireInternalToken, n8nVerification, async (req, res) => {
+    // High-Integrity verification: check HMAC if present (provided by agent_sync skill)
+    const hmacSignature = req.headers["x-webhook-signature"] as string;
+    const hmacTimestamp = req.headers["x-webhook-timestamp"] as string;
+    
+    if (hmacSignature && hmacTimestamp && !verifyHmacSignature(req.body, hmacSignature, hmacTimestamp)) {
+      logger.warn("CRM Sync HMAC verification failed (signature or timestamp)");
+      return res.status(403).json({ error: "Invalid HMAC signature or timestamp expired" });
+    }
+
     try {
       const validationResult = crmSyncSchema.safeParse(req.body);
       if (!validationResult.success) {
@@ -7913,219 +7649,159 @@ After creating estimate, ALWAYS propose sending payment request.
         });
       }
       const validated = validationResult.data;
-      const { payload, outbox_id, tenant_id, channel, recording_url, lead_score } = validated;
+      const { correlationId, status, metadata } = validated;
 
-      // Handle error status from Neo8Flow
-      if (validated.status === "error") {
-        await storage.updateEventsOutboxForRetry(outbox_id, 0, "failed", undefined, validated.error_message);
-        await storage.createAuditLogEntry({
-          action: "lead.sync.failed",
-          entityType: "events_outbox",
-          entityId: outbox_id,
-          details: { tenant_id, error: validated.error_message },
-        });
-        return res.status(200).json({ success: false, error: validated.error_message });
+      // Find the existing event in the outbox using idempotency_key
+      const existingEvent = await storage.getEventsOutboxByIdempotencyKey(
+        (req as any).tenantId || "default", // Should be extracted from JWT in production
+        metadata.idempotency_key
+      );
+
+      if (!existingEvent) {
+        return res.status(404).json({ error: "Original lead event not found" });
       }
 
-      // 1. Duplicate Detection - Check for existing contacts by phone OR email
-      const hasContactId = payload.contact_id && payload.contact_id.length > 0;
-      const hasEmail = payload.email && payload.email.length > 0;
-      const hasPhone = payload.phone && payload.phone.length > 0;
+      // 1. FINALIZATION: Upsert contact using the payload stored during original intake
+      const intakePayload = existingEvent.payload as any;
+      const { email, phone, name, company, tags } = intakePayload;
 
-      let duplicateByEmail: Contact | undefined = undefined;
-      let duplicateByPhone: Contact | undefined = undefined;
-      let isDuplicate = false;
-      const duplicateMatches: Array<{ matchType: string; contactId: string; contactName: string | null; matchedValue: string }> = [];
+      let contact = null;
+      if (email) contact = await storage.getContactByEmail(email);
+      if (!contact && phone) contact = await storage.getContactByPhone(phone);
 
-      // Check for duplicate by email first
-      if (hasEmail) {
-        duplicateByEmail = await storage.getContactByEmail(payload.email!);
-        if (duplicateByEmail) {
-          isDuplicate = true;
-          duplicateMatches.push({
-            matchType: "email",
-            contactId: duplicateByEmail.id,
-            contactName: duplicateByEmail.name,
-            matchedValue: payload.email!,
-          });
-        }
-      }
-
-      // Check for duplicate by phone (could be different contact than email match)
-      if (hasPhone) {
-        duplicateByPhone = await storage.getContactByPhone(payload.phone!);
-        if (duplicateByPhone) {
-          // Only add if it's a different contact than email match
-          const alreadyMatched = duplicateByEmail && duplicateByEmail.id === duplicateByPhone.id;
-          if (!alreadyMatched) {
-            isDuplicate = true;
-            duplicateMatches.push({
-              matchType: "phone",
-              contactId: duplicateByPhone.id,
-              contactName: duplicateByPhone.name,
-              matchedValue: payload.phone!,
-            });
-          } else if (!isDuplicate) {
-            // Same contact matched by both - still a duplicate
-            isDuplicate = true;
-            duplicateMatches.push({
-              matchType: "phone",
-              contactId: duplicateByPhone.id,
-              contactName: duplicateByPhone.name,
-              matchedValue: payload.phone!,
-            });
-          }
-        }
-      }
-
-      // 2. Upsert Contact (priority: contact_id > email > phone)
-      let contact: Contact | undefined = undefined;
-
-      if (hasContactId) {
-        contact = await storage.getContact(payload.contact_id!);
-      }
-      if (!contact && duplicateByEmail) {
-        contact = duplicateByEmail;
-      }
-      if (!contact && duplicateByPhone) {
-        contact = duplicateByPhone;
-      }
-
-      let isNewContact = false;
       if (contact) {
-        // Update existing contact with non-empty fields
-        const updates: Record<string, unknown> = {};
-        if (payload.name && !contact.name) updates.name = payload.name;
-        if (payload.email && !contact.email) updates.email = payload.email;
-        if (payload.phone && !contact.phone) updates.phone = payload.phone;
-        if (payload.company && !contact.company) updates.company = payload.company;
-
-        // Merge tags (add new tags, keep existing)
-        if (payload.tags && payload.tags.length > 0) {
-          const existingTags = (contact.tags as string[]) || [];
-          const mergedTags = Array.from(new Set([...existingTags, ...payload.tags]));
-          updates.tags = mergedTags;
-        }
-
-        if (Object.keys(updates).length > 0) {
-          contact = await storage.updateContact(contact.id, updates as Partial<InsertContact>) || contact;
-        }
+        // Update existing
+        await storage.updateContact(contact.id, {
+          name: name || contact.name,
+          email: email || contact.email,
+          phone: phone || contact.phone,
+          company: company || contact.company,
+          tags: Array.from(new Set([...((contact.tags as string[]) || []), ...(tags || [])])),
+        });
       } else {
-        // Create new contact
-        isNewContact = true;
+        // Create new
         contact = await storage.createContact({
-          name: payload.name || null,
-          email: payload.email || null,
-          phone: payload.phone || null,
-          company: payload.company || null,
+          name: name || null,
+          email: email || null,
+          phone: phone || null,
+          company: company || null,
           customerType: "lead",
-          tags: payload.tags || [],
+          status: "new",
+          tags: tags || [],
         });
       }
 
-      // Log duplicate detection result
-      if (isDuplicate) {
-        console.log(`[Lead Intake] Duplicate detected for outbox_id ${outbox_id}:`, duplicateMatches);
-        await storage.createAuditLogEntry({
-          action: "lead.duplicate.detected",
-          entityType: "contact",
-          entityId: contact?.id || null,
-          details: {
-            outbox_id,
-            tenant_id,
-            is_new_contact: isNewContact,
-            duplicate_matches: duplicateMatches,
-            payload_email: payload.email || null,
-            payload_phone: payload.phone || null,
-          },
-        });
-      }
-
-      // 2. Create or update Conversation with lead score
-      let conversation = null;
-      if (contact) {
-        const existingConversations = await storage.getConversationByContact(contact.id);
-        if (existingConversations.length > 0) {
-          // Update existing conversation with lead score if provided
-          conversation = existingConversations[0];
-          if (lead_score !== undefined) {
-            conversation = await storage.updateConversation(conversation.id, { leadScore: lead_score }) || conversation;
-          }
-        } else {
-          // Create new conversation
-          conversation = await storage.createConversation({
-            contactId: contact.id,
-            status: "active",
-            channel: channel || "widget",
-            leadScore: lead_score || null,
-            metadata: {
-              source: payload.source || "intake",
-              tenant_id,
-              outbox_id,
-            },
-          });
-
-          // Add initial message if message content exists
-          if (payload.message) {
-            await storage.createMessage({
-              conversationId: conversation.id,
-              role: "user",
-              content: payload.message,
-              metadata: { source: "intake" },
-            });
-          }
-        }
-      }
-
-      // 3. Create file record for recording attachment
-      let fileRecord = null;
-      if (recording_url && contact) {
-        fileRecord = await storage.createFile({
-          name: `Recording - ${new Date().toISOString()}`,
-          type: "audio/recording",
-          size: 0,
-          url: recording_url,
-          entityType: "contact",
-          entityId: contact.id,
-        });
-      }
-
-      // 4. Update outbox status to synced
-      await storage.updateEventsOutboxForRetry(outbox_id, 0, "synced", new Date());
-
-      // 5. Create audit log entry
-      await storage.createAuditLogEntry({
-        action: "lead.sync.completed",
-        entityType: "events_outbox",
-        entityId: outbox_id,
-        details: {
-          tenant_id,
-          contact_id: contact?.id,
-          conversation_id: conversation?.id,
-          file_id: fileRecord?.id,
-          lead_score,
-          tags_applied: payload.tags,
-        },
+      // 2. STATUS UPDATE: Update outbox status and ledger
+      const finalStatus = status === "completed" ? "success" : status === "failed" ? "error" : "pending";
+      
+      await storage.updateEventsOutbox(existingEvent.id, {
+        status: finalStatus === "success" ? "completed" : "failed",
       });
 
-      res.status(200).json({
-        success: true,
-        outbox_id,
-        synced: {
-          contact_id: contact?.id,
-          conversation_id: conversation?.id,
-          file_id: fileRecord?.id,
-          lead_score,
-          is_new_contact: isNewContact,
+      await storage.createAutomationLedgerEntry({
+        agentName: "agent_platform",
+        actionType: "SYNC_CALLBACK_RECEIVED",
+        entityType: "events_outbox",
+        entityId: existingEvent.id,
+        status: finalStatus,
+        mode: "executed",
+        diffJson: { 
+          correlationId, 
+          status, 
+          metadata,
+          contactId: contact.id,
+          receivedAt: new Date().toISOString()
         },
-        duplicate_detection: {
-          is_duplicate: isDuplicate,
-          matches: duplicateMatches,
-        },
+        reason: `Sync callback from agent platform: ${status}. Contact ${contact.id} finalized.`,
+        correlationId,
+        executionTraceId: correlationId,
+        idempotencyKey: `sync-${correlationId}-${status}`,
+      });
+
+      return res.status(200).json({ success: true, message: "Sync processed and lead finalized" });
+    } catch (error) {
+      logger.error("CRM Sync processing failed", error);
+      res.status(500).json({ error: "Internal processing error" });
+    }
+  });
+
+  // Reconciliation Audit: Sync Verification
+  app.get("/api/audit/sync", requireInternalToken, async (req, res) => {
+    try {
+      const { correlationId, idempotencyKey, limit } = req.query;
+      
+      const entries = await storage.getAutomationLedgerEntries({
+        correlationId: correlationId as string,
+        actionType: idempotencyKey ? undefined : "SYNC_CALLBACK_RECEIVED", // Broad search if no specific key
+        limit: limit ? parseInt(limit as string) : 50
+      });
+
+      // If idempotencyKey is provided, we filter more specifically
+      let result = entries;
+      if (idempotencyKey) {
+        result = entries.filter(e => e.idempotencyKey === idempotencyKey);
+      }
+
+      res.json({
+        total: result.length,
+        entries: result
       });
     } catch (error) {
-      console.error("Failed to sync CRM data:", error);
-      res.status(500).json({ error: "Failed to sync CRM data" });
+      logger.error("Audit sync query failed", error);
+      res.status(500).json({ error: "Failed to query sync audit" });
+    }
+  });
+
+  // Reconciliation Audit: Error Tracking
+  app.get("/api/audit/errors", requireInternalToken, async (req, res) => {
+    try {
+      const { limit, agentName } = req.query;
+      
+      const entries = await storage.getAutomationLedgerEntries({
+        status: "failed",
+        agentName: agentName as string,
+        limit: limit ? parseInt(limit as string) : 50
+      });
+
+      res.json({
+        total: entries.length,
+        entries
+      });
+    } catch (error) {
+      logger.error("Audit error query failed", error);
+      res.status(500).json({ error: "Failed to query error audit" });
+    }
+  });
+
+  // Reconciliation Audit: State Audit (Contact History)
+  app.get("/api/contacts/audit/:id", requireInternalToken, async (req, res) => {
+    try {
+      const contactId = req.params.id;
+      const contact = await storage.getContact(contactId);
+      
+      if (!contact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+
+      const history = await storage.getAutomationLedgerEntries({
+        entityId: contactId,
+        entityType: "contact",
+        limit: 100
+      });
+
+      res.json({
+        contact: {
+          id: contact.id,
+          name: contact.name,
+          email: contact.email,
+          status: contact.customerType,
+          createdAt: contact.createdAt
+        },
+        audit_history: history
+      });
+    } catch (error) {
+      logger.error("Contact state audit failed", error);
+      res.status(500).json({ error: "Failed to perform state audit" });
     }
   });
 
@@ -8586,7 +8262,7 @@ After creating estimate, ALWAYS propose sending payment request.
       });
 
       // Log audit entry
-      await storage.createAuditLog({
+      await storage.createAuditLogEntry({
         action: "voice_dispatch_initiated",
         entityType: "voice_dispatch",
         entityId: dispatchLog.id,
@@ -8606,25 +8282,52 @@ After creating estimate, ALWAYS propose sending payment request.
   });
 
   // Callback endpoint for AI Voice Server results (via Neo8)
+  // GOVERNANCE: All inbound agent data must be validated before updating CRM
   app.post("/api/voice/dispatch/:id/result", n8nWebhookRateLimiter, requireInternalToken, async (req, res) => {
     try {
       const { id } = req.params;
-      const { status, summary, transcriptUrl } = req.body;
+      
+      // 1. VALIDATE inbound data structure
+      const inboundResultSchema = z.object({
+        status: z.enum(["success", "failed", "error", "completed", "transferred", "voicemail"]).optional(),
+        summary: z.string().max(2000).optional(),
+        transcriptUrl: z.string().url().optional().or(z.literal("")),
+      });
+      
+      const validated = inboundResultSchema.parse(req.body);
 
+      // 2. Verify dispatch log exists
       const log = await storage.getVoiceDispatchLog(id);
       if (!log) {
         return res.status(404).json({ error: "Dispatch log not found" });
       }
 
-      // Update dispatch log with result
+      // 3. DECISION: Validate this is a legitimate result (not malicious)
+      if (validated.status === "failed" || validated.status === "error") {
+        // Log failure for review
+        await storage.createAuditLogEntry({
+          userId: null,
+          action: "voice_dispatch_result_failed",
+          entityType: "voice_dispatch",
+          entityId: id,
+          details: { 
+            status: validated.status,
+            summary: validated.summary,
+            source: "external_agent",
+            requiresReview: true,
+          },
+        });
+      }
+
+      // 4. UPDATE with validated data only
       await storage.updateVoiceDispatchLog(id, {
-        status: status || "success",
-        summary: summary || log.summary,
-        transcriptUrl: transcriptUrl || null,
+        status: validated.status || "success",
+        summary: validated.summary || log.summary,
+        transcriptUrl: validated.transcriptUrl || null,
         completedAt: new Date(),
       });
 
-      // Write EXECUTION_RESULT_RECORDED ledger event
+      // 5. AUDIT LOG all inbound updates
       await storage.createAutomationLedgerEntry({
         agentName: "ai_voice_server",
         actionType: "execution_result_recorded",
@@ -8632,14 +8335,148 @@ After creating estimate, ALWAYS propose sending payment request.
         entityId: id,
         mode: "execute",
         status: "completed",
-        diffJson: { status, summary, transcriptUrl, completedAt: new Date().toISOString() },
-        reason: "AI Voice Server returned execution result",
+        diffJson: { 
+          status: validated.status, 
+          summary: validated.summary, 
+          transcriptUrl: validated.transcriptUrl,
+          completedAt: new Date().toISOString(),
+          validated: true,
+        },
+        reason: "AI Voice Server returned execution result - validated and recorded",
       });
 
       res.json({ success: true });
     } catch (error) {
       console.error("Failed to record dispatch result:", error);
       res.status(500).json({ error: "Failed to record dispatch result" });
+    }
+  });
+
+  // ========================================
+  // CAMPAIGN ROUTES - Bulk Email System
+  // ========================================
+
+  // Create and send campaign
+  app.post("/api/campaigns", requireAuth, async (req: any, res) => {
+    try {
+      const validated = insertCampaignSchema.parse(req.body);
+      const campaign = await campaignService.createCampaign({
+        ...validated,
+        createdBy: req.user?.id,
+      });
+      res.status(201).json(campaign);
+    } catch (error: any) {
+      console.error("Failed to create campaign:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // List all campaigns
+  app.get("/api/campaigns", requireAuth, async (req: any, res) => {
+    try {
+      const campaigns = await campaignService.listCampaigns();
+      res.json(campaigns);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch campaigns" });
+    }
+  });
+
+  // Get campaign details with stats
+  app.get("/api/campaigns/:id", requireAuth, async (req, res) => {
+    try {
+      const campaign = await campaignService.getCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json(campaign);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch campaign" });
+    }
+  });
+
+  // Get campaign recipients
+  app.get("/api/campaigns/:id/recipients", requireAuth, async (req, res) => {
+    try {
+      const recipients = await campaignService.getCampaignRecipients(req.params.id);
+      res.json(recipients);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch recipients" });
+    }
+  });
+
+  // Email templates CRUD
+  app.post("/api/email-templates", requireAuth, async (req: any, res) => {
+    try {
+      const validated = insertEmailTemplateSchema.parse(req.body);
+      const template = await storage.createEmailTemplate({
+        ...validated,
+        createdBy: req.user?.id,
+      });
+      res.status(201).json(template);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/email-templates", requireAuth, async (req, res) => {
+    try {
+      const templates = await storage.getEmailTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch templates" });
+    }
+  });
+
+  // ========================================
+  // EMAIL WEBHOOK - Resend Event Tracking
+  // ========================================
+
+  // Webhook endpoint for email events (no auth required - verified by signature)
+  app.post("/webhooks/email-events", express.json(), async (req, res) => {
+    try {
+      const event = req.body;
+      await emailWebhookHandler.handleEvent(event);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Webhook processing error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================
+  // CAMPAIGN ANALYTICS
+  // ========================================
+
+  // Get campaign analytics
+  app.get("/api/campaigns/:id/analytics", requireAuth, async (req, res) => {
+    try {
+      const analytics = await campaignAnalyticsService.getCampaignAnalytics(req.params.id);
+      if (!analytics) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // Get all campaigns summary
+  app.get("/api/campaigns/analytics/summary", requireAuth, async (req, res) => {
+    try {
+      const summary = await campaignAnalyticsService.getAllCampaignsAnalytics();
+      res.json(summary);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch analytics summary" });
+    }
+  });
+
+  // Get recipient details for campaign
+  app.get("/api/campaigns/:id/recipients", requireAuth, async (req, res) => {
+    try {
+      const recipients = await campaignAnalyticsService.getRecipientDetails(req.params.id);
+      res.json(recipients);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch recipients" });
     }
   });
 

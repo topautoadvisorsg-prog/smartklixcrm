@@ -18,7 +18,7 @@ export default function WidgetDemo() {
 
           {/* Features */}
           <div className="grid md:grid-cols-3 gap-6 mt-12">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <div className="bg-card p-6 rounded-lg shadow-md">
               <div className="text-4xl mb-4">🔧</div>
               <h3 className="text-lg font-semibold mb-2">Expert Service</h3>
               <p className="text-sm text-muted-foreground">
@@ -26,7 +26,7 @@ export default function WidgetDemo() {
               </p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <div className="bg-card p-6 rounded-lg shadow-md">
               <div className="text-4xl mb-4">⚡</div>
               <h3 className="text-lg font-semibold mb-2">Fast Response</h3>
               <p className="text-sm text-muted-foreground">
@@ -34,7 +34,7 @@ export default function WidgetDemo() {
               </p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <div className="bg-card p-6 rounded-lg shadow-md">
               <div className="text-4xl mb-4">💯</div>
               <h3 className="text-lg font-semibold mb-2">Guaranteed Work</h3>
               <p className="text-sm text-muted-foreground">
@@ -44,7 +44,7 @@ export default function WidgetDemo() {
           </div>
 
           {/* CTA */}
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg mt-12">
+          <div className="bg-card p-8 rounded-lg shadow-lg mt-12">
             <h2 className="text-2xl font-bold mb-4">Need Help?</h2>
             <p className="text-muted-foreground mb-6">
               Try our chat widget in the bottom-right corner! It's powered by AI
@@ -58,7 +58,7 @@ export default function WidgetDemo() {
           </div>
 
           {/* Instructions */}
-          <div className="mt-12 text-left bg-gray-50 dark:bg-gray-900 p-6 rounded-lg">
+          <div className="mt-12 text-left bg-muted p-6 rounded-lg">
             <h3 className="text-lg font-semibold mb-4">Widget Demo Instructions:</h3>
             <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
               <li>Click the chat bubble in the bottom-right corner</li>

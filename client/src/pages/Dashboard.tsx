@@ -193,17 +193,36 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="flex items-end justify-between gap-1 h-48">
-                {[...Array(24)].map((_, i) => {
-                  const height = Math.floor(Math.random() * 80) + 15;
-                  return (
-                    <div key={i} className="flex-1 flex flex-col justify-end group">
-                      <div 
-                        className="w-full bg-gradient-to-t from-primary/30 to-primary rounded-t-sm hover:from-primary/50 hover:to-primary transition-all"
-                        style={{ height: `${height}%` }}
-                      />
-                    </div>
-                  );
-                })}
+                {(() => {
+                  // Group audit log entries by hour for the last 24 hours
+                  const now = new Date();
+                  const hourlyCounts = new Array(24).fill(0);
+                  
+                  auditLog.forEach((entry) => {
+                    const entryTime = new Date(entry.timestamp);
+                    const hoursAgo = Math.floor((now.getTime() - entryTime.getTime()) / (1000 * 60 * 60));
+                    if (hoursAgo >= 0 && hoursAgo < 24) {
+                      hourlyCounts[23 - hoursAgo]++;
+                    }
+                  });
+                  
+                  const maxCount = Math.max(...hourlyCounts, 1);
+                  
+                  return hourlyCounts.map((count, i) => {
+                    const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                    return (
+                      <div key={i} className="flex-1 flex flex-col justify-end group relative">
+                        <div 
+                          className="w-full bg-gradient-to-t from-primary/30 to-primary rounded-t-sm hover:from-primary/50 hover:to-primary transition-all"
+                          style={{ height: `${Math.max(height, 5)}%` }}
+                        />
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-popover text-popover-foreground text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                          {count} events
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
               <div className="flex justify-between mt-2 text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
                 <span>12AM</span>

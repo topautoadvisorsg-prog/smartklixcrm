@@ -22,8 +22,8 @@ import type { Job } from "@shared/schema";
 
 const editJobSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  value: z.string().optional(),
+  scope: z.string().optional(),
+  estimatedValue: z.string().optional(),
   jobNumber: z.string().optional(),
 });
 
@@ -46,8 +46,8 @@ export default function EditJobDialog({
     resolver: zodResolver(editJobSchema),
     defaultValues: {
       title: job.title || "",
-      description: job.description || "",
-      value: job.value ? String(job.value) : "",
+      scope: job.scope || "",
+      estimatedValue: job.estimatedValue ? String(job.estimatedValue) : "",
       jobNumber: job.jobNumber || "",
     },
   });
@@ -56,8 +56,8 @@ export default function EditJobDialog({
     if (open) {
       form.reset({
         title: job.title || "",
-        description: job.description || "",
-        value: job.value ? String(job.value) : "",
+        scope: job.scope || "",
+        estimatedValue: job.estimatedValue ? String(job.estimatedValue) : "",
         jobNumber: job.jobNumber || "",
       });
     }
@@ -67,17 +67,17 @@ export default function EditJobDialog({
     mutationFn: async (data: EditJobFormData) => {
       const payload: Record<string, unknown> = {
         title: data.title,
-        description: data.description || null,
+        scope: data.scope || null,
         jobNumber: data.jobNumber || null,
       };
       
-      if (data.value && data.value.trim()) {
-        const parsedValue = parseFloat(data.value);
+      if (data.estimatedValue && data.estimatedValue.trim()) {
+        const parsedValue = parseFloat(data.estimatedValue);
         if (!isNaN(parsedValue)) {
-          payload.value = parsedValue;
+          payload.estimatedValue = parsedValue;
         }
       } else {
-        payload.value = null;
+        payload.estimatedValue = null;
       }
       
       return apiRequest(`/api/jobs/${job.id}`, "PATCH", payload);

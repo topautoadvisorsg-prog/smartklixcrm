@@ -5,6 +5,7 @@ type Status = "draft" | "assist" | "auto" | "new" | "in_progress" | "completed" 
 interface StatusBadgeProps {
   status: string;
   label?: string;
+  className?: string;
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -30,13 +31,13 @@ const defaultConfig = {
   className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" 
 };
 
-export default function StatusBadge({ status, label }: StatusBadgeProps) {
+export default function StatusBadge({ status, label, className }: StatusBadgeProps) {
   const config = statusConfig[status] || defaultConfig;
   const displayLabel = label || config.label;
   const displayStatus = status || "unknown";
   
   return (
-    <Badge className={config.className} data-testid={`badge-${displayStatus}`}>
+    <Badge className={`${config.className} ${className || ""}`} data-testid={`badge-${displayStatus}`}>
       {displayLabel}
     </Badge>
   );

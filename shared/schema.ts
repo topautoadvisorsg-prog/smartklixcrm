@@ -27,8 +27,15 @@ export const contacts = pgTable("contacts", {
   avatar: text("avatar"),
   // Customer type: customer, lead, prospect
   customerType: text("customer_type").notNull().default("lead"),
+  // Contact type: individual or business
+  contactType: text("contact_type").notNull().default("individual"), // individual | business
+  // Lead source tracking
+  source: text("source").default("manual"), // crawler, manual, referral, intake
   // Niche/industry for agent routing (healthcare, construction, etc.)
+  // NOTE: UI label changed to "Industry" for agency context
   niche: text("niche"),
+  // Client website URL (essential for web/marketing agencies)
+  website: text("website"),
   // Preferred contact channel for agents (email, whatsapp, sms)
   preferredChannel: text("preferred_channel").default("email"),
   // Agent integration tracking
@@ -39,11 +46,17 @@ export const contacts = pgTable("contacts", {
   billingCity: text("billing_city"),
   billingState: text("billing_state"),
   billingZip: text("billing_zip"),
+  // General contact fields
+  title: text("title"),
+  address: text("address"),
+  deletedAt: timestamp("deleted_at"),
   // Stripe integration
   stripeCustomerId: text("stripe_customer_id"),
   // Google Drive integration
   driveFolderId: text("drive_folder_id"),
   driveFolderUrl: text("drive_folder_url"),
+  // Metadata for email tracking, agent data, etc.
+  metadata: jsonb("metadata").default(sql`'{}'::jsonb`),
   // Tags for categorization
   tags: text("tags").array().default(sql`ARRAY[]::text[]`),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -163,10 +176,15 @@ export const jobs = pgTable("jobs", {
   clientId: varchar("client_id").references(() => contacts.id),
   locationId: varchar("location_id").references(() => locations.id), // Service location for this job
   status: text("status").notNull().default("lead_intake"),
-  value: numeric("value"),
+  estimatedValue: numeric("estimated_value"), // renamed from value
+  actualValue: numeric("actual_value"), // actual billed amount from invoices
   deadline: timestamp("deadline"),
-  description: text("description"),
-  jobType: text("job_type").notNull().default("lead"),
+  scope: text("scope"), // renamed from description - service scope/deliverables
+  jobType: text("job_type").notNull().default("project"), // project, recurring, emergency
+  // Agency-specific fields
+  projectType: text("project_type").default("website"), // website, marketing, consulting
+  repositoryUrl: text("repository_url"), // GitHub, GitLab
+  designUrl: text("design_url"), // Figma, Sketch
   jobNumber: text("job_number"),
   scheduledStart: timestamp("scheduled_start"),
   scheduledEnd: timestamp("scheduled_end"),
@@ -186,6 +204,65 @@ export const jobs = pgTable("jobs", {
   statusIdx: index("jobs_status_idx").on(table.status),
   locationIdIdx: index("jobs_location_id_idx").on(table.locationId),
   priorityIdx: index("jobs_priority_idx").on(table.priority),
+}));
+
+// ========================================
+// FIELD REPORTS (Mobile App / Field Worker Input)
+// ========================================
+// Purpose: Structured field documentation tied to jobs and contacts
+// Every report must have a type for proper categorization
+
+export const fieldReports = pgTable("field_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: varchar("job_id").notNull().references(() => jobs.id, { onDelete: "cascade" }),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("progress"), // progress | issue | completion | inspection
+  observations: text("observations"), // what was observed/found (renamed from notes)
+  actionsTaken: text("actions_taken"), // what actions were performed
+  recommendations: text("recommendations"), // recommended next steps
+  severity: text("severity").default("low"), // low, medium, high, critical - for issue-type reports
+  resolutionStatus: text("resolution_status").default("open"), // open, in_progress, resolved, escalated - for issues
+  startedAt: timestamp("started_at").defaultNow(), // work start time
+  completedAt: timestamp("completed_at"), // work end time
+  durationMinutes: integer("duration_minutes"), // calculated duration
+  photos: text("photos").array().default(sql`ARRAY[]::text[]`), // array of photo URLs
+  statusUpdate: text("status_update"), // progress description (kept for backward compatibility)
+  createdBy: varchar("created_by").references(() => users.id), // worker who created report
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  jobIdIdx: index("field_reports_job_id_idx").on(table.jobId),
+  contactIdIdx: index("field_reports_contact_id_idx").on(table.contactId),
+  typeIdx: index("field_reports_type_idx").on(table.type),
+}));
+
+// ========================================
+// FINANCIAL RECORDS (Internal Job Economics Tracking)
+// ========================================
+// Purpose: Operational tracking of job-level income/expenses
+// This is SEPARATE from invoices/payments (external billing system)
+// Financial Records = internal tracking, Invoices/Payments = customer billing
+
+export const financialRecords = pgTable("financial_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: varchar("job_id").references(() => jobs.id, { onDelete: "set null" }),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // income | expense
+  category: text("category").notNull().default("other"), // materials, labor, travel, equipment, subcontractor, permit, payment_received, refund, other
+  amount: numeric("amount").notNull(),
+  isEstimated: boolean("is_estimated").notNull().default(false), // estimated vs actual flag
+  paymentStatus: text("payment_status").default("pending"), // pending, completed, failed, refunded
+  paymentMethod: text("payment_method"), // cash, card, bank_transfer, check, online, other
+  transactionRef: text("transaction_ref"), // external reference/transaction ID
+  isBillable: boolean("is_billable").notNull().default(true), // whether expense can be billed to client
+  description: text("description"),
+  date: timestamp("date").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  jobIdIdx: index("financial_records_job_id_idx").on(table.jobId),
+  contactIdIdx: index("financial_records_contact_id_idx").on(table.contactId),
+  typeIdx: index("financial_records_type_idx").on(table.type),
+  dateIdx: index("financial_records_date_idx").on(table.date),
+  categoryIdx: index("financial_records_category_idx").on(table.category),
 }));
 
 export const appointments = pgTable("appointments", {
@@ -273,6 +350,20 @@ export const estimates = pgTable("estimates", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// ========================================
+// JOB TASKS (Checklist items for jobs)
+// ========================================
+
+export const jobTasks = pgTable("job_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: varchar("job_id").notNull().references(() => jobs.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  jobIdIdx: index("job_tasks_job_id_idx").on(table.jobId),
+}));
 
 export const invoices = pgTable("invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -371,6 +462,10 @@ export const paymentSlips = pgTable("payment_slips", {
   contactIdIdx: index("payment_slips_contact_id_idx").on(table.contactId),
 }));
 
+/**
+ * @deprecated Legacy queue system. Retained for rollback safety.
+ * All new flows use staged_proposals.
+ */
 export const assistQueue = pgTable("assist_queue", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
@@ -395,6 +490,9 @@ export const assistQueue = pgTable("assist_queue", {
   // P0 HARDENING: Idempotency & Governance
   idempotencyKey: varchar("idempotency_key").unique(), // UUID-based deduplication key
   reasoningSummary: text("reasoning_summary"), // AI decision rationale for audit trail
+  // VALIDATOR INTEGRATION: Decision tracking
+  validatorDecision: text("validator_decision"), // approve/reject from validator
+  validatorRiskLevel: text("validator_risk_level"), // low/medium/high/critical
   // P1 HARDENING: Rejection escalation
   rejectionCount: integer("rejection_count").notNull().default(0), // Twice-rejected → escalate
   escalatedToOperator: boolean("escalated_to_operator").notNull().default(false), // Flagged for operator review
@@ -559,9 +657,12 @@ export const aiSettings = pgTable("ai_settings", {
   actionAiConstraints: jsonb("action_ai_constraints").default(sql`'[]'::jsonb`),
   actionAiEnabled: boolean("action_ai_enabled").notNull().default(true),
   
-  // Master Architect - Proposal validation (uses masterArchitectConfig for detailed settings)
+  // Master Architect - Proposal validation (DEPRECATED)
+  /** @deprecated Master Architect removed. All validation now handled by validator.ts. */
   masterArchitectPrompt: text("master_architect_prompt"),
+  /** @deprecated Master Architect removed. All validation now handled by validator.ts. */
   masterArchitectConstraints: jsonb("master_architect_constraints").default(sql`'[]'::jsonb`),
+  /** @deprecated Master Architect removed. All validation now handled by validator.ts. */
   masterArchitectEnabled: boolean("master_architect_enabled").notNull().default(true),
   
   // Global settings
@@ -577,6 +678,10 @@ export const aiSettings = pgTable("ai_settings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+/**
+ * @deprecated Master Architect removed. All validation now handled by validator.ts.
+ * Table retained for database compatibility only.
+ */
 export const masterArchitectConfig = pgTable("master_architect_config", {
   id: varchar("id").primaryKey().default('default'),
   model: text("model").notNull().default("gpt-4o"),
@@ -657,16 +762,136 @@ export const insertUserSchema = createInsertSchema(users).pick({
   role: true,
 });
 
+export const campaigns = pgTable("campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(), // HTML email body
+  filters: jsonb("filters").default(sql`'{}'::jsonb`), // { tags: [], pipelineStage: "", customerType: "" }
+  status: text("status").notNull().default("draft"), // draft, queued, processing, sending, completed, failed
+  createdBy: varchar("created_by").references(() => users.id),
+  totalRecipients: integer("total_recipients").notNull().default(0),
+  sentCount: integer("sent_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  statusIdx: index("campaigns_status_idx").on(table.status),
+  createdByIdx: index("campaigns_created_by_idx").on(table.createdBy),
+}));
+
+export const campaignRecipients = pgTable("campaign_recipients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  status: text("status").notNull().default("pending"), // pending, sent, delivered, failed, bounced, soft_bounced, complained
+  providerMessageId: text("provider_message_id"), // Resend message ID
+  error: text("error"),
+  sentAt: timestamp("sent_at"),
+  metadata: jsonb("metadata").default(sql`'{}'::jsonb`), // Tracking data: opens, clicks, bounces
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  campaignIdIdx: index("campaign_recipients_campaign_id_idx").on(table.campaignId),
+  contactIdIdx: index("campaign_recipients_contact_id_idx").on(table.contactId),
+  statusIdx: index("campaign_recipients_status_idx").on(table.status),
+  providerMessageIdIdx: index("campaign_recipients_provider_msg_idx").on(table.providerMessageId),
+}));
+
+// Email templates for campaigns
+export const emailTemplates = pgTable("email_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(), // HTML body with optional {{placeholders}}
+  createdBy: varchar("created_by").references(() => users.id),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  isActiveIdx: index("email_templates_active_idx").on(table.isActive),
+}));
+
+export const insertCampaignSchema = createInsertSchema(campaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  sentCount: true,
+  failedCount: true,
+  startedAt: true,
+  completedAt: true,
+});
+
+export const insertCampaignRecipientSchema = createInsertSchema(campaignRecipients).omit({
+  id: true,
+  createdAt: true,
+  sentAt: true,
+});
+
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type InsertCampaignRecipient = z.infer<typeof insertCampaignRecipientSchema>;
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type Campaign = typeof campaigns.$inferSelect;
+export type CampaignRecipient = typeof campaignRecipients.$inferSelect;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+
 export const insertContactSchema = createInsertSchema(contacts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
+  lastContactedAt: true,
+  nextFollowUpAt: true,
+  driveFolderId: true,
+  driveFolderUrl: true,
+  metadata: true,
+}).extend({
+  name: z.string().max(500, "Name must be less than 500 characters").nullish(),
+  email: z.string().max(500, "Email must be less than 500 characters").nullish(),
+  phone: z.string().max(50, "Phone must be less than 50 characters").nullish(),
+  company: z.string().max(500, "Company must be less than 500 characters").nullish(),
+  website: z.string().max(500, "Website must be less than 500 characters").nullish(),
+  address: z.string().max(1000, "Address must be less than 1000 characters").nullish(),
+  stripeCustomerId: z.string().max(500).nullish(),
 });
 
 export const insertJobSchema = createInsertSchema(jobs).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  actualValue: true, // calculated from invoices
+  jobNumber: true, // auto-generated
+}).extend({
+  title: z.string().max(500, "Title must be less than 500 characters"),
+  scope: z.string().max(5000, "Scope must be less than 5000 characters").optional(),
+});
+
+export const insertFieldReportSchema = createInsertSchema(fieldReports).omit({
+  id: true,
+  createdAt: true,
+  durationMinutes: true, // auto-calculated
+}).extend({
+  observations: z.string().max(5000, "Observations must be less than 5000 characters").optional(),
+  actionsTaken: z.string().max(5000, "Actions taken must be less than 5000 characters").optional(),
+  recommendations: z.string().max(5000, "Recommendations must be less than 5000 characters").optional(),
+  statusUpdate: z.string().max(2000, "Status update must be less than 2000 characters").optional(),
+});
+
+export const insertFinancialRecordSchema = createInsertSchema(financialRecords).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  description: z.string().max(2000, "Description must be less than 2000 characters").nullish(),
+  category: z.string().max(500, "Category must be less than 500 characters").nullish().default("other"),
+  transactionRef: z.string().max(500, "Transaction ref must be less than 500 characters").nullish(),
 });
 
 // ========================================
@@ -738,6 +963,11 @@ export const insertEstimateSchema = createInsertSchema(estimates).omit({
   updatedAt: true,
 });
 
+export const insertJobTaskSchema = createInsertSchema(jobTasks).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   createdAt: true,
@@ -801,6 +1031,10 @@ export type Contact = typeof contacts.$inferSelect;
 export type InsertContact = z.infer<typeof insertContactSchema>;
 export type Job = typeof jobs.$inferSelect;
 export type InsertJob = z.infer<typeof insertJobSchema>;
+export type FieldReport = typeof fieldReports.$inferSelect;
+export type InsertFieldReport = z.infer<typeof insertFieldReportSchema>;
+export type FinancialRecord = typeof financialRecords.$inferSelect;
+export type InsertFinancialRecord = z.infer<typeof insertFinancialRecordSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Note = typeof notes.$inferSelect;
@@ -811,6 +1045,8 @@ export type AuditLogEntry = typeof auditLog.$inferSelect;
 export type InsertAuditLogEntry = z.infer<typeof insertAuditLogSchema>;
 export type Estimate = typeof estimates.$inferSelect;
 export type InsertEstimate = z.infer<typeof insertEstimateSchema>;
+export type JobTask = typeof jobTasks.$inferSelect;
+export type InsertJobTask = z.infer<typeof insertJobTaskSchema>;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Payment = typeof payments.$inferSelect;
@@ -850,11 +1086,14 @@ export const insertAiSettingsSchema = createInsertSchema(aiSettings).omit({
 });
 export type InsertAiSettings = z.infer<typeof insertAiSettingsSchema>;
 
+/** @deprecated Master Architect removed. All validation now handled by validator.ts. */
 export const insertMasterArchitectConfigSchema = createInsertSchema(masterArchitectConfig).omit({
   id: true,
   updatedAt: true,
 });
+/** @deprecated Master Architect removed. */
 export type InsertMasterArchitectConfig = z.infer<typeof insertMasterArchitectConfigSchema>;
+/** @deprecated Master Architect removed. */
 export type MasterArchitectConfig = typeof masterArchitectConfig.$inferSelect;
 
 export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({
@@ -1187,6 +1426,8 @@ export const automationLedger = pgTable("automation_ledger", {
   reasoningSummary: text("reasoning_summary"), // AI decision rationale for forensics
   // Execution tracing
   executionTraceId: varchar("execution_trace_id"), // Links intake → proposal → execution
+  // Correlation spine for tracing across systems
+  correlationId: varchar("correlation_id"), // Links related events across proposal/dispatch/callback
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
   agentNameIdx: index("automation_ledger_agent_name_idx").on(table.agentName),
@@ -1197,6 +1438,7 @@ export const automationLedger = pgTable("automation_ledger", {
   timestampIdx: index("automation_ledger_timestamp_idx").on(table.timestamp),
   idempotencyKeyIdx: index("automation_ledger_idempotency_key_idx").on(table.idempotencyKey),
   executionTraceIdx: index("automation_ledger_trace_id_idx").on(table.executionTraceId),
+  correlationIdIdx: index("automation_ledger_correlation_id_idx").on(table.correlationId),
 }));
 
 export const insertAutomationLedgerSchema = createInsertSchema(automationLedger).omit({
@@ -1282,3 +1524,56 @@ export const insertDocumentArtifactSchema = createInsertSchema(documentArtifacts
 });
 export type InsertDocumentArtifact = z.infer<typeof insertDocumentArtifactSchema>;
 export type DocumentArtifact = typeof documentArtifacts.$inferSelect;
+
+// ========================================
+// STAGED PROPOSALS (AI Agent Proposal Queue)
+// ========================================
+
+export const stagedProposals = pgTable("staged_proposals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, dispatched, dispatch_failed, failed
+  actions: jsonb("actions").notNull(), // array of {tool, args}
+  reasoning: text("reasoning"),
+  riskLevel: text("risk_level"),
+  summary: text("summary"),
+  relatedEntity: jsonb("related_entity"), // {type, id} or null
+  approvedBy: text("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  // Governance columns from assist_queue migration
+  userId: text("user_id"),
+  origin: text("origin").notNull().default("ai_chat"), // "voice" | "ai_chat" | "gpt_actions" | "admin_chat" | "webhook"
+  userRequest: text("user_request"),
+  validatorDecision: text("validator_decision"), // "approve" | "reject"
+  validatorReason: text("validator_reason"),
+  requiresApproval: boolean("requires_approval").default(true),
+  rejectedBy: text("rejected_by"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectionReason: text("rejection_reason"),
+  executedAt: timestamp("executed_at"),
+  completedAt: timestamp("completed_at"),
+  idempotencyKey: varchar("idempotency_key", { length: 255 }),
+  escalatedToOperator: boolean("escalated_to_operator").default(false),
+  mode: text("mode"), // agentMode at time of creation
+  // Correlation spine for tracing across systems
+  correlationId: varchar("correlation_id"), // Links proposal → ledger → dispatch → callback
+});
+
+export const insertStagedProposalSchema = createInsertSchema(stagedProposals).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertStagedProposal = z.infer<typeof insertStagedProposalSchema>;
+export type StagedProposal = typeof stagedProposals.$inferSelect;
+
+/** Standardized structured intent — all AI outputs must conform to this shape */
+export type ActionDraft = {
+  action: string;
+  payload: Record<string, unknown>;
+  target?: string;
+  targetId?: string;
+  riskLevel: "low" | "medium" | "high" | "critical";
+  reasoning: string;
+  requiresApproval: boolean;
+};
