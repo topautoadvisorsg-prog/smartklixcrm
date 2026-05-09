@@ -10,7 +10,6 @@ import jwt from "jsonwebtoken";
  * 3. HMAC signature generation for outbound callbacks
  */
 
-const INTERNAL_SECRET = process.env.AGENT_INTERNAL_TOKEN || process.env.N8N_INTERNAL_TOKEN || "__SET_AT_DEPLOY__";
 const WEBHOOK_SECRET = process.env.AGENT_WEBHOOK_SECRET || "__SET_AT_DEPLOY__";
 
 const JWT_ISSUER = "smartklix-agent-platform";
@@ -22,18 +21,21 @@ const JWT_AUDIENCE = "smartklix-crm";
  */
 export function verifyInternalToken(token: string): boolean {
   if (!token) return false;
-  
-  // Legacy support: check if it's the raw static token first
-  if (token === INTERNAL_SECRET) return true;
-  
+
+  // Read at call time so tests can override via process.env before the first request
+  const secret = process.env.AGENT_INTERNAL_TOKEN || process.env.N8N_INTERNAL_TOKEN || "__SET_AT_DEPLOY__";
+
+  // Legacy support: raw static token
+  if (token === secret) return true;
+
   try {
-    // Attempt JWT verification with strict production rules
-    const decoded = jwt.verify(token, INTERNAL_SECRET, { 
+    // JWT verification with strict production rules
+    const decoded = jwt.verify(token, secret, {
       algorithms: ["HS256"],
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     }) as any;
-    
+
     // Ensure tenant_id is present in claims
     return !!decoded.tenant_id;
   } catch (err) {

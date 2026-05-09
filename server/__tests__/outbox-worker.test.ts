@@ -135,12 +135,9 @@ describe('Outbox Worker - Circuit Breaker Logic', () => {
       return true;
     }
 
-    return {
-      ...state,
-      recordSuccess,
-      recordFailure,
-      isCircuitOpen,
-    };
+    // Attach methods directly to `state` so property reads (cb.state, cb.failures)
+    // reflect mutations made by the methods — spread would create a stale snapshot.
+    return Object.assign(state, { recordSuccess, recordFailure, isCircuitOpen });
   }
 
   describe('circuit breaker states', () => {

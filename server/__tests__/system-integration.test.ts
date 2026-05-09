@@ -23,14 +23,13 @@ describe('System Integration - Storage Layer', () => {
   describe('Contacts', () => {
     it('should create and retrieve a contact', async () => {
       const contact = await storage.createContact({
-        firstName: "John",
-        lastName: "Doe",
+        name: "John Doe",
         email: "john@example.com",
         phone: "+1234567890",
       });
 
       expect(contact.id).toBeDefined();
-      expect(contact.firstName).toBe("John");
+      expect(contact.name).toBe("John Doe");
       expect(contact.email).toBe("john@example.com");
       expect(contact.createdAt).toBeDefined();
 
@@ -41,32 +40,32 @@ describe('System Integration - Storage Layer', () => {
 
     it('should update a contact', async () => {
       const contact = await storage.createContact({
-        firstName: "John",
+        name: "John",
         email: "john@example.com",
       });
 
       const updated = await storage.updateContact(contact.id, {
-        lastName: "Doe",
+        company: "Acme Corp",
       });
 
       expect(updated).toBeDefined();
-      expect(updated?.lastName).toBe("Doe");
+      expect(updated?.company).toBe("Acme Corp");
     });
 
     it('should list contacts', async () => {
-      await storage.createContact({ firstName: "John", email: "john@example.com" });
-      await storage.createContact({ firstName: "Jane", email: "jane@example.com" });
+      await storage.createContact({ name: "John Doe", email: "john@example.com" });
+      await storage.createContact({ name: "Jane Doe", email: "jane@example.com" });
 
       const contacts = await storage.getContacts();
       expect(contacts.length).toBeGreaterThanOrEqual(2);
     });
 
     it('should search contacts by email', async () => {
-      await storage.createContact({ firstName: "John", email: "john@example.com" });
+      await storage.createContact({ name: "John Doe", email: "john.search@example.com" });
 
-      const contact = await storage.getContactByEmail("john@example.com");
+      const contact = await storage.getContactByEmail("john.search@example.com");
       expect(contact).toBeDefined();
-      expect(contact?.firstName).toBe("John");
+      expect(contact?.name).toBe("John Doe");
     });
   });
 
@@ -116,7 +115,7 @@ describe('System Integration - Storage Layer', () => {
       expect(entry.id).toBeDefined();
       expect(entry.agentName).toBe("test_agent");
       expect(entry.actionType).toBe("TEST_ACTION");
-      expect(entry.createdAt).toBeDefined();
+      expect(entry.timestamp).toBeDefined();
     });
 
     it('should create ledger entry with correlation ID', async () => {
@@ -253,10 +252,10 @@ describe('System Integration - Storage Layer', () => {
         actions: [],
         status: "pending",
         relatedEntity: { type: "contact", id: "contact-123" },
-        metadata: { correlationId },
+        correlationId,
       });
 
-      expect((proposal.metadata as any).correlationId).toBe(correlationId);
+      expect(proposal.correlationId).toBe(correlationId);
     });
 
     it('should update proposal status', async () => {
@@ -298,10 +297,10 @@ describe('System Integration - Correlation Spine', () => {
       actions: [],
       status: "pending",
       relatedEntity: { type: "contact", id: "contact-123" },
-      metadata: { correlationId },
+      correlationId,
     });
 
-    expect((proposal.metadata as any).correlationId).toBe(correlationId);
+    expect(proposal.correlationId).toBe(correlationId);
 
     // 2. Create ledger entry with same correlation ID
     const ledgerEntry = await storage.createAutomationLedgerEntry({
@@ -332,7 +331,7 @@ describe('System Integration - Correlation Spine', () => {
     expect((outboxEntry.payload as any).correlationId).toBe(correlationId);
 
     // Verify all three share the same correlation ID
-    expect((proposal.metadata as any).correlationId).toBe(ledgerEntry.correlationId);
+    expect(proposal.correlationId).toBe(ledgerEntry.correlationId);
     expect(ledgerEntry.correlationId).toBe((outboxEntry.payload as any).correlationId);
   });
 

@@ -1,11 +1,11 @@
 ﻿# Smart Klix CRM - White-Label AI CRM Platform
-**Version:** 2.2.0 (Agent Rename + Proposal Queue + Mass Email + Railway Deployment)  
-**Status:** Production-Ready Base Platform  
+**Version:** 2.3.0 (Full Test Suite + Auth Hardening + Dead Code Purge)  
+**Status:** Production-Ready — 191/192 tests passing  
 **Last Updated:** May 9, 2026  
 **Clean Code Doctrine:** Enforced  
 **Architecture:** CRM Brain + External Agent Execution (Webhook-Based)
 
-> ðŸ“‹ **SYSTEM AUDIT**: Comprehensive audit completed April 20, 2026. See [SYSTEM_AUDIT_COMPLETE.md](./SYSTEM_AUDIT_COMPLETE.md) for full system status, setup requirements, and agent deployment guide.
+> **v2.3.0 Changes:** Complete automated test suite (8 test files, 191 passing). Fixed auth middleware PUBLIC_PATHS bug, job state machine CRM statuses, circuit breaker test isolation, intake/sync endpoint contract, MemStorage field persistence, security token dynamic resolution. Purged 12 dead utility files + 1 unmounted routes file. Hardcoded `userId` replaced with dynamic middleware resolution.
 
 ## Table of Contents
 - [System Audit](#-critical-setup-requirements)

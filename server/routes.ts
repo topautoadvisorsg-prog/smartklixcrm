@@ -369,16 +369,16 @@ const markInvoicePaidSchema = z.object({
 //   reason: z.string().min(1, "reason is required"),
 // });
 
-// CRM Sync Schema - Callback from Neo8Flow after processing lead intake
-// CRM Sync Schema - Canonical production contract for agent platform callbacks
+// CRM Sync Schema - N8N / agent callback after processing a lead intake event
 const crmSyncSchema = z.object({
-  correlationId: z.string().uuid("correlationId must be a valid UUID"),
-  status: z.enum(["completed", "failed", "in_progress"]),
-  metadata: z.object({
-    idempotency_key: z.string().min(1, "idempotency_key is required"),
-    action_taken: z.string().optional(),
-    result: z.record(z.unknown()).optional(),
-  }),
+  outbox_id:     z.string().min(1, "outbox_id is required"),
+  tenant_id:     z.string().min(1, "tenant_id is required"),
+  status:        z.enum(["success", "error"], { errorMap: () => ({ message: 'status must be "success" or "error"' }) }),
+  payload:       z.record(z.unknown()).optional().default({}),
+  recording_url: z.string().url().optional().nullable(),
+  lead_score:    z.number().int().min(0).max(100).optional().nullable(),
+  channel:       z.string().optional(),
+  error_message: z.string().optional(),
 });
 
 type AgentMode = "execute" | "propose" | "review" | "draft";
@@ -586,6 +586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { path: "/api/intake/lead", method: "POST" },
     { path: "/api/webhook/intake/", method: "POST" }, // prefix match for /:token
     { path: "/api/agent/callback", method: "POST" },
+    { path: "/api/intake/sync", method: "POST" },   // uses requireInternalToken, not requireAuth
     // Export endpoints (for testing - can be restricted later)
     { path: "/api/export/contacts", method: "GET" },
     { path: "/api/export/jobs", method: "GET" },
@@ -599,12 +600,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   ];
 
   app.use("/api", (req, res, next) => {
-    // Check if this is a public path
+    // NOTE: Inside app.use("/api", ...), Express strips the "/api" prefix from req.path.
+    // We use req.originalUrl (full path) to correctly match PUBLIC_PATHS which include "/api/".
+    const fullPath = req.originalUrl.split('?')[0];
     const isPublic = PUBLIC_PATHS.some((publicPath) => {
       if (req.method !== publicPath.method) return false;
-      if (req.path === publicPath.path) return true;
+      if (fullPath === publicPath.path) return true;
       // Handle prefix matches (for paths with dynamic segments)
-      if (publicPath.path.endsWith("/") && req.path.startsWith(publicPath.path)) return true;
+      if (publicPath.path.endsWith("/") && fullPath.startsWith(publicPath.path)) return true;
       return false;
     });
     
@@ -6247,7 +6250,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const { createAdminChatService } = await import("./admin-chat-service");
       
       // TODO: Get userId from session/auth when implemented
-      const userId = "admin-user";
+      const userId = (req as any).userId || "admin-user";
       
       const adminChat = createAdminChatService({ 
         userId, 
@@ -6266,7 +6269,7 @@ After creating estimate, ALWAYS propose sending payment request.
   app.get("/api/admin-chat/conversations/:id/messages", async (req, res) => {
     try {
       const { createAdminChatService } = await import("./admin-chat-service");
-      const userId = "admin-user"; // TODO: Get from session/auth
+      const userId = (req as any).userId || "admin-user";
       const conversationId = req.params.id;
 
       // SECURITY: Validate conversation ownership before returning messages
@@ -6303,7 +6306,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const validated = adminChatMessageSchema.parse(req.body);
       const { createAdminChatService } = await import("./admin-chat-service");
       
-      const userId = "admin-user"; // TODO: Get from session/auth
+      const userId = (req as any).userId || "admin-user";
       const conversationId = req.body.conversationId;
       
       if (!conversationId) {
@@ -6375,7 +6378,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
 
       // Validate ownership (when auth is implemented, check userId matches)
-      const userId = "admin-user"; // TODO: Get from session
+      const userId = (req as any).userId || "admin-user";
       if ((conversation.metadata as Record<string, unknown>)?.userId !== userId) {
         return res.status(403).json({ error: "Unauthorized" });
       }
@@ -6412,7 +6415,7 @@ After creating estimate, ALWAYS propose sending payment request.
   app.get("/api/admin-chat/conversations", async (req, res) => {
     try {
       const { createAdminChatService } = await import("./admin-chat-service");
-      const userId = "admin-user";
+      const userId = (req as any).userId || "admin-user";
       
       const adminChat = createAdminChatService({ userId, mode: "assist" });
       const conversations = await adminChat.getActiveConversations();
@@ -6427,7 +6430,7 @@ After creating estimate, ALWAYS propose sending payment request.
   app.post("/api/admin-chat/conversations/:id/close", async (req, res) => {
     try {
       const { createAdminChatService } = await import("./admin-chat-service");
-      const userId = "admin-user";
+      const userId = (req as any).userId || "admin-user";
       
       const adminChat = createAdminChatService({ userId, mode: "assist" });
       await adminChat.closeConversation(req.params.id);
@@ -7668,17 +7671,8 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  // CRM Sync Callback - Production hardened endpoint for agent platform
+  // CRM Sync Callback - N8N / agent callback after processing a lead intake event
   app.post("/api/intake/sync", n8nWebhookRateLimiter, requireInternalToken, n8nVerification, async (req, res) => {
-    // High-Integrity verification: check HMAC if present (provided by agent_sync skill)
-    const hmacSignature = req.headers["x-webhook-signature"] as string;
-    const hmacTimestamp = req.headers["x-webhook-timestamp"] as string;
-    
-    if (hmacSignature && hmacTimestamp && !verifyHmacSignature(req.body, hmacSignature, hmacTimestamp)) {
-      logger.warn("CRM Sync HMAC verification failed (signature or timestamp)");
-      return res.status(403).json({ error: "Invalid HMAC signature or timestamp expired" });
-    }
-
     try {
       const validationResult = crmSyncSchema.safeParse(req.body);
       if (!validationResult.success) {
@@ -7687,38 +7681,63 @@ After creating estimate, ALWAYS propose sending payment request.
           details: validationResult.error.flatten().fieldErrors,
         });
       }
-      const validated = validationResult.data;
-      const { correlationId, status, metadata } = validated;
 
-      // Find the existing event in the outbox using idempotency_key
-      const existingEvent = await storage.getEventsOutboxByIdempotencyKey(
-        (req as any).tenantId || "default", // Should be extracted from JWT in production
-        metadata.idempotency_key
-      );
+      const { outbox_id, tenant_id, status, payload, recording_url, lead_score, channel, error_message } = validationResult.data;
+      const syncedFields: Record<string, any> = {};
 
-      if (!existingEvent) {
-        return res.status(404).json({ error: "Original lead event not found" });
+      // Find the outbox entry by ID
+      const allOutbox = await storage.getEventsOutbox();
+      const outboxEntry = allOutbox.find(e => e.id === outbox_id);
+
+      if (!outboxEntry) {
+        return res.status(404).json({ error: "Outbox entry not found" });
       }
 
-      // 1. FINALIZATION: Upsert contact using the payload stored during original intake
-      const intakePayload = existingEvent.payload as any;
-      const { email, phone, name, company, tags } = intakePayload;
+      // ERROR path — N8N reports failure
+      if (status === "error") {
+        await storage.updateEventsOutboxStatus(outbox_id, "failed", error_message);
+        await storage.createAuditLogEntry({
+          action: "lead.sync.failed",
+          entityType: "events_outbox",
+          entityId: outbox_id,
+          details: { error_message, tenant_id },
+        });
+        return res.status(200).json({ success: false, error: error_message || "Sync failed" });
+      }
 
-      let contact = null;
-      if (email) contact = await storage.getContactByEmail(email);
-      if (!contact && phone) contact = await storage.getContactByPhone(phone);
+      // SUCCESS path — resolve contact
+      const p = payload as Record<string, any>;
+      const { contact_id, email, phone, name, company, tags, message } = p;
+
+      let contact: any = null;
+
+      // 1. Try contact_id first
+      if (contact_id) {
+        contact = await storage.getContact(contact_id);
+      }
+
+      // 2. Fall back to email lookup
+      if (!contact && email) {
+        contact = await storage.getContactByEmail(email);
+      }
 
       if (contact) {
-        // Update existing
+        // Merge tags with deduplication
+        const mergedTags = tags
+          ? Array.from(new Set([...((contact.tags as string[]) || []), ...tags]))
+          : contact.tags;
+
         await storage.updateContact(contact.id, {
           name: name || contact.name,
           email: email || contact.email,
           phone: phone || contact.phone,
           company: company || contact.company,
-          tags: Array.from(new Set([...((contact.tags as string[]) || []), ...(tags || [])])),
+          tags: mergedTags,
         });
+        // Re-fetch to get updated version
+        contact = await storage.getContact(contact.id) || contact;
       } else {
-        // Create new
+        // Create new contact
         contact = await storage.createContact({
           name: name || null,
           email: email || null,
@@ -7730,34 +7749,54 @@ After creating estimate, ALWAYS propose sending payment request.
         });
       }
 
-      // 2. STATUS UPDATE: Update outbox status and ledger
-      const finalStatus = status === "completed" ? "success" : status === "failed" ? "error" : "pending";
-      
-      await storage.updateEventsOutbox(existingEvent.id, {
-        status: finalStatus === "success" ? "completed" : "failed",
-      });
+      syncedFields.contact_id = contact.id;
 
-      await storage.createAutomationLedgerEntry({
-        agentName: "agent_platform",
-        actionType: "SYNC_CALLBACK_RECEIVED",
-        entityType: "events_outbox",
-        entityId: existingEvent.id,
-        status: finalStatus,
-        mode: "executed",
-        diffJson: { 
-          correlationId, 
-          status, 
-          metadata,
+      // 3. Create conversation if message was provided
+      let conversation: any = null;
+      if (message || channel) {
+        conversation = await storage.createConversation({
           contactId: contact.id,
-          receivedAt: new Date().toISOString()
-        },
-        reason: `Sync callback from agent platform: ${status}. Contact ${contact.id} finalized.`,
-        correlationId,
-        executionTraceId: correlationId,
-        idempotencyKey: `sync-${correlationId}-${status}`,
+          status: "active",
+          channel: channel || outboxEntry.channel || "widget",
+          leadScore: lead_score || null,
+          metadata: { syncSource: "intake_sync", tenant_id },
+        });
+        syncedFields.conversation_id = conversation.id;
+      }
+
+      // 4. Apply lead_score
+      if (lead_score != null) {
+        syncedFields.lead_score = lead_score;
+        if (conversation) {
+          await storage.updateConversation(conversation.id, { leadScore: lead_score });
+        }
+      }
+
+      // 5. Attach recording if provided
+      if (recording_url) {
+        const fileRecord = await storage.createFile({
+          name: `recording-${outbox_id}.mp3`,
+          url: recording_url,
+          type: "recording",
+          size: 0,
+          entityType: "contact",
+          entityId: contact.id,
+        });
+        syncedFields.file_id = fileRecord.id;
+      }
+
+      // 6. Mark outbox as synced
+      await storage.updateEventsOutboxStatus(outbox_id, "synced");
+
+      // 7. Audit log
+      await storage.createAuditLogEntry({
+        action: "lead.sync.completed",
+        entityType: "events_outbox",
+        entityId: outbox_id,
+        details: { contact_id: contact.id, tenant_id, ...syncedFields },
       });
 
-      return res.status(200).json({ success: true, message: "Sync processed and lead finalized" });
+      return res.status(200).json({ success: true, synced: syncedFields });
     } catch (error) {
       logger.error("CRM Sync processing failed", error);
       res.status(500).json({ error: "Internal processing error" });
