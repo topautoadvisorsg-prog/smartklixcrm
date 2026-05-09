@@ -14,7 +14,6 @@ import {
   insertPaymentSchema,
   insertSettingsSchema,
   insertAiSettingsSchema,
-  insertMasterArchitectConfigSchema,
   insertAiVoiceDispatchConfigSchema,
   insertCompanyInstructionsSchema,
   insertEmailAccountSchema,
@@ -3031,56 +3030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /** @deprecated Master Architect removed. All validation handled by validator.ts. Endpoints retained for backward compatibility. */
-  // Master Architect Configuration (DEPRECATED - retained for backward compatibility only)
-  app.get("/api/master-architect/config", async (_req, res) => {
-    try {
-      const config = await storage.getMasterArchitectConfig();
-      if (!config) {
-        const defaultConfig = {
-          id: 'default',
-          model: 'gpt-4o',
-          temperature: 0.7,
-          maxTokens: 1500,
-          topP: 1.0,
-          frequencyPenalty: 0.0,
-          systemPrompt: 'You are a helpful AI assistant for the Smart Klix CRM.',
-          reflectionEnabled: true,
-          maxReflectionRounds: 1,
-          recursionDepthLimit: 3,
-          maxConversationHistory: 50,
-          contextSummarizationEnabled: false,
-          autoPruneAfterMessages: 100,
-          toolPermissions: {},
-          updatedAt: new Date(),
-        };
-        return res.json(defaultConfig);
-      }
-      res.json(config);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch Master Architect config" });
-    }
-  });
-
-  app.patch("/api/master-architect/config", async (req, res) => {
-    try {
-      const validated = insertMasterArchitectConfigSchema.partial().parse(req.body);
-      const config = await storage.updateMasterArchitectConfig(validated);
-      await storage.createAuditLogEntry({
-        userId: null,
-        action: "update_master_architect_config",
-        entityType: "master_architect_config",
-        entityId: config.id,
-        details: validated,
-      });
-      res.json(config);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid config data", details: error.errors });
-      }
-      res.status(400).json({ error: "Failed to update Master Architect config" });
-    }
-  });
+  // Policy Agent config endpoints removed — validation handled by validator.ts
 
   // ========================================
   // COMPANY INSTRUCTIONS (Per-Company AI Config)
@@ -8418,16 +8368,6 @@ After creating estimate, ALWAYS propose sending payment request.
       res.json(campaign);
     } catch (error: any) {
       res.status(500).json({ error: "Failed to fetch campaign" });
-    }
-  });
-
-  // Get campaign recipients
-  app.get("/api/campaigns/:id/recipients", requireAuth, async (req, res) => {
-    try {
-      const recipients = await campaignService.getCampaignRecipients(req.params.id);
-      res.json(recipients);
-    } catch (error: any) {
-      res.status(500).json({ error: "Failed to fetch recipients" });
     }
   });
 

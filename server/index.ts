@@ -139,6 +139,22 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Startup env validation — log critical config at boot so Railway logs show what's wired
+  const envCheck = {
+    DATABASE_URL:         !!process.env.DATABASE_URL,
+    ANTHROPIC_API_KEY:    !!process.env.ANTHROPIC_API_KEY,
+    AGENT_WEBHOOK_URL:    !!process.env.AGENT_WEBHOOK_URL,
+    AGENT_WEBHOOK_SECRET: !!process.env.AGENT_WEBHOOK_SECRET,
+    RESEND_API_KEY:       !!process.env.RESEND_API_KEY,
+    STRIPE_SECRET_KEY:    !!process.env.STRIPE_SECRET_KEY,
+  };
+  const missing = Object.entries(envCheck).filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length > 0) {
+    log(`⚠️  Missing env vars: ${missing.join(", ")}`);
+  } else {
+    log("✅ All critical env vars present");
+  }
+
   // Initialize cache
   await initCache();
 

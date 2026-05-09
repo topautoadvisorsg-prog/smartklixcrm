@@ -430,6 +430,7 @@ export interface IStorage {
   // Staged Proposals
   createStagedProposal(data: InsertStagedProposal): Promise<StagedProposal>;
   getStagedProposal(id: string): Promise<StagedProposal | undefined>;
+  getStagedProposalByCorrelationId(correlationId: string): Promise<StagedProposal | undefined>;
   getStagedProposalByIdempotencyKey(key: string): Promise<StagedProposal | undefined>;
   listStagedProposals(filters?: { status?: string | string[]; origin?: string; userId?: string }): Promise<StagedProposal[]>;
   updateStagedProposal(id: string, update: Partial<InsertStagedProposal>): Promise<StagedProposal | undefined>;
@@ -1999,6 +2000,9 @@ export class MemStorage implements IStorage {
   }
   async getStagedProposal(id: string): Promise<StagedProposal | undefined> {
     return this.stagedProposalsMap.get(id);
+  }
+  async getStagedProposalByCorrelationId(correlationId: string): Promise<StagedProposal | undefined> {
+    return Array.from(this.stagedProposalsMap.values()).find(p => p.correlationId === correlationId);
   }
   async getStagedProposalByIdempotencyKey(key: string): Promise<StagedProposal | undefined> {
     return Array.from(this.stagedProposalsMap.values()).find(p => p.idempotencyKey === key);
@@ -3751,6 +3755,12 @@ export class DbStorage implements IStorage {
     if (!db) return undefined;
     const result = await db.select().from(stagedProposals).where(eq(stagedProposals.id, id));
     return result[0];
+  }
+
+  async getStagedProposalByCorrelationId(correlationId: string): Promise<StagedProposal | undefined> {
+    if (!db) return undefined;
+    const [result] = await db.select().from(stagedProposals).where(eq(stagedProposals.correlationId, correlationId));
+    return result;
   }
 
   async getStagedProposalByIdempotencyKey(key: string): Promise<StagedProposal | undefined> {

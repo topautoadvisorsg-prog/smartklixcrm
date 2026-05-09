@@ -1406,6 +1406,9 @@ export const LedgerActionType = {
   // AI Voice Shared Events
   DISPATCH_SENT: "dispatch_sent",
   EXECUTION_RESULT_RECORDED: "execution_result_recorded",
+  // Dead-letter / error events
+  CALLBACK_ORPHANED: "CALLBACK_ORPHANED",
+  EVENT_DEAD_LETTERED: "EVENT_DEAD_LETTERED",
 } as const;
 export type LedgerActionType = (typeof LedgerActionType)[keyof typeof LedgerActionType];
 

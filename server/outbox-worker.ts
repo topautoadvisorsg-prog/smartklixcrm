@@ -134,7 +134,7 @@ async function dispatchEvent(event: any): Promise<void> {
         // Write PROPOSAL_DISPATCHED to ledger
         await storage.createAutomationLedgerEntry({
           agentName: "outbox_worker",
-          actionType: "PROPOSAL_DISPATCHED",
+          actionType: "dispatch_sent",
           entityType: "staged_proposal",
           entityId: proposalId,
           mode: "executed",
