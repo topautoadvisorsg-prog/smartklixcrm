@@ -36,13 +36,11 @@ import IntakeBuilder from "@/pages/IntakeBuilder";
 import Pricebook from "@/pages/Pricebook";
 import InformationAIChat from "@/pages/InformationAIChat";
 import AutomationLedger from "@/pages/AutomationLedger";
-import ReadyExecution from "@/pages/ReadyExecution";
 import AIReceptionist from "@/pages/AIReceptionist";
-import ActionConsole from "@/pages/ActionConsole";
+import ProposalQueue from "@/pages/ProposalQueue";
 import Emails from "@/pages/Emails";
 import WhatsApp from "@/pages/WhatsApp";
 import GoogleWorkspace from "@/pages/GoogleWorkspace";
-import ReviewQueue from "@/pages/ReviewQueue";
 import ChatGPTActions from "@/pages/ChatGPTActions";
 import CRMAgentConfig from "@/pages/CRMAgentConfig";
 import Funnels from "@/pages/Funnels";
@@ -99,13 +97,12 @@ function Router() {
       <Route path="/intake-builder" component={IntakeBuilder} />
       <Route path="/public-contact" component={PublicContact} />
       <Route path="/widget-demo" component={WidgetDemo} />
-      <Route path="/ready-execution" component={ReadyExecution} />
+      <Route path="/proposal-queue" component={ProposalQueue} />
+      <Route path="/ready-execution" component={ProposalQueue} />
       <Route path="/ai-receptionist" component={AIReceptionist} />
-      <Route path="/action-console" component={ActionConsole} />
       <Route path="/emails" component={Emails} />
       <Route path="/whatsapp" component={WhatsApp} />
       <Route path="/google-workspace" component={GoogleWorkspace} />
-      <Route path="/review-queue" component={ReviewQueue} />
       <Route path="/chatgpt-actions" component={ChatGPTActions} />
       <Route path="/crm-agent-config" component={CRMAgentConfig} />
       <Route path="/funnels" component={Funnels} />

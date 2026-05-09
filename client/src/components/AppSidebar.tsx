@@ -5,7 +5,7 @@
  * RULE: If a feature has full backend integration and governance compliance — it MUST appear here.
  * 
  * Features NOT in sidebar (dev/stub surface — accessible via direct URL only):
- * - Action Console (/action-console)   — STUB, no backend flow
+ * - Action Console (/action-console)   — REMOVED (redundant, covered by Proposal Queue)
  * - Email (/emails)                    — STUB, unified inbox (not yet built)
  * - Campaigns (/campaigns)             — PROMOTED to sidebar (Mass Email, full backend)
  * - ActionGPT (/chatgpt-actions)       — STUB, no backend flow
@@ -23,7 +23,7 @@
  * Restored missing AI modules that were incorrectly hidden during cleanup
  */
 
-import { Home, Users, Briefcase, FileText, CreditCard, Calendar, TrendingUp, Settings, Network, MessageSquare, Phone, FormInput, BookOpen, ShieldCheck, ScrollText, Download, Brain, CheckCircle, BarChart3, Mail } from "lucide-react";
+import { Home, Users, Briefcase, FileText, CreditCard, Calendar, TrendingUp, Settings, MessageSquare, Phone, FormInput, BookOpen, ScrollText, Download, Brain, CheckCircle, Mail } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -57,8 +57,7 @@ const dailyOperationsItems = [
 const aiBrainsItems = [
   { title: "Proposal Agent", url: "/ai-assistant", icon: Brain },
   { title: "Query Agent", url: "/information-ai-chat", icon: MessageSquare },
-  { title: "Review Queue", url: "/review-queue", icon: CheckCircle },
-  { title: "Ready Execution", url: "/ready-execution", icon: ShieldCheck },
+  { title: "Proposal Queue", url: "/proposal-queue", icon: CheckCircle },
   { title: "Automation Ledger", url: "/automation-ledger", icon: ScrollText },
 ];
 
