@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import { agentCallbackSchema } from "./agent-contracts";
 import { createServer, type Server } from "http";
 import { nanoid } from "nanoid";
 import bcrypt from "bcryptjs";
@@ -443,20 +444,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ error: "Invalid webhook secret, signature, or timestamp" });
     }
 
-    const { proposalId, status, result, errorMessage, correlationId } = req.body;
-
-    if (!proposalId || !status) {
-      return res.status(400).json({ error: "proposalId and status are required" });
+    // Bug fix 1: Validate payload against contract schema before touching anything
+    const parseResult = agentCallbackSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: "Invalid callback payload", details: parseResult.error.flatten() });
     }
 
-    if (!["completed", "failed"].includes(status)) {
-      return res.status(400).json({ error: "status must be 'completed' or 'failed'" });
+    const { proposalId, status, result, errorMessage, correlationId } = parseResult.data;
+
+    if (!proposalId) {
+      return res.status(400).json({ error: "proposalId is required" });
     }
 
-    // Find and update the staged proposal
+    // Find the staged proposal
     const proposal = await storage.getStagedProposal(proposalId);
+
+    // Bug fix 3: Dead-letter log for orphaned callbacks (no matching proposal)
     if (!proposal) {
-      return res.status(404).json({ error: "Proposal not found" });
+      await storage.createAutomationLedgerEntry({
+        agentName: "external_agent",
+        actionType: "CALLBACK_ORPHANED",
+        entityType: "staged_proposal",
+        entityId: proposalId,
+        status: "dead_letter",
+        mode: "executed",
+        diffJson: { proposalId, correlationId, status, result: result || null, errorMessage: errorMessage || null },
+        reason: `Callback received for unknown or expired proposal: ${proposalId}`,
+        correlationId: correlationId || null,
+        executionTraceId: proposalId,
+        idempotencyKey: `orphan-${proposalId}-${Date.now()}`,
+      });
+      return res.status(404).json({ error: "Proposal not found — callback logged to dead-letter queue" });
+    }
+
+    // Bug fix 2: Verify correlationId matches what was stored at dispatch time
+    if (proposal.correlationId && correlationId !== proposal.correlationId) {
+      return res.status(403).json({
+        error: "correlationId mismatch — callback rejected",
+        expected: proposal.correlationId,
+        received: correlationId,
+      });
     }
 
     const newStatus = status === "completed" ? "completed" : "failed";
