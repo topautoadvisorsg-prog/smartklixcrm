@@ -4740,23 +4740,51 @@ After creating estimate, ALWAYS propose sending payment request.
   // CHAT WIDGET (STUBS)
   // ========================================
 
+  const widgetConfigSchema = z.object({
+    primaryColor:   z.string().optional(),
+    accentColor:    z.string().optional(),
+    welcomeMessage: z.string().optional(),
+    supportEmail:   z.string().email().optional(),
+    position:       z.enum(["bottom-right", "bottom-left"]).optional(),
+    logoUrl:        z.string().url().optional().nullable(),
+    companyName:    z.string().optional(),
+  });
+
+  const WIDGET_DEFAULTS = {
+    primaryColor:   "#FDB913",
+    accentColor:    "#1E40AF",
+    welcomeMessage: "Hi! How can we help you today?",
+    supportEmail:   "support@smartklix.com",
+    position:       "bottom-right",
+  };
+
   app.post("/api/widget/settings", async (req, res) => {
-    res.json({ 
-      success: true, 
-      message: "Widget settings saved (stub)",
-      settings: req.body 
-    });
+    try {
+      const validated = widgetConfigSchema.parse(req.body);
+      const current = await storage.getAiSettings();
+      const existing = (current?.widgetConfig as Record<string, unknown>) || {};
+      await storage.updateAiSettings({
+        widgetConfig: { ...existing, ...validated },
+      });
+      res.json({ success: true, settings: { ...WIDGET_DEFAULTS, ...existing, ...validated } });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid widget config", details: error.errors });
+      }
+      logger.error("Failed to save widget settings", error);
+      res.status(500).json({ error: "Failed to save widget settings" });
+    }
   });
 
   app.get("/api/widget/settings", async (_req, res) => {
-    res.json({ 
-      primaryColor: "#FDB913",
-      accentColor: "#1E40AF",
-      welcomeMessage: "Hi! How can we help you today?",
-      supportEmail: "support@smartklix.com",
-      position: "bottom-right",
-      message: "Widget settings endpoint (stub)" 
-    });
+    try {
+      const settings = await storage.getAiSettings();
+      const widgetConfig = (settings?.widgetConfig as Record<string, unknown>) || {};
+      res.json({ ...WIDGET_DEFAULTS, ...widgetConfig });
+    } catch (error) {
+      logger.error("Failed to fetch widget settings", error);
+      res.status(500).json({ error: "Failed to fetch widget settings" });
+    }
   });
 
   const widgetMessageSchema = z.object({
@@ -4939,12 +4967,11 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/widget/upload", async (req, res) => {
-    res.json({ 
-      success: true, 
-      message: "File uploaded (stub)",
-      fileId: `file-${Date.now()}`,
-      url: "https://example.com/stub-file.pdf" 
+  app.post("/api/widget/upload", async (_req, res) => {
+    // File upload requires Supabase Storage or S3 integration — not yet configured
+    res.status(501).json({
+      error: "File upload not yet configured",
+      message: "Connect Supabase Storage or S3 to enable file attachments",
     });
   });
 

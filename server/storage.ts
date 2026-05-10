@@ -1417,33 +1417,38 @@ export class MemStorage implements IStorage {
     return this.settingsData;
   }
 
+  private _aiSettings: AiSettings | undefined = undefined;
+
   async getAiSettings(): Promise<AiSettings | undefined> {
-    return undefined; // MemStorage doesn't persist AI settings
+    return this._aiSettings;
   }
 
   async updateAiSettings(config: Partial<InsertAiSettings>): Promise<AiSettings> {
+    const existing = this._aiSettings;
     const aiSettingsData: AiSettings = {
       id: 'default',
-      edgeAgentPrompt: config.edgeAgentPrompt || null,
-      edgeAgentConstraints: config.edgeAgentConstraints || [],
-      edgeAgentEnabled: config.edgeAgentEnabled ?? true,
-      discoveryAiPrompt: config.discoveryAiPrompt || null,
-      discoveryAiConstraints: config.discoveryAiConstraints || [],
-      discoveryAiEnabled: config.discoveryAiEnabled ?? true,
-      actionAiPrompt: config.actionAiPrompt || null,
-      actionAiConstraints: config.actionAiConstraints || [],
-      actionAiEnabled: config.actionAiEnabled ?? true,
-      masterArchitectPrompt: config.masterArchitectPrompt || null,
-      masterArchitectConstraints: config.masterArchitectConstraints || [],
-      masterArchitectEnabled: config.masterArchitectEnabled ?? true,
-      companyKnowledge: config.companyKnowledge || null,
-      globalEnabled: config.globalEnabled ?? true,
-      killSwitchActive: config.killSwitchActive ?? false,
-      killSwitchActivatedAt: config.killSwitchActivatedAt || null,
-      killSwitchActivatedBy: config.killSwitchActivatedBy || null,
-      killSwitchReason: config.killSwitchReason || null,
+      edgeAgentPrompt: config.edgeAgentPrompt ?? existing?.edgeAgentPrompt ?? null,
+      edgeAgentConstraints: config.edgeAgentConstraints ?? existing?.edgeAgentConstraints ?? [],
+      edgeAgentEnabled: config.edgeAgentEnabled ?? existing?.edgeAgentEnabled ?? true,
+      discoveryAiPrompt: config.discoveryAiPrompt ?? existing?.discoveryAiPrompt ?? null,
+      discoveryAiConstraints: config.discoveryAiConstraints ?? existing?.discoveryAiConstraints ?? [],
+      discoveryAiEnabled: config.discoveryAiEnabled ?? existing?.discoveryAiEnabled ?? true,
+      actionAiPrompt: config.actionAiPrompt ?? existing?.actionAiPrompt ?? null,
+      actionAiConstraints: config.actionAiConstraints ?? existing?.actionAiConstraints ?? [],
+      actionAiEnabled: config.actionAiEnabled ?? existing?.actionAiEnabled ?? true,
+      masterArchitectPrompt: config.masterArchitectPrompt ?? existing?.masterArchitectPrompt ?? null,
+      masterArchitectConstraints: config.masterArchitectConstraints ?? existing?.masterArchitectConstraints ?? [],
+      masterArchitectEnabled: config.masterArchitectEnabled ?? existing?.masterArchitectEnabled ?? true,
+      companyKnowledge: config.companyKnowledge ?? existing?.companyKnowledge ?? null,
+      globalEnabled: config.globalEnabled ?? existing?.globalEnabled ?? true,
+      killSwitchActive: config.killSwitchActive ?? existing?.killSwitchActive ?? false,
+      killSwitchActivatedAt: config.killSwitchActivatedAt ?? existing?.killSwitchActivatedAt ?? null,
+      killSwitchActivatedBy: config.killSwitchActivatedBy ?? existing?.killSwitchActivatedBy ?? null,
+      killSwitchReason: config.killSwitchReason ?? existing?.killSwitchReason ?? null,
+      widgetConfig: config.widgetConfig ?? existing?.widgetConfig ?? {},
       updatedAt: new Date(),
     };
+    this._aiSettings = aiSettingsData;
     return aiSettingsData;
   }
 

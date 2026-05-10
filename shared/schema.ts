@@ -674,7 +674,10 @@ export const aiSettings = pgTable("ai_settings", {
   killSwitchActivatedAt: timestamp("kill_switch_activated_at"), // When kill switch was triggered
   killSwitchActivatedBy: varchar("kill_switch_activated_by").references(() => users.id), // Who triggered it
   killSwitchReason: text("kill_switch_reason"), // Why it was activated
-  
+
+  // Widget branding / appearance config (stored as JSON)
+  widgetConfig: jsonb("widget_config").default(sql`'{}'::jsonb`),
+
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
