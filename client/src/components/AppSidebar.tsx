@@ -23,7 +23,7 @@
  * Restored missing AI modules that were incorrectly hidden during cleanup
  */
 
-import { Home, Users, Briefcase, FileText, CreditCard, Calendar, TrendingUp, Settings, MessageSquare, Phone, FormInput, BookOpen, ScrollText, Download, Brain, CheckCircle, Mail } from "lucide-react";
+import { Home, Users, Briefcase, FileText, CreditCard, Calendar, TrendingUp, Settings, MessageSquare, Phone, FormInput, BookOpen, ScrollText, Download, Brain, CheckCircle, Mail, Bot } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,

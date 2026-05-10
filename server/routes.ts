@@ -63,7 +63,7 @@ import { emailWebhookHandler } from "./email-webhook";
 import { campaignAnalyticsService } from "./campaign-analytics";
 import fieldFinancialExportRoutes from "./routes-field-financial-export";
 import { logger } from "./logger";
-import { verifyHmacSignature } from "./security";
+import { verifyHmacSignature, verifyInternalToken } from "./security";
 
 
 const aiChatRateLimiter = rateLimit({
@@ -587,6 +587,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { path: "/api/webhook/intake/", method: "POST" }, // prefix match for /:token
     { path: "/api/agent/callback", method: "POST" },
     { path: "/api/intake/sync", method: "POST" },   // uses requireInternalToken, not requireAuth
+    { path: "/api/prospects/check", method: "GET" }, // agent dedup check — token-verified inside handler
+    { path: "/api/prospects", method: "POST" },      // agent adds prospect — token-verified inside handler
+    { path: "/api/prospects/", method: "PATCH" },    // agent updates prospect status — prefix match
+    { path: "/api/prospects/", method: "POST" },     // agent converts / do-not-outreach — prefix match
     // Export endpoints (for testing - can be restricted later)
     { path: "/api/export/contacts", method: "GET" },
     { path: "/api/export/jobs", method: "GET" },
@@ -1051,7 +1055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(pipelineCards);
     } catch (error) {
-      console.error("[Pipeline] Error fetching cards:", error);
+      logger.error("[Pipeline] Error fetching cards:", error);
       res.status(500).json({ error: "Failed to fetch pipeline cards" });
     }
   });
@@ -1108,7 +1112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true, job: updatedJob });
     } catch (error) {
-      console.error("[Pipeline] Error transitioning card:", error);
+      logger.error("[Pipeline] Error transitioning card:", error);
       res.status(500).json({ error: "Failed to transition pipeline card" });
     }
   });
@@ -1166,7 +1170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true, job: updatedJob });
     } catch (error) {
-      console.error("[Pipeline] Error booking job:", error);
+      logger.error("[Pipeline] Error booking job:", error);
       res.status(500).json({ error: "Failed to book job" });
     }
   });
@@ -1561,7 +1565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // P0 HARDENING: Check Kill Switch FIRST
       const aiSettings = await storage.getAiSettings();
       if (aiSettings?.killSwitchActive) {
-        console.log(`[KILL SWITCH] Execution blocked for entry ${req.params.id} - kill switch active`);
+        logger.info(`[KILL SWITCH] Execution blocked for entry ${req.params.id} - kill switch active`);
         return res.status(503).json({
           error: "AI execution halted",
           message: "Global kill switch is active. All AI execution is paused.",
@@ -1578,7 +1582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (entry.idempotencyKey) {
           const existingExecuted = await storage.getAutomationLedgerByIdempotencyKey(entry.idempotencyKey);
           if (existingExecuted && existingExecuted.id !== entry.id && existingExecuted.status === "executed") {
-            console.log(`[IDEMPOTENCY] Duplicate execution blocked for key ${entry.idempotencyKey}`);
+            logger.info(`[IDEMPOTENCY] Duplicate execution blocked for key ${entry.idempotencyKey}`);
             return res.status(409).json({
               error: "Duplicate execution blocked",
               message: "An action with this idempotency key has already been executed.",
@@ -1600,7 +1604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const proposedActions = diffJson?.proposedActions as Array<{ tool: string; args: unknown }> | undefined;
         
         if (proposedActions && proposedActions.length > 0) {
-          console.log(`[Ready Execution] Processing ${proposedActions.length} action(s) from ledger`);
+          logger.info(`[Ready Execution] Processing ${proposedActions.length} action(s) from ledger`);
           
           let hasExternalActions = false;
           let hasInternalActions = false;
@@ -1610,7 +1614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (actionType === "EXTERNAL") {
               hasExternalActions = true;
-              console.log(`[Ready Execution] EXTERNAL action "${action.tool}" staged for agent dispatch`);
+              logger.info(`[Ready Execution] EXTERNAL action "${action.tool}" staged for agent dispatch`);
               // External actions are dispatched via approved proposals to external agent
               executionResults.push({
                 tool: action.tool,
@@ -1619,7 +1623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             } else {
               hasInternalActions = true;
-              console.log(`[Ready Execution] Executing INTERNAL action "${action.tool}" directly`);
+              logger.info(`[Ready Execution] Executing INTERNAL action "${action.tool}" directly`);
               
               try {
                 const result = await executeAITool(
@@ -1693,7 +1697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reason: null,
         });
 
-        console.log(`[Ready Execution] Ledger entry completed: ${executionResults.length} actions executed`);
+        logger.info(`[Ready Execution] Ledger entry completed: ${executionResults.length} actions executed`);
 
         return res.json({ 
           success: true, 
@@ -1713,7 +1717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (proposalEntry.idempotencyKey) {
           const existingEntry = await storage.getAutomationLedgerByIdempotencyKey(proposalEntry.idempotencyKey);
           if (existingEntry && existingEntry.status === "executed") {
-            console.log(`[IDEMPOTENCY] Duplicate proposal execution blocked for key ${proposalEntry.idempotencyKey}`);
+            logger.info(`[IDEMPOTENCY] Duplicate proposal execution blocked for key ${proposalEntry.idempotencyKey}`);
             return res.status(409).json({
               error: "Duplicate execution blocked",
               message: "An action with this idempotency key has already been executed.",
@@ -1738,7 +1742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const actionPlan = actions as Array<{ tool: string; args: unknown }> | undefined;
         
         if (actionPlan && actionPlan.length > 0) {
-          console.log(`[Ready Execution] Processing ${actionPlan.length} action(s) from proposals`);
+          logger.info(`[Ready Execution] Processing ${actionPlan.length} action(s) from proposals`);
           
           let hasExternalActions = false;
           let hasInternalActions = false;
@@ -1773,7 +1777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Resolve contactId
             if (resolved.contactId && typeof resolved.contactId === 'string') {
               if (isPlaceholderValue(resolved.contactId) && createdEntities.contactId) {
-                console.log(`[Ready Execution] Resolving contactId: "${resolved.contactId}" → "${createdEntities.contactId}"`);
+                logger.info(`[Ready Execution] Resolving contactId: "${resolved.contactId}" → "${createdEntities.contactId}"`);
                 resolved.contactId = createdEntities.contactId;
               }
             }
@@ -1781,7 +1785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Resolve estimateId
             if (resolved.estimateId && typeof resolved.estimateId === 'string') {
               if (isPlaceholderValue(resolved.estimateId) && createdEntities.estimateId) {
-                console.log(`[Ready Execution] Resolving estimateId: "${resolved.estimateId}" → "${createdEntities.estimateId}"`);
+                logger.info(`[Ready Execution] Resolving estimateId: "${resolved.estimateId}" → "${createdEntities.estimateId}"`);
                 resolved.estimateId = createdEntities.estimateId;
               }
             }
@@ -1789,7 +1793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Resolve invoiceId
             if (resolved.invoiceId && typeof resolved.invoiceId === 'string') {
               if (isPlaceholderValue(resolved.invoiceId) && createdEntities.invoiceId) {
-                console.log(`[Ready Execution] Resolving invoiceId: "${resolved.invoiceId}" → "${createdEntities.invoiceId}"`);
+                logger.info(`[Ready Execution] Resolving invoiceId: "${resolved.invoiceId}" → "${createdEntities.invoiceId}"`);
                 resolved.invoiceId = createdEntities.invoiceId;
               }
             }
@@ -1797,7 +1801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Resolve jobId
             if (resolved.jobId && typeof resolved.jobId === 'string') {
               if (isPlaceholderValue(resolved.jobId) && createdEntities.jobId) {
-                console.log(`[Ready Execution] Resolving jobId: "${resolved.jobId}" → "${createdEntities.jobId}"`);
+                logger.info(`[Ready Execution] Resolving jobId: "${resolved.jobId}" → "${createdEntities.jobId}"`);
                 resolved.jobId = createdEntities.jobId;
               }
             }
@@ -1817,7 +1821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ];
                 for (const pattern of estimatePlaceholders) {
                   if (pattern.test(body)) {
-                    console.log(`[Ready Execution] Resolving estimate placeholder in body`);
+                    logger.info(`[Ready Execution] Resolving estimate placeholder in body`);
                     body = body.replace(pattern, createdEntities.estimateId);
                   }
                 }
@@ -1848,19 +1852,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (data.id && typeof data.id === 'string') {
                 if (toolName === 'create_contact') {
                   createdEntities.contactId = data.id;
-                  console.log(`[Ready Execution] Captured contactId: ${data.id}`);
+                  logger.info(`[Ready Execution] Captured contactId: ${data.id}`);
                 } else if (toolName === 'create_estimate') {
                   createdEntities.estimateId = data.id;
-                  console.log(`[Ready Execution] Captured estimateId: ${data.id}`);
+                  logger.info(`[Ready Execution] Captured estimateId: ${data.id}`);
                 } else if (toolName === 'create_invoice') {
                   createdEntities.invoiceId = data.id;
-                  console.log(`[Ready Execution] Captured invoiceId: ${data.id}`);
+                  logger.info(`[Ready Execution] Captured invoiceId: ${data.id}`);
                 } else if (toolName === 'create_job') {
                   createdEntities.jobId = data.id;
-                  console.log(`[Ready Execution] Captured jobId: ${data.id}`);
+                  logger.info(`[Ready Execution] Captured jobId: ${data.id}`);
                 } else if (toolName === 'create_appointment') {
                   createdEntities.appointmentId = data.id;
-                  console.log(`[Ready Execution] Captured appointmentId: ${data.id}`);
+                  logger.info(`[Ready Execution] Captured appointmentId: ${data.id}`);
                 }
               }
             }
@@ -1874,7 +1878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const stripeEmailBundle = hasStripePaymentLink && hasSendEmail;
           
           if (stripeEmailBundle) {
-            console.log(`[Ready Execution] Detected Stripe+Email bundle - will combine for n8n sequencing`);
+            logger.info(`[Ready Execution] Detected Stripe+Email bundle - will combine for n8n sequencing`);
           }
           
           // Track if we've already dispatched the bundled Stripe+Email
@@ -1893,7 +1897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (stripeEmailBundle && (action.tool === "stripe_create_payment_link" || action.tool === "send_email")) {
                 if (stripeEmailDispatched) {
                   // Already dispatched the bundle, skip this action
-                  console.log(`[Ready Execution] Skipping "${action.tool}" - already included in bundled dispatch`);
+                  logger.info(`[Ready Execution] Skipping "${action.tool}" - already included in bundled dispatch`);
                   executionResults.push({
                     tool: action.tool,
                     status: "dispatched_to_neo8",
@@ -1912,7 +1916,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const stripeArgs = resolveEntityIds(stripeAction?.args);
                 const emailArgs = resolveEntityIds(emailAction?.args);
                 
-                console.log(`[Ready Execution] Bundled Stripe+Email staged for agent dispatch`);
+                logger.info(`[Ready Execution] Bundled Stripe+Email staged for agent dispatch`);
                 executionResults.push({
                   tool: "stripe_create_payment_link",
                   status: "staged_for_dispatch",
@@ -1927,7 +1931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               
               // Regular EXTERNAL action dispatch
-              console.log(`[Ready Execution] EXTERNAL action "${action.tool}" staged for agent dispatch (from proposals)`);
+              logger.info(`[Ready Execution] EXTERNAL action "${action.tool}" staged for agent dispatch (from proposals)`);
               executionResults.push({
                 tool: action.tool,
                 status: "staged_for_dispatch",
@@ -1935,7 +1939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             } else {
               hasInternalActions = true;
-              console.log(`[Ready Execution] Executing INTERNAL action "${action.tool}" directly (from proposals)`);
+              logger.info(`[Ready Execution] Executing INTERNAL action "${action.tool}" directly (from proposals)`);
               
               try {
                 const result = await executeAITool(
@@ -2008,7 +2012,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 executedAt: new Date().toISOString(),
               },
             });
-            console.log(`[Ready Execution] Updated existing ledger entry ${existingEntry.id} to executed`);
+            logger.info(`[Ready Execution] Updated existing ledger entry ${existingEntry.id} to executed`);
           } else {
             // No existing entry, create new one
             await storage.createAutomationLedgerEntry({
@@ -2051,7 +2055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        console.log(`[Ready Execution] Staged proposal completed: ${executionResults.length} actions executed`);
+        logger.info(`[Ready Execution] Staged proposal completed: ${executionResults.length} actions executed`);
 
         return res.json({ 
           success: true, 
@@ -2065,7 +2069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.status(404).json({ error: "Entry not found in either ledger or staged proposals" });
     } catch (error) {
-      console.error("[Ready Execution Execute] Error:", error);
+      logger.error("[Ready Execution Execute] Error:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to execute action";
       res.status(500).json({ error: errorMessage });
     }
@@ -2175,7 +2179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.status(404).json({ error: "Entry not found in either ledger or staged proposals" });
     } catch (error) {
-      console.error("[Ready Execution Reject] Error:", error);
+      logger.error("[Ready Execution Reject] Error:", error);
       res.status(500).json({ error: "Failed to reject action" });
     }
   });
@@ -2235,7 +2239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reason: `Operator handled manually: ${note}`,
         });
 
-        console.log(`[Ready Execution] Proposal ${req.params.id} handled manually by operator`);
+        logger.info(`[Ready Execution] Proposal ${req.params.id} handled manually by operator`);
 
         return res.json({ 
           success: true, 
@@ -2267,7 +2271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         });
 
-        console.log(`[Ready Execution] Ledger entry ${req.params.id} handled manually by operator`);
+        logger.info(`[Ready Execution] Ledger entry ${req.params.id} handled manually by operator`);
 
         return res.json({ 
           success: true, 
@@ -2280,7 +2284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.status(404).json({ error: "Entry not found in either ledger or staged proposals" });
     } catch (error) {
-      console.error("[Ready Execution Handle Manually] Error:", error);
+      logger.error("[Ready Execution Handle Manually] Error:", error);
       res.status(500).json({ error: "Failed to mark entry as handled manually" });
     }
   });
@@ -2315,14 +2319,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/neo8/callback", n8nWebhookRateLimiter, requireInternalToken, async (req, res) => {
     try {
-      console.log("[Neo8 Callback] Received:", JSON.stringify(req.body, null, 2));
+      logger.info("[Neo8 Callback] Received:", JSON.stringify(req.body, null, 2));
       
       const validated = neo8CallbackSchema.parse(req.body);
       
       // Find the ledger entry
       const entry = await storage.getAutomationLedgerEntry(validated.ledgerId);
       if (!entry) {
-        console.error(`[Neo8 Callback] Ledger entry not found: ${validated.ledgerId}`);
+        logger.error(`[Neo8 Callback] Ledger entry not found: ${validated.ledgerId}`);
         return res.status(404).json({ error: "Ledger entry not found" });
       }
       
@@ -2372,7 +2376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title: title || existing.title,
               ledgerId: validated.ledgerId,
             });
-            console.log(`[Neo8 Callback] Updated document artifact: ${docId}`);
+            logger.info(`[Neo8 Callback] Updated document artifact: ${docId}`);
           } else {
             // Insert new artifact
             await storage.createDocumentArtifact({
@@ -2385,10 +2389,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ledgerId: validated.ledgerId,
               createdBy: "action_ai",
             });
-            console.log(`[Neo8 Callback] Created document artifact: ${docId}`);
+            logger.info(`[Neo8 Callback] Created document artifact: ${docId}`);
           }
         } catch (err) {
-          console.error("[Neo8 Callback] Failed to persist document artifact:", err);
+          logger.error("[Neo8 Callback] Failed to persist document artifact:", err);
         }
       }
       
@@ -2407,7 +2411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
       
-      console.log(`[Neo8 Callback] Updated ledger ${validated.ledgerId} with status: ${newStatus}`);
+      logger.info(`[Neo8 Callback] Updated ledger ${validated.ledgerId} with status: ${newStatus}`);
       
       res.json({ 
         success: true, 
@@ -2417,10 +2421,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("[Neo8 Callback] Validation error:", error.errors);
+        logger.error("[Neo8 Callback] Validation error:", error.errors);
         return res.status(400).json({ error: "Invalid callback payload", details: error.errors });
       }
-      console.error("[Neo8 Callback] Error:", error);
+      logger.error("[Neo8 Callback] Error:", error);
       res.status(500).json({ error: "Failed to process callback" });
     }
   });
@@ -3248,7 +3252,7 @@ After creating estimate, ALWAYS propose sending payment request.
         details: { reason: reason || "Emergency kill switch activated" },
       });
       
-      console.log(`[KILL SWITCH] Activated by ${userId || "system"}: ${reason || "No reason provided"}`);
+      logger.info(`[KILL SWITCH] Activated by ${userId || "system"}: ${reason || "No reason provided"}`);
       
       res.json({ 
         success: true, 
@@ -3280,7 +3284,7 @@ After creating estimate, ALWAYS propose sending payment request.
         details: {},
       });
       
-      console.log(`[KILL SWITCH] Deactivated by ${userId || "system"}`);
+      logger.info(`[KILL SWITCH] Deactivated by ${userId || "system"}`);
       
       res.json({ 
         success: true, 
@@ -3387,7 +3391,7 @@ After creating estimate, ALWAYS propose sending payment request.
           details: error.errors,
         });
       }
-      console.error("Voice context error:", error);
+      logger.error("Voice context error:", error);
       res.status(500).json({ 
         error: "Failed to fetch voice context",
         actions_taken: [],
@@ -3497,7 +3501,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
         // If validator rejects, log but still queue (appointments are time-sensitive)
         if (validationResult.decision === "reject") {
-          console.log(`[Validator] Appointment rejected: ${validationResult.reason}`);
+          logger.info(`[Validator] Appointment rejected: ${validationResult.reason}`);
           await storage.createAuditLogEntry({
             userId: null,
             action: "validator_flagged_appointment",
@@ -3566,7 +3570,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request format", details: error.errors });
       }
-      console.error("Premium receptionist result error:", error);
+      logger.error("Premium receptionist result error:", error);
       res.status(500).json({ error: "Failed to process premium receptionist result" });
     }
   });
@@ -3623,7 +3627,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
         // If validator rejects, log but still queue (missed calls are time-sensitive)
         if (validationResult.decision === "reject") {
-          console.log(`[Validator] Missed call follow-up rejected: ${validationResult.reason}`);
+          logger.info(`[Validator] Missed call follow-up rejected: ${validationResult.reason}`);
           await storage.createAuditLogEntry({
             userId: null,
             action: "validator_flagged_missed_call",
@@ -3675,7 +3679,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request format", details: error.errors });
       }
-      console.error("Voice event error:", error);
+      logger.error("Voice event error:", error);
       res.status(500).json({ error: "Failed to process voice event" });
     }
   });
@@ -3700,7 +3704,7 @@ After creating estimate, ALWAYS propose sending payment request.
         autoCreateNote: voiceConfig.autoCreateNote,
       });
     } catch (error) {
-      console.error("Voice dispatch config error:", error);
+      logger.error("Voice dispatch config error:", error);
       res.status(500).json({ error: "Failed to fetch voice dispatch config" });
     }
   });
@@ -3760,7 +3764,7 @@ After creating estimate, ALWAYS propose sending payment request.
         
         while (missingActions.length > 0 && retryCount < MAX_ENFORCEMENT_RETRIES) {
           retryCount++;
-          console.log(`[Enforcement] Retry ${retryCount}: Missing actions: ${missingActions.join(", ")}`);
+          logger.info(`[Enforcement] Retry ${retryCount}: Missing actions: ${missingActions.join(", ")}`);
           
           // Build enforcement message
           const enforcementMessage = buildEnforcementMessage(missingActions);
@@ -3772,16 +3776,16 @@ After creating estimate, ALWAYS propose sending payment request.
           );
           
           // TODO: Re-execute with enforcement via external agent
-          console.log(`[Enforcement] Would re-execute with: ${enforcementMessage}`);
+          logger.info(`[Enforcement] Would re-execute with: ${enforcementMessage}`);
           
           // Check for remaining missing actions
           missingActions = getMissingActions(requiredActions, allStagedTools);
         }
         
         if (missingActions.length > 0) {
-          console.log(`[Enforcement] FAILED after ${retryCount} retries. Still missing: ${missingActions.join(", ")}`);
+          logger.info(`[Enforcement] FAILED after ${retryCount} retries. Still missing: ${missingActions.join(", ")}`);
         } else {
-          console.log(`[Enforcement] SUCCESS: All required actions staged after ${retryCount} retries`);
+          logger.info(`[Enforcement] SUCCESS: All required actions staged after ${retryCount} retries`);
         }
       }
 
@@ -3856,7 +3860,7 @@ After creating estimate, ALWAYS propose sending payment request.
         enforcementRetries: retryCount, // For debugging
       });
     } catch (error) {
-      console.error("Internal chat error:", error);
+      logger.error("Internal chat error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
           error: "Invalid request",
@@ -3941,7 +3945,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
       // If validator REJECTS → do NOT enqueue
       if (validationResult.decision === "reject") {
-        console.log(`[Validator] Proposal rejected: ${validationResult.reason}`);
+        logger.info(`[Validator] Proposal rejected: ${validationResult.reason}`);
         
         // Log rejection to audit_log
         await storage.createAuditLogEntry({
@@ -3964,7 +3968,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
 
       // If validator flags human_required → will be handled by requiresApproval flag
-      console.log(`[Validator] Decision: ${validationResult.decision}, Risk: ${validationResult.riskLevel}, Human Required: ${validationResult.requiresHumanApproval}`);
+      logger.info(`[Validator] Decision: ${validationResult.decision}, Risk: ${validationResult.riskLevel}, Human Required: ${validationResult.requiresHumanApproval}`);
 
       // Update the staged proposal with validator results
       await storage.updateStagedProposal(stagedBundleId, {
@@ -3994,7 +3998,7 @@ After creating estimate, ALWAYS propose sending payment request.
         executionTraceId: stagedBundleId,
       });
 
-      console.log(`[Governance] Proposal ${stagedBundleId} updated and sent to Review Queue`);
+      logger.info(`[Governance] Proposal ${stagedBundleId} updated and sent to Review Queue`);
 
       // Return success - actions are now in Review Queue
       res.json({
@@ -4004,7 +4008,7 @@ After creating estimate, ALWAYS propose sending payment request.
         status: "pending_review",
       });
     } catch (error) {
-      console.error("Staged accept error:", error);
+      logger.error("Staged accept error:", error);
       res.status(500).json({ error: "Failed to send to review queue" });
     }
   });
@@ -4045,7 +4049,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
       res.json({ success: true, message: "Staged actions discarded" });
     } catch (error) {
-      console.error("Staged reject error:", error);
+      logger.error("Staged reject error:", error);
       res.status(500).json({ error: "Failed to reject staged actions" });
     }
   });
@@ -4058,7 +4062,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const proposals = await storage.listStagedProposals(status ? { status } : undefined);
       res.json(proposals);
     } catch (error) {
-      console.error("Failed to list proposals:", error);
+      logger.error("Failed to list proposals:", error);
       res.status(500).json({ error: "Failed to list proposals" });
     }
   });
@@ -4094,7 +4098,7 @@ After creating estimate, ALWAYS propose sending payment request.
       });
       res.json(updated);
     } catch (error) {
-      console.error("Failed to approve proposal:", error);
+      logger.error("Failed to approve proposal:", error);
       res.status(500).json({ error: "Failed to approve proposal" });
     }
   });
@@ -4124,7 +4128,7 @@ After creating estimate, ALWAYS propose sending payment request.
       });
       res.json(updated);
     } catch (error) {
-      console.error("Failed to reject proposal:", error);
+      logger.error("Failed to reject proposal:", error);
       res.status(500).json({ error: "Failed to reject proposal" });
     }
   });
@@ -4215,7 +4219,7 @@ After creating estimate, ALWAYS propose sending payment request.
         note: "Outbox worker will process this event with retry logic"
       });
     } catch (error: any) {
-      console.error("Failed to execute proposal:", error);
+      logger.error("Failed to execute proposal:", error);
       // Update status to dispatch_failed on error
       await storage.updateStagedProposal(req.params.id, { status: "dispatch_failed" });
       
@@ -4301,7 +4305,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
       res.json({ success: true, message: "Proposal finalized and queued for execution", outboxId, correlationId });
     } catch (error: any) {
-      console.error("Failed to finalize proposal:", error);
+      logger.error("Failed to finalize proposal:", error);
       res.status(500).json({ success: false, error: error.message || "Failed to finalize proposal" });
     }
   });
@@ -4375,7 +4379,7 @@ After creating estimate, ALWAYS propose sending payment request.
         mode: agentMode,
       });
     } catch (error) {
-      console.error("GPT Actions execute error:", error);
+      logger.error("GPT Actions execute error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
@@ -4475,7 +4479,7 @@ After creating estimate, ALWAYS propose sending payment request.
       
       res.status(201).json(user);
     } catch (error) {
-      console.error("Failed to create user:", error);
+      logger.error("Failed to create user:", error);
       res.status(500).json({ error: "Failed to create user" });
     }
   });
@@ -4536,7 +4540,7 @@ After creating estimate, ALWAYS propose sending payment request.
       
       res.json(updatedUser);
     } catch (error) {
-      console.error("Failed to update user:", error);
+      logger.error("Failed to update user:", error);
       res.status(500).json({ error: "Failed to update user" });
     }
   });
@@ -4561,7 +4565,7 @@ After creating estimate, ALWAYS propose sending payment request.
       
       res.json({ success: true });
     } catch (error) {
-      console.error("Failed to delete user:", error);
+      logger.error("Failed to delete user:", error);
       res.status(500).json({ error: "Failed to delete user" });
     }
   });
@@ -4587,7 +4591,7 @@ After creating estimate, ALWAYS propose sending payment request.
       
       res.json(conversations);
     } catch (error) {
-      console.error("Failed to fetch conversations:", error);
+      logger.error("Failed to fetch conversations:", error);
       res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });
@@ -4606,7 +4610,7 @@ After creating estimate, ALWAYS propose sending payment request.
         messages,
       });
     } catch (error) {
-      console.error("Failed to fetch conversation:", error);
+      logger.error("Failed to fetch conversation:", error);
       res.status(500).json({ error: "Failed to fetch conversation" });
     }
   });
@@ -4634,7 +4638,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to create conversation:", error);
+      logger.error("Failed to create conversation:", error);
       res.status(500).json({ error: "Failed to create conversation" });
     }
   });
@@ -4649,7 +4653,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const messages = await storage.getMessages(req.params.id);
       res.json(messages);
     } catch (error) {
-      console.error("Failed to fetch messages:", error);
+      logger.error("Failed to fetch messages:", error);
       res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
@@ -4702,7 +4706,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to send message:", error);
+      logger.error("Failed to send message:", error);
       res.status(500).json({ error: "Failed to send message" });
     }
   });
@@ -4731,7 +4735,7 @@ After creating estimate, ALWAYS propose sending payment request.
       
       res.json(updated);
     } catch (error) {
-      console.error("Failed to update conversation status:", error);
+      logger.error("Failed to update conversation status:", error);
       res.status(500).json({ error: "Failed to update conversation status" });
     }
   });
@@ -5795,8 +5799,8 @@ After creating estimate, ALWAYS propose sending payment request.
         clientId: validated.contactId,
         status: validated.status,
         title: validated.jobType || "New Job",
-        scope: validated.notes || null,
-        estimatedValue: validated.budget || null,
+        scope: validated.notes || undefined,
+        estimatedValue: validated.budget || undefined,
         jobType: validated.jobType || "general",
       });
 
@@ -6176,7 +6180,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to create conversation:", error);
+      logger.error("Failed to create conversation:", error);
       res.status(500).json({ error: "Failed to create conversation" });
     }
   });
@@ -6189,7 +6193,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(conversation);
     } catch (error) {
-      console.error("Failed to fetch conversation:", error);
+      logger.error("Failed to fetch conversation:", error);
       res.status(500).json({ error: "Failed to fetch conversation" });
     }
   });
@@ -6199,7 +6203,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const messages = await chatService.getConversationHistory(req.params.id);
       res.json(messages);
     } catch (error) {
-      console.error("Failed to fetch messages:", error);
+      logger.error("Failed to fetch messages:", error);
       res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
@@ -6220,7 +6224,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to send message:", error);
+      logger.error("Failed to send message:", error);
       res.status(500).json({ error: "Failed to send message" });
     }
   });
@@ -6241,7 +6245,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to identify contact:", error);
+      logger.error("Failed to identify contact:", error);
       res.status(500).json({ error: "Failed to identify contact" });
     }
   });
@@ -6251,7 +6255,7 @@ After creating estimate, ALWAYS propose sending payment request.
       await chatService.closeConversation(req.params.id);
       res.json({ success: true });
     } catch (error) {
-      console.error("Failed to close conversation:", error);
+      logger.error("Failed to close conversation:", error);
       res.status(500).json({ error: "Failed to close conversation" });
     }
   });
@@ -6287,7 +6291,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const conversation = await adminChat.getOrCreateConversation();
       res.status(201).json(conversation);
     } catch (error) {
-      console.error("Failed to create admin conversation:", error);
+      logger.error("Failed to create admin conversation:", error);
       res.status(500).json({ error: "Failed to create admin conversation" });
     }
   });
@@ -6322,7 +6326,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const messages = await adminChat.getConversationHistory(conversationId);
       res.json(messages);
     } catch (error) {
-      console.error("Failed to fetch admin messages:", error);
+      logger.error("Failed to fetch admin messages:", error);
       res.status(500).json({ error: "Failed to fetch admin messages" });
     }
   });
@@ -6383,7 +6387,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to send admin message:", error);
+      logger.error("Failed to send admin message:", error);
       res.status(500).json({ error: "Failed to send admin message" });
     }
   });
@@ -6433,7 +6437,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to update admin chat mode:", error);
+      logger.error("Failed to update admin chat mode:", error);
       res.status(500).json({ error: "Failed to update admin chat mode" });
     }
   });
@@ -6448,7 +6452,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const conversations = await adminChat.getActiveConversations();
       res.json(conversations);
     } catch (error) {
-      console.error("Failed to fetch admin conversations:", error);
+      logger.error("Failed to fetch admin conversations:", error);
       res.status(500).json({ error: "Failed to fetch admin conversations" });
     }
   });
@@ -6463,7 +6467,7 @@ After creating estimate, ALWAYS propose sending payment request.
       await adminChat.closeConversation(req.params.id);
       res.json({ success: true });
     } catch (error) {
-      console.error("Failed to close admin conversation:", error);
+      logger.error("Failed to close admin conversation:", error);
       res.status(500).json({ error: "Failed to close admin conversation" });
     }
   });
@@ -6529,7 +6533,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to create public chat session:", error);
+      logger.error("Failed to create public chat session:", error);
       res.status(500).json({ error: "Failed to create public chat session" });
     }
   });
@@ -6557,7 +6561,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof Error && error.message === "Invalid session") {
         return res.status(401).json({ error: "Invalid session" });
       }
-      console.error("Failed to send public chat message:", error);
+      logger.error("Failed to send public chat message:", error);
       res.status(500).json({ error: "Failed to send public chat message" });
     }
   });
@@ -6592,7 +6596,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof Error && error.message === "Invalid session") {
         return res.status(401).json({ error: "Invalid session" });
       }
-      console.error("Failed to identify lead:", error);
+      logger.error("Failed to identify lead:", error);
       res.status(500).json({ error: "Failed to identify lead" });
     }
   });
@@ -6609,7 +6613,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof Error && error.message === "Invalid session") {
         return res.status(401).json({ error: "Invalid session" });
       }
-      console.error("Failed to get public chat messages:", error);
+      logger.error("Failed to get public chat messages:", error);
       res.status(500).json({ error: "Failed to get public chat messages" });
     }
   });
@@ -6631,7 +6635,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const accounts = await storage.getEmailAccounts();
       res.json(accounts.map(redactEmailCredentials));
     } catch (error) {
-      console.error("Failed to get email accounts:", error);
+      logger.error("Failed to get email accounts:", error);
       res.status(500).json({ error: "Failed to get email accounts" });
     }
   });
@@ -6644,7 +6648,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(redactEmailCredentials(account));
     } catch (error) {
-      console.error("Failed to get email account:", error);
+      logger.error("Failed to get email account:", error);
       res.status(500).json({ error: "Failed to get email account" });
     }
   });
@@ -6658,7 +6662,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to create email account:", error);
+      logger.error("Failed to create email account:", error);
       res.status(500).json({ error: "Failed to create email account" });
     }
   });
@@ -6675,7 +6679,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to update email account:", error);
+      logger.error("Failed to update email account:", error);
       res.status(500).json({ error: "Failed to update email account" });
     }
   });
@@ -6688,7 +6692,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete email account:", error);
+      logger.error("Failed to delete email account:", error);
       res.status(500).json({ error: "Failed to delete email account" });
     }
   });
@@ -6722,7 +6726,7 @@ After creating estimate, ALWAYS propose sending payment request.
       
       res.json(enrichedEmails);
     } catch (error) {
-      console.error("Failed to get emails:", error);
+      logger.error("Failed to get emails:", error);
       res.status(500).json({ error: "Failed to get emails" });
     }
   });
@@ -6735,7 +6739,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(email);
     } catch (error) {
-      console.error("Failed to get email:", error);
+      logger.error("Failed to get email:", error);
       res.status(500).json({ error: "Failed to get email" });
     }
   });
@@ -6749,7 +6753,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to create email:", error);
+      logger.error("Failed to create email:", error);
       res.status(500).json({ error: "Failed to create email" });
     }
   });
@@ -6766,7 +6770,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to update email:", error);
+      logger.error("Failed to update email:", error);
       res.status(500).json({ error: "Failed to update email" });
     }
   });
@@ -6779,7 +6783,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete email:", error);
+      logger.error("Failed to delete email:", error);
       res.status(500).json({ error: "Failed to delete email" });
     }
   });
@@ -6829,7 +6833,7 @@ After creating estimate, ALWAYS propose sending payment request.
         idempotencyKey: `email-auth-${dispatchId}`,
       });
 
-      console.log("[Email Dispatch] Authorized:", { to, identity, correlationId });
+      logger.info("[Email Dispatch] Authorized:", { to, identity, correlationId });
 
       // MIGRATION: Use unified agent dispatcher instead of direct N8N webhook
       const { dispatchEmail } = await import('./agent-dispatcher');
@@ -6845,7 +6849,7 @@ After creating estimate, ALWAYS propose sending payment request.
           contactId,
         });
 
-        console.log("[Email Dispatch] Dispatched via agent gateway:", dispatchResult);
+        logger.info("[Email Dispatch] Dispatched via agent gateway:", dispatchResult);
 
         res.status(200).json({ 
           success: true, 
@@ -6854,7 +6858,7 @@ After creating estimate, ALWAYS propose sending payment request.
           correlationId: dispatchResult.correlationId,
         });
       } catch (dispatchError) {
-        console.error("[Email Dispatch] Agent dispatch failed:", dispatchError);
+        logger.error("[Email Dispatch] Agent dispatch failed:", dispatchError);
         
         // Write EMAIL_DISPATCH_FAILED to ledger
         await storage.createAutomationLedgerEntry({
@@ -6879,7 +6883,7 @@ After creating estimate, ALWAYS propose sending payment request.
         });
       }
     } catch (error) {
-      console.error("Failed to dispatch email:", error);
+      logger.error("Failed to dispatch email:", error);
       res.status(500).json({ error: "Failed to dispatch email" });
     }
   });
@@ -6961,9 +6965,9 @@ After creating estimate, ALWAYS propose sending payment request.
       const toEmail = extractEmail(validated.to);
       
       // Debug logging to trace from/to extraction
-      console.log(`[Email Mirror] Raw from: "${validated.from}" → Extracted: "${fromEmail}"`);
-      console.log(`[Email Mirror] Raw to: "${validated.to}" → Extracted: "${toEmail}"`);
-      console.log(`[Email Mirror] Direction: ${validated.direction}`);
+      logger.info(`[Email Mirror] Raw from: "${validated.from}" → Extracted: "${fromEmail}"`);
+      logger.info(`[Email Mirror] Raw to: "${validated.to}" → Extracted: "${toEmail}"`);
+      logger.info(`[Email Mirror] Direction: ${validated.direction}`);
       
       // Find or create a system email account for this provider
       let emailAccount = await storage.getEmailAccountByAddress(
@@ -6979,7 +6983,7 @@ After creating estimate, ALWAYS propose sending payment request.
           status: "connected",
           direction: "send_receive",
         });
-        console.log(`[Email Mirror] Created system email account for ${systemEmail}`);
+        logger.info(`[Email Mirror] Created system email account for ${systemEmail}`);
       }
 
       // Validate contactId if provided
@@ -7011,7 +7015,7 @@ After creating estimate, ALWAYS propose sending payment request.
       // Leave HTML body untouched to preserve valid markup
       const cleanedBodyText = validated.body ? cleanEmailBody(validated.body) : null;
       
-      console.log(`[Email Mirror] Original body length: ${validated.body?.length || 0}, Cleaned: ${cleanedBodyText?.length || 0}`);
+      logger.info(`[Email Mirror] Original body length: ${validated.body?.length || 0}, Cleaned: ${cleanedBodyText?.length || 0}`);
       
       // Save email to the emails table
       const emailRecord = await storage.createEmail({
@@ -7078,7 +7082,7 @@ After creating estimate, ALWAYS propose sending payment request.
       };
       
       logN8NResponse("/api/emails/mirror", 200, response);
-      console.log(`[Email Mirror] Saved ${validated.direction} email: ${validated.subject}`);
+      logger.info(`[Email Mirror] Saved ${validated.direction} email: ${validated.subject}`);
       res.json(response);
     } catch (error) {
       logN8NError("/api/emails/mirror", error);
@@ -7106,7 +7110,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const messages = await storage.getWhatsappMessages(filters);
       res.json(messages);
     } catch (error) {
-      console.error("Failed to get WhatsApp messages:", error);
+      logger.error("Failed to get WhatsApp messages:", error);
       res.status(500).json({ error: "Failed to get WhatsApp messages" });
     }
   });
@@ -7119,7 +7123,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(message);
     } catch (error) {
-      console.error("Failed to get WhatsApp message:", error);
+      logger.error("Failed to get WhatsApp message:", error);
       res.status(500).json({ error: "Failed to get WhatsApp message" });
     }
   });
@@ -7175,7 +7179,7 @@ After creating estimate, ALWAYS propose sending payment request.
           idempotencyKey: `whatsapp-${message.id}-${Date.now()}`,
         });
       } catch (dispatchError) {
-        console.error("Failed to dispatch WhatsApp message:", dispatchError);
+        logger.error("Failed to dispatch WhatsApp message:", dispatchError);
         // Write failure to ledger
         await storage.createAutomationLedgerEntry({
           agentName: "system",
@@ -7206,7 +7210,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to create WhatsApp message:", error);
+      logger.error("Failed to create WhatsApp message:", error);
       res.status(500).json({ error: "Failed to create WhatsApp message" });
     }
   });
@@ -7223,7 +7227,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to update WhatsApp message:", error);
+      logger.error("Failed to update WhatsApp message:", error);
       res.status(500).json({ error: "Failed to update WhatsApp message" });
     }
   });
@@ -7236,7 +7240,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete WhatsApp message:", error);
+      logger.error("Failed to delete WhatsApp message:", error);
       res.status(500).json({ error: "Failed to delete WhatsApp message" });
     }
   });
@@ -7295,7 +7299,7 @@ After creating estimate, ALWAYS propose sending payment request.
         idempotencyKey: `whatsapp-auth-${conversationId}-${Date.now()}`,
       });
 
-      console.log("[WhatsApp Dispatch] Authorized:", { clientId, conversationId, correlationId });
+      logger.info("[WhatsApp Dispatch] Authorized:", { clientId, conversationId, correlationId });
 
       // MIGRATION: Use unified agent dispatcher instead of logging only
       const { dispatchWhatsApp } = await import('./agent-dispatcher');
@@ -7312,7 +7316,7 @@ After creating estimate, ALWAYS propose sending payment request.
           approvedAt: new Date().toISOString(),
         });
 
-        console.log("[WhatsApp Dispatch] Dispatched via agent gateway:", dispatchResult);
+        logger.info("[WhatsApp Dispatch] Dispatched via agent gateway:", dispatchResult);
 
         res.status(200).json({ 
           success: true, 
@@ -7320,7 +7324,7 @@ After creating estimate, ALWAYS propose sending payment request.
           correlationId: dispatchResult.correlationId,
         });
       } catch (dispatchError) {
-        console.error("[WhatsApp Dispatch] Agent dispatch failed:", dispatchError);
+        logger.error("[WhatsApp Dispatch] Agent dispatch failed:", dispatchError);
         
         // Write WHATSAPP_DISPATCH_FAILED to ledger
         await storage.createAutomationLedgerEntry({
@@ -7345,7 +7349,7 @@ After creating estimate, ALWAYS propose sending payment request.
         });
       }
     } catch (error) {
-      console.error("Failed to authorize WhatsApp dispatch:", error);
+      logger.error("Failed to authorize WhatsApp dispatch:", error);
       res.status(500).json({ error: "Failed to authorize WhatsApp dispatch" });
     }
   });
@@ -7399,7 +7403,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const intakes = await storage.getIntakes();
       res.json(intakes);
     } catch (error) {
-      console.error("Failed to get intakes:", error);
+      logger.error("Failed to get intakes:", error);
       res.status(500).json({ error: "Failed to get intakes" });
     }
   });
@@ -7412,7 +7416,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(intake);
     } catch (error) {
-      console.error("Failed to get intake:", error);
+      logger.error("Failed to get intake:", error);
       res.status(500).json({ error: "Failed to get intake" });
     }
   });
@@ -7426,7 +7430,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to create intake:", error);
+      logger.error("Failed to create intake:", error);
       res.status(500).json({ error: "Failed to create intake" });
     }
   });
@@ -7443,7 +7447,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to update intake:", error);
+      logger.error("Failed to update intake:", error);
       res.status(500).json({ error: "Failed to update intake" });
     }
   });
@@ -7456,7 +7460,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete intake:", error);
+      logger.error("Failed to delete intake:", error);
       res.status(500).json({ error: "Failed to delete intake" });
     }
   });
@@ -7467,7 +7471,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const fields = await storage.getIntakeFields(req.params.intakeId);
       res.json(fields);
     } catch (error) {
-      console.error("Failed to get intake fields:", error);
+      logger.error("Failed to get intake fields:", error);
       res.status(500).json({ error: "Failed to get intake fields" });
     }
   });
@@ -7484,7 +7488,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to create intake field:", error);
+      logger.error("Failed to create intake field:", error);
       res.status(500).json({ error: "Failed to create intake field" });
     }
   });
@@ -7501,7 +7505,7 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      console.error("Failed to update intake field:", error);
+      logger.error("Failed to update intake field:", error);
       res.status(500).json({ error: "Failed to update intake field" });
     }
   });
@@ -7514,7 +7518,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete intake field:", error);
+      logger.error("Failed to delete intake field:", error);
       res.status(500).json({ error: "Failed to delete intake field" });
     }
   });
@@ -7526,7 +7530,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const submissions = await storage.getIntakeSubmissions(intakeId);
       res.json(submissions);
     } catch (error) {
-      console.error("Failed to get intake submissions:", error);
+      logger.error("Failed to get intake submissions:", error);
       res.status(500).json({ error: "Failed to get intake submissions" });
     }
   });
@@ -7539,8 +7543,33 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(submission);
     } catch (error) {
-      console.error("Failed to get intake submission:", error);
+      logger.error("Failed to get intake submission:", error);
       res.status(500).json({ error: "Failed to get intake submission" });
+    }
+  });
+
+  // Update intake submission status (verify/reject)
+  app.patch("/api/intake-submissions/:id", requireAuth, async (req: any, res) => {
+    try {
+      const { status, reviewNote } = req.body;
+      if (!status) {
+        return res.status(400).json({ error: "status is required" });
+      }
+      const allowed = ["pending", "verified", "rejected", "archived"];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({ error: `status must be one of: ${allowed.join(", ")}` });
+      }
+      const updated = await storage.updateIntakeSubmission(req.params.id, {
+        status,
+        ...(reviewNote !== undefined ? { reviewNote } : {}),
+      });
+      if (!updated) {
+        return res.status(404).json({ error: "Intake submission not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      logger.error("Failed to update intake submission:", error);
+      res.status(500).json({ error: "Failed to update intake submission" });
     }
   });
 
@@ -7571,7 +7600,7 @@ After creating estimate, ALWAYS propose sending payment request.
         message: "Submission received and queued for processing"
       });
     } catch (error) {
-      console.error("Failed to process intake webhook:", error);
+      logger.error("Failed to process intake webhook:", error);
       res.status(500).json({ error: "Failed to process intake submission" });
     }
   });
@@ -7693,7 +7722,7 @@ After creating estimate, ALWAYS propose sending payment request.
         createdAt: eventEntry.createdAt,
       });
     } catch (error) {
-      console.error("Failed to process lead intake:", error);
+      logger.error("Failed to process lead intake:", error);
       res.status(500).json({ error: "Failed to process lead intake" });
     }
   });
@@ -7917,7 +7946,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const locations = await storage.getLocations(contactId);
       res.json(locations);
     } catch (error) {
-      console.error("Failed to get locations:", error);
+      logger.error("Failed to get locations:", error);
       res.status(500).json({ error: "Failed to get locations" });
     }
   });
@@ -7930,7 +7959,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(location);
     } catch (error) {
-      console.error("Failed to get location:", error);
+      logger.error("Failed to get location:", error);
       res.status(500).json({ error: "Failed to get location" });
     }
   });
@@ -7940,7 +7969,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const location = await storage.createLocation(req.body);
       res.status(201).json(location);
     } catch (error) {
-      console.error("Failed to create location:", error);
+      logger.error("Failed to create location:", error);
       res.status(500).json({ error: "Failed to create location" });
     }
   });
@@ -7953,7 +7982,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(location);
     } catch (error) {
-      console.error("Failed to update location:", error);
+      logger.error("Failed to update location:", error);
       res.status(500).json({ error: "Failed to update location" });
     }
   });
@@ -7966,7 +7995,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete location:", error);
+      logger.error("Failed to delete location:", error);
       res.status(500).json({ error: "Failed to delete location" });
     }
   });
@@ -7978,7 +8007,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const equipment = await storage.getEquipment(locationId);
       res.json(equipment);
     } catch (error) {
-      console.error("Failed to get equipment:", error);
+      logger.error("Failed to get equipment:", error);
       res.status(500).json({ error: "Failed to get equipment" });
     }
   });
@@ -7991,7 +8020,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(equip);
     } catch (error) {
-      console.error("Failed to get equipment:", error);
+      logger.error("Failed to get equipment:", error);
       res.status(500).json({ error: "Failed to get equipment" });
     }
   });
@@ -8001,7 +8030,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const equip = await storage.createEquipment(req.body);
       res.status(201).json(equip);
     } catch (error) {
-      console.error("Failed to create equipment:", error);
+      logger.error("Failed to create equipment:", error);
       res.status(500).json({ error: "Failed to create equipment" });
     }
   });
@@ -8014,7 +8043,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(equip);
     } catch (error) {
-      console.error("Failed to update equipment:", error);
+      logger.error("Failed to update equipment:", error);
       res.status(500).json({ error: "Failed to update equipment" });
     }
   });
@@ -8027,7 +8056,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete equipment:", error);
+      logger.error("Failed to delete equipment:", error);
       res.status(500).json({ error: "Failed to delete equipment" });
     }
   });
@@ -8043,7 +8072,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const items = await storage.getPricebookItems(filters);
       res.json(items);
     } catch (error) {
-      console.error("Failed to get pricebook items:", error);
+      logger.error("Failed to get pricebook items:", error);
       res.status(500).json({ error: "Failed to get pricebook items" });
     }
   });
@@ -8056,7 +8085,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(item);
     } catch (error) {
-      console.error("Failed to get pricebook item:", error);
+      logger.error("Failed to get pricebook item:", error);
       res.status(500).json({ error: "Failed to get pricebook item" });
     }
   });
@@ -8066,7 +8095,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const item = await storage.createPricebookItem(req.body);
       res.status(201).json(item);
     } catch (error) {
-      console.error("Failed to create pricebook item:", error);
+      logger.error("Failed to create pricebook item:", error);
       res.status(500).json({ error: "Failed to create pricebook item" });
     }
   });
@@ -8079,7 +8108,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(item);
     } catch (error) {
-      console.error("Failed to update pricebook item:", error);
+      logger.error("Failed to update pricebook item:", error);
       res.status(500).json({ error: "Failed to update pricebook item" });
     }
   });
@@ -8092,7 +8121,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete pricebook item:", error);
+      logger.error("Failed to delete pricebook item:", error);
       res.status(500).json({ error: "Failed to delete pricebook item" });
     }
   });
@@ -8103,7 +8132,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const tagsList = await storage.getTags();
       res.json(tagsList);
     } catch (error) {
-      console.error("Failed to get tags:", error);
+      logger.error("Failed to get tags:", error);
       res.status(500).json({ error: "Failed to get tags" });
     }
   });
@@ -8113,7 +8142,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const tag = await storage.createTag(req.body);
       res.status(201).json(tag);
     } catch (error) {
-      console.error("Failed to create tag:", error);
+      logger.error("Failed to create tag:", error);
       res.status(500).json({ error: "Failed to create tag" });
     }
   });
@@ -8126,7 +8155,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete tag:", error);
+      logger.error("Failed to delete tag:", error);
       res.status(500).json({ error: "Failed to delete tag" });
     }
   });
@@ -8137,7 +8166,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const methods = await storage.getStoredPaymentMethods(req.params.contactId);
       res.json(methods);
     } catch (error) {
-      console.error("Failed to get payment methods:", error);
+      logger.error("Failed to get payment methods:", error);
       res.status(500).json({ error: "Failed to get payment methods" });
     }
   });
@@ -8150,7 +8179,7 @@ After creating estimate, ALWAYS propose sending payment request.
       });
       res.status(201).json(method);
     } catch (error) {
-      console.error("Failed to create payment method:", error);
+      logger.error("Failed to create payment method:", error);
       res.status(500).json({ error: "Failed to create payment method" });
     }
   });
@@ -8163,7 +8192,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Failed to delete payment method:", error);
+      logger.error("Failed to delete payment method:", error);
       res.status(500).json({ error: "Failed to delete payment method" });
     }
   });
@@ -8175,7 +8204,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const duplicates = await storage.findDuplicateContacts(name, email, phone);
       res.json(duplicates);
     } catch (error) {
-      console.error("Failed to search for duplicates:", error);
+      logger.error("Failed to search for duplicates:", error);
       res.status(500).json({ error: "Failed to search for duplicates" });
     }
   });
@@ -8187,7 +8216,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const key = await getStripePublishableKey();
       res.json({ publishableKey: key });
     } catch (error) {
-      console.error("Failed to get Stripe publishable key:", error);
+      logger.error("Failed to get Stripe publishable key:", error);
       res.status(500).json({ error: "Stripe not configured" });
     }
   });
@@ -8256,7 +8285,7 @@ After creating estimate, ALWAYS propose sending payment request.
         paymentIntentId: paymentIntent.id,
       });
     } catch (error) {
-      console.error("Failed to create payment intent:", error);
+      logger.error("Failed to create payment intent:", error);
       res.status(500).json({ error: "Failed to create payment intent" });
     }
   });
@@ -8291,7 +8320,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
       res.json({ clientSecret: setupIntent.client_secret });
     } catch (error) {
-      console.error("Failed to create setup intent:", error);
+      logger.error("Failed to create setup intent:", error);
       res.status(500).json({ error: "Failed to create setup intent" });
     }
   });
@@ -8303,7 +8332,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const logs = await storage.getVoiceDispatchLogs();
       res.json(logs);
     } catch (error) {
-      console.error("Failed to get voice dispatch logs:", error);
+      logger.error("Failed to get voice dispatch logs:", error);
       res.status(500).json({ error: "Failed to get dispatch logs" });
     }
   });
@@ -8381,7 +8410,7 @@ After creating estimate, ALWAYS propose sending payment request.
         message: "Voice dispatch sent successfully" 
       });
     } catch (error) {
-      console.error("Failed to dispatch voice call:", error);
+      logger.error("Failed to dispatch voice call:", error);
       res.status(500).json({ error: "Failed to dispatch voice call" });
     }
   });
@@ -8452,7 +8481,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
       res.json({ success: true });
     } catch (error) {
-      console.error("Failed to record dispatch result:", error);
+      logger.error("Failed to record dispatch result:", error);
       res.status(500).json({ error: "Failed to record dispatch result" });
     }
   });
@@ -8466,12 +8495,15 @@ After creating estimate, ALWAYS propose sending payment request.
     try {
       const validated = insertCampaignSchema.parse(req.body);
       const campaign = await campaignService.createCampaign({
-        ...validated,
+        name: validated.name,
+        subject: validated.subject,
+        body: validated.body,
+        filters: (validated.filters || {}) as any,
         createdBy: req.user?.id,
       });
       res.status(201).json(campaign);
     } catch (error: any) {
-      console.error("Failed to create campaign:", error);
+      logger.error("Failed to create campaign:", error);
       res.status(400).json({ error: error.message });
     }
   });
@@ -8533,7 +8565,7 @@ After creating estimate, ALWAYS propose sending payment request.
       await emailWebhookHandler.handleEvent(event);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Webhook processing error:", error);
+      logger.error("Webhook processing error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -8572,6 +8604,203 @@ After creating estimate, ALWAYS propose sending payment request.
       res.json(recipients);
     } catch (error: any) {
       res.status(500).json({ error: "Failed to fetch recipients" });
+    }
+  });
+
+  // ========================================
+  // PROSPECT POOL ROUTES
+  // Agent-facing endpoints use requireInternalToken.
+  // CRM-user-facing endpoints use requireAuth.
+  // ========================================
+
+  // Agent dedup check — call BEFORE reaching out to anyone
+  // GET /api/prospects/check?phone=xxx&email=yyy
+  app.get("/api/prospects/check", async (req: any, res) => {
+    // Allow both internal token (agent) and session auth (CRM user)
+    const token = (req.headers["x-internal-token"] || req.headers["authorization"]?.replace("Bearer ", "")) as string;
+    const sessionUserId = req.session?.userId;
+    if (!sessionUserId && !verifyInternalToken(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const { phone, email } = req.query as { phone?: string; email?: string };
+      if (!phone && !email) {
+        return res.status(400).json({ error: "phone or email required" });
+      }
+
+      let prospectMatch: any = null;
+      let contactMatch: any = null;
+
+      if (phone) {
+        prospectMatch = await storage.findProspectByPhone(phone as string);
+        contactMatch = await storage.getContactByPhone(phone as string);
+      }
+      if (email && !prospectMatch) {
+        prospectMatch = await storage.findProspectByEmail(email as string);
+      }
+      if (email && !contactMatch) {
+        contactMatch = await storage.getContactByEmail(email as string);
+      }
+
+      res.json({
+        known: !!(prospectMatch || contactMatch),
+        inProspectPool: !!prospectMatch,
+        inCRM: !!contactMatch,
+        prospect: prospectMatch || null,
+        contact: contactMatch ? { id: contactMatch.id, name: contactMatch.name } : null,
+      });
+    } catch (error) {
+      logger.error("Prospect check failed:", error);
+      res.status(500).json({ error: "Check failed" });
+    }
+  });
+
+  // Agent adds a new prospect to the pool
+  // POST /api/prospects (internal token)
+  app.post("/api/prospects", async (req: any, res) => {
+    const token = (req.headers["x-internal-token"] || req.headers["authorization"]?.replace("Bearer ", "")) as string;
+    const sessionUserId = req.session?.userId;
+    if (!sessionUserId && !verifyInternalToken(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const { phone, email, name, company, source, agentId, metadata, notes } = req.body;
+      if (!phone && !email) {
+        return res.status(400).json({ error: "At least phone or email required" });
+      }
+
+      // Dedup check
+      if (phone) {
+        const existing = await storage.findProspectByPhone(phone);
+        if (existing) {
+          return res.status(200).json({ created: false, prospect: existing, reason: "already_in_pool" });
+        }
+      }
+      if (email) {
+        const existing = await storage.findProspectByEmail(email);
+        if (existing) {
+          return res.status(200).json({ created: false, prospect: existing, reason: "already_in_pool" });
+        }
+      }
+
+      const prospect = await storage.createProspect({
+        phone: phone || null,
+        email: email || null,
+        name: name || null,
+        company: company || null,
+        source: source || "agent",
+        agentId: agentId || null,
+        metadata: metadata || null,
+        notes: notes || null,
+        status: "new",
+      });
+
+      res.status(201).json({ created: true, prospect });
+    } catch (error) {
+      logger.error("Failed to create prospect:", error);
+      res.status(500).json({ error: "Failed to create prospect" });
+    }
+  });
+
+  // CRM user: list prospects
+  app.get("/api/prospects", requireAuth, async (req: any, res) => {
+    try {
+      const { status, agentId, source, limit, offset } = req.query;
+      const prospects = await storage.getProspects({
+        status: status as string | undefined,
+        agentId: agentId as string | undefined,
+        source: source as string | undefined,
+        limit: limit ? parseInt(limit as string) : 100,
+        offset: offset ? parseInt(offset as string) : 0,
+      });
+      const total = await storage.countProspects(status ? { status: status as string } : undefined);
+      res.json({ data: prospects, total });
+    } catch (error) {
+      logger.error("Failed to get prospects:", error);
+      res.status(500).json({ error: "Failed to get prospects" });
+    }
+  });
+
+  // Update prospect status (outreached, responded, do_not_outreach)
+  app.patch("/api/prospects/:id", async (req: any, res) => {
+    const token = (req.headers["x-internal-token"] || req.headers["authorization"]?.replace("Bearer ", "")) as string;
+    const sessionUserId = req.session?.userId;
+    if (!sessionUserId && !verifyInternalToken(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const { status, notes } = req.body;
+      const allowed = ["new", "outreached", "responded", "converted", "do_not_outreach"];
+      if (status && !allowed.includes(status)) {
+        return res.status(400).json({ error: `status must be one of: ${allowed.join(", ")}` });
+      }
+
+      const updates: Record<string, any> = {};
+      if (status) updates.status = status;
+      if (notes !== undefined) updates.notes = notes;
+      if (status === "outreached") updates.outreachedAt = new Date();
+      if (status === "responded") updates.respondedAt = new Date();
+
+      const updated = await storage.updateProspect(req.params.id, updates);
+      if (!updated) return res.status(404).json({ error: "Prospect not found" });
+      res.json(updated);
+    } catch (error) {
+      logger.error("Failed to update prospect:", error);
+      res.status(500).json({ error: "Failed to update prospect" });
+    }
+  });
+
+  // Convert prospect → CRM contact
+  app.post("/api/prospects/:id/convert", requireAuth, async (req: any, res) => {
+    try {
+      const prospect = await storage.getProspect(req.params.id);
+      if (!prospect) return res.status(404).json({ error: "Prospect not found" });
+      if (prospect.status === "converted") {
+        return res.status(400).json({ error: "Already converted", contactId: prospect.convertedContactId });
+      }
+
+      const contact = await storage.createContact({
+        name: prospect.name || "Unknown",
+        phone: prospect.phone || null,
+        email: prospect.email || null,
+        company: prospect.company || null,
+        source: prospect.source || "prospect_pool",
+        tags: ["prospect"],
+        customerType: "lead",
+      } as any);
+
+      await storage.updateProspect(prospect.id, {
+        status: "converted",
+        convertedContactId: contact.id,
+        convertedAt: new Date(),
+      });
+
+      res.json({ contact, prospectId: prospect.id });
+    } catch (error) {
+      logger.error("Failed to convert prospect:", error);
+      res.status(500).json({ error: "Failed to convert prospect" });
+    }
+  });
+
+  // Mark as do_not_outreach (person said they're already a customer / opt out)
+  app.post("/api/prospects/:id/do-not-outreach", async (req: any, res) => {
+    const token = (req.headers["x-internal-token"] || req.headers["authorization"]?.replace("Bearer ", "")) as string;
+    const sessionUserId = req.session?.userId;
+    if (!sessionUserId && !verifyInternalToken(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const { reason } = req.body;
+      const updated = await storage.updateProspect(req.params.id, {
+        status: "do_not_outreach",
+        notes: reason || "Opted out of automated outreach",
+        respondedAt: new Date(),
+      });
+      if (!updated) return res.status(404).json({ error: "Prospect not found" });
+      res.json(updated);
+    } catch (error) {
+      logger.error("Failed to mark do_not_outreach:", error);
+      res.status(500).json({ error: "Failed to update prospect" });
     }
   });
 

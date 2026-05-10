@@ -45,10 +45,10 @@ export default function ExportCenter() {
         ]);
 
         setStats({
-          contacts: contacts.length,
-          jobs: jobs.length,
-          financialRecords: financialRecords.length,
-          fieldReports: fieldReports.length,
+          contacts: Array.isArray(contacts) ? contacts.length : (contacts.total ?? 0),
+          jobs: Array.isArray(jobs) ? jobs.length : (jobs.total ?? 0),
+          financialRecords: Array.isArray(financialRecords) ? financialRecords.length : (financialRecords.total ?? 0),
+          fieldReports: Array.isArray(fieldReports) ? fieldReports.length : (fieldReports.total ?? 0),
         });
       } catch (error) {
         console.error("Error fetching stats:", error);

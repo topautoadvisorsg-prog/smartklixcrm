@@ -95,7 +95,7 @@ export default function Pricebook() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return apiRequest("/api/pricebook", "POST", {
+      return apiRequest("POST", "/api/pricebook", {
         ...data,
         unitPrice: data.unitPrice || "0",
         unitCost: data.unitCost || "0",
@@ -114,7 +114,7 @@ export default function Pricebook() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      return apiRequest(`/api/pricebook/${id}`, "PATCH", {
+      return apiRequest("PATCH", `/api/pricebook/${id}`, {
         ...data,
         unitPrice: data.unitPrice || "0",
         unitCost: data.unitCost || "0",
@@ -133,7 +133,7 @@ export default function Pricebook() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/pricebook/${id}`, "DELETE");
+      return apiRequest("DELETE", `/api/pricebook/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pricebook"] });

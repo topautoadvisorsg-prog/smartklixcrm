@@ -36,6 +36,15 @@ npm run test
 - Existing output: `server/graphify-out/` — graph.json, HTML viz, cached AST
 - Use for: codebase exploration, cross-file relationships, community detection
 
+### ✅ Repomix — WORKS
+```bash
+npx repomix
+```
+- v1.14.0 — pure JavaScript, no native Node modules. Works on Node 24.
+- Packs entire codebase into a single AI-readable file (repomix-output.xml by default).
+- Use when you need a full codebase snapshot for an AI context window.
+- Output can be piped to Claude or saved for offline analysis.
+
 ### ✅ TypeScript build — WORKS
 ```bash
 npx tsc --noEmit
@@ -51,6 +60,8 @@ npm run db:push
 - **Pending:** Push the `correlationId` field + ledger enum additions from v2.3.0.
 
 ### ❌ GitNexus — BROKEN (Node.js v24 incompatibility)
+> **Disabled:** GitNexus hooks removed from `~/.claude/settings.json` (May 10, 2026).
+> To re-enable: add back PreToolUse/PostToolUse hooks for `gitnexus-hook.cjs` after switching to Node 20.
 ```bash
 npx gitnexus analyze  # → Segmentation fault (exit code 139)
 ```

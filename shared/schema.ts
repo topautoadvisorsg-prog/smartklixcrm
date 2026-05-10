@@ -1587,3 +1587,47 @@ export type ActionDraft = {
   reasoning: string;
   requiresApproval: boolean;
 };
+
+// ========================================
+// PROSPECT POOL
+// Leads found by external prospecting agents before they become CRM contacts.
+// Agent deduplication source of truth — agent checks here before reaching out to anyone.
+// ========================================
+
+export const prospectPool = pgTable("prospect_pool", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Identity
+  phone: varchar("phone"),
+  email: varchar("email"),
+  name: varchar("name"),
+  company: varchar("company"),
+  // Source
+  source: varchar("source").notNull().default("agent"),  // e.g. google_maps, instagram, manual
+  agentId: varchar("agent_id"),                          // which agent found them
+  // Status lifecycle: new → outreached → responded / converted / do_not_outreach
+  status: varchar("status").notNull().default("new"),
+  // Timestamps
+  outreachedAt: timestamp("outreached_at"),
+  respondedAt: timestamp("responded_at"),
+  convertedAt: timestamp("converted_at"),
+  // If converted: link to the CRM contact
+  convertedContactId: varchar("converted_contact_id"),
+  // Extra data agent collected (business address, linkedin, etc.)
+  metadata: jsonb("metadata"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  phoneIdx: index("prospect_pool_phone_idx").on(table.phone),
+  emailIdx: index("prospect_pool_email_idx").on(table.email),
+  statusIdx: index("prospect_pool_status_idx").on(table.status),
+  agentIdx: index("prospect_pool_agent_idx").on(table.agentId),
+}));
+
+export const insertProspectPoolSchema = createInsertSchema(prospectPool).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertProspect = z.infer<typeof insertProspectPoolSchema>;
+export type Prospect = typeof prospectPool.$inferSelect;

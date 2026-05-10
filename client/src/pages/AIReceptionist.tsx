@@ -41,7 +41,7 @@ export default function AIReceptionist() {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-xl font-black uppercase tracking-tight">AI Voice</h1>
+            <h1 className="text-xl font-black uppercase tracking-tight">AI Receptionist</h1>
             <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest border-amber-500/40 text-amber-500 bg-amber-500/10">
               <Plug className="w-3 h-3 mr-1" />
               Awaiting API Connection

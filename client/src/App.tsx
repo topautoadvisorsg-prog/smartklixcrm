@@ -48,6 +48,7 @@ import SocialMedia from "@/pages/SocialMedia";
 import Marketplace from "@/pages/Marketplace";
 import ExportCenter from "@/pages/ExportCenter";
 import Campaigns from "@/pages/Campaigns";
+import ProspectPool from "@/pages/ProspectPool";
 import NotFound from "@/pages/not-found";
 
 function LegacyRedirect({ to, message }: { to: string; message: string }) {
@@ -111,6 +112,7 @@ function Router() {
       <Route path="/marketplace" component={Marketplace} />
       <Route path="/exports" component={ExportCenter} />
       <Route path="/campaigns" component={Campaigns} />
+      <Route path="/prospect-pool" component={ProspectPool} />
       <Route component={NotFound} />
     </Switch>
   );

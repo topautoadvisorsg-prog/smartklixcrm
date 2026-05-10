@@ -100,6 +100,8 @@ import {
   type InsertFinancialRecord,
   type EmailTemplate,
   type InsertEmailTemplate,
+  type Prospect,
+  type InsertProspect,
   users,
   contacts,
   jobs,
@@ -146,6 +148,7 @@ import {
   campaignRecipients,
   fieldReports,
   financialRecords,
+  prospectPool,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db, isDatabaseConnected } from "./db";
@@ -450,6 +453,15 @@ export interface IStorage {
   updateFinancialRecord(id: string, updates: Partial<InsertFinancialRecord>): Promise<FinancialRecord | undefined>;
   deleteFinancialRecord(id: string): Promise<boolean>;
   getFinancialSummary(contactId: string): Promise<{ totalIncome: number; totalExpenses: number; netProfit: number }>;
+
+  // Prospect Pool
+  getProspects(filters?: { status?: string; agentId?: string; source?: string; limit?: number; offset?: number }): Promise<Prospect[]>;
+  getProspect(id: string): Promise<Prospect | undefined>;
+  findProspectByPhone(phone: string): Promise<Prospect | undefined>;
+  findProspectByEmail(email: string): Promise<Prospect | undefined>;
+  createProspect(data: InsertProspect): Promise<Prospect>;
+  updateProspect(id: string, updates: Partial<InsertProspect>): Promise<Prospect | undefined>;
+  countProspects(filters?: { status?: string }): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -2291,6 +2303,71 @@ export class MemStorage implements IStorage {
     this.emailTemplatesStore.splice(idx, 1);
     return true;
   }
+
+  // ========================================
+  // PROSPECT POOL — MemStorage
+  // ========================================
+  private prospectsStore: Prospect[] = [];
+
+  async getProspects(filters?: { status?: string; agentId?: string; source?: string; limit?: number; offset?: number }): Promise<Prospect[]> {
+    let results = [...this.prospectsStore];
+    if (filters?.status) results = results.filter(p => p.status === filters.status);
+    if (filters?.agentId) results = results.filter(p => p.agentId === filters.agentId);
+    if (filters?.source) results = results.filter(p => p.source === filters.source);
+    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const offset = filters?.offset ?? 0;
+    const limit = filters?.limit ?? 100;
+    return results.slice(offset, offset + limit);
+  }
+
+  async getProspect(id: string): Promise<Prospect | undefined> {
+    return this.prospectsStore.find(p => p.id === id);
+  }
+
+  async findProspectByPhone(phone: string): Promise<Prospect | undefined> {
+    const normalized = phone.replace(/\D/g, "");
+    return this.prospectsStore.find(p => p.phone?.replace(/\D/g, "") === normalized);
+  }
+
+  async findProspectByEmail(email: string): Promise<Prospect | undefined> {
+    return this.prospectsStore.find(p => p.email?.toLowerCase() === email.toLowerCase());
+  }
+
+  async createProspect(data: InsertProspect): Promise<Prospect> {
+    const prospect: Prospect = {
+      ...data,
+      id: randomUUID(),
+      status: data.status ?? "new",
+      source: data.source ?? "agent",
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+      name: data.name ?? null,
+      company: data.company ?? null,
+      agentId: data.agentId ?? null,
+      outreachedAt: data.outreachedAt ?? null,
+      respondedAt: data.respondedAt ?? null,
+      convertedAt: data.convertedAt ?? null,
+      convertedContactId: data.convertedContactId ?? null,
+      metadata: data.metadata ?? null,
+      notes: data.notes ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.prospectsStore.push(prospect);
+    return prospect;
+  }
+
+  async updateProspect(id: string, updates: Partial<InsertProspect>): Promise<Prospect | undefined> {
+    const idx = this.prospectsStore.findIndex(p => p.id === id);
+    if (idx === -1) return undefined;
+    this.prospectsStore[idx] = { ...this.prospectsStore[idx], ...updates, updatedAt: new Date() };
+    return this.prospectsStore[idx];
+  }
+
+  async countProspects(filters?: { status?: string }): Promise<number> {
+    if (filters?.status) return this.prospectsStore.filter(p => p.status === filters.status).length;
+    return this.prospectsStore.length;
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -3952,11 +4029,78 @@ export class DbStorage implements IStorage {
     const totalIncome = result.find(r => r.type === 'income')?.total ?? 0;
     const totalExpenses = result.find(r => r.type === 'expense')?.total ?? 0;
     
-    return { 
-      totalIncome: Number(totalIncome) || 0, 
-      totalExpenses: Number(totalExpenses) || 0, 
-      netProfit: (Number(totalIncome) || 0) - (Number(totalExpenses) || 0) 
+    return {
+      totalIncome: Number(totalIncome) || 0,
+      totalExpenses: Number(totalExpenses) || 0,
+      netProfit: (Number(totalIncome) || 0) - (Number(totalExpenses) || 0)
     };
+  }
+
+  // ========================================
+  // PROSPECT POOL — DbStorage
+  // ========================================
+
+  async getProspects(filters?: { status?: string; agentId?: string; source?: string; limit?: number; offset?: number }): Promise<Prospect[]> {
+    if (!db) return [];
+    const conditions = [];
+    if (filters?.status) conditions.push(eq(prospectPool.status, filters.status));
+    if (filters?.agentId) conditions.push(eq(prospectPool.agentId, filters.agentId));
+    if (filters?.source) conditions.push(eq(prospectPool.source, filters.source));
+    const query = db.select().from(prospectPool)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(prospectPool.createdAt))
+      .limit(filters?.limit ?? 100)
+      .offset(filters?.offset ?? 0);
+    return await query;
+  }
+
+  async getProspect(id: string): Promise<Prospect | undefined> {
+    if (!db) return undefined;
+    const [row] = await db.select().from(prospectPool).where(eq(prospectPool.id, id));
+    return row;
+  }
+
+  async findProspectByPhone(phone: string): Promise<Prospect | undefined> {
+    if (!db) return undefined;
+    const [row] = await db.select().from(prospectPool)
+      .where(eq(prospectPool.phone, phone))
+      .limit(1);
+    return row;
+  }
+
+  async findProspectByEmail(email: string): Promise<Prospect | undefined> {
+    if (!db) return undefined;
+    const [row] = await db.select().from(prospectPool)
+      .where(eq(prospectPool.email, email))
+      .limit(1);
+    return row;
+  }
+
+  async createProspect(data: InsertProspect): Promise<Prospect> {
+    if (!db) throw new Error("Database not connected");
+    const [row] = await db.insert(prospectPool).values({
+      ...data,
+      updatedAt: new Date(),
+    }).returning();
+    return row;
+  }
+
+  async updateProspect(id: string, updates: Partial<InsertProspect>): Promise<Prospect | undefined> {
+    if (!db) return undefined;
+    const [row] = await db.update(prospectPool)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(prospectPool.id, id))
+      .returning();
+    return row;
+  }
+
+  async countProspects(filters?: { status?: string }): Promise<number> {
+    if (!db) return 0;
+    const conditions = filters?.status ? [eq(prospectPool.status, filters.status)] : [];
+    const [row] = await db.select({ count: sql<number>`COUNT(*)` })
+      .from(prospectPool)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    return Number(row?.count ?? 0);
   }
 }
 

@@ -1,11 +1,13 @@
 ﻿# Smart Klix CRM - White-Label AI CRM Platform
-**Version:** 2.3.0 (Full Test Suite + Auth Hardening + Dead Code Purge)  
+**Version:** 2.4.0  
 **Status:** Production-Ready — 191/192 tests passing  
-**Last Updated:** May 9, 2026  
+**Last Updated:** May 10, 2026  
 **Clean Code Doctrine:** Enforced  
 **Architecture:** CRM Brain + External Agent Execution (Webhook-Based)
 
-> **v2.3.0 Changes:** Complete automated test suite (8 test files, 191 passing). Fixed auth middleware PUBLIC_PATHS bug, job state machine CRM statuses, circuit breaker test isolation, intake/sync endpoint contract, MemStorage field persistence, security token dynamic resolution. Purged 12 dead utility files + 1 unmounted routes file. Hardcoded `userId` replaced with dynamic middleware resolution.
+> **v2.4.0 Changes:** Full tab audit (17 production pages verified). Fixed Pricebook create/update/delete (backwards `apiRequest` args — was silently failing). Fixed Export Center stat counts (paginated response). Added missing `PATCH /api/intake-submissions/:id` (Intake Builder verify/reject now works). Replaced all 163 raw `console.log/error/warn` with structured `logger`. Fixed 2 TS errors in routes.ts. Added Prospect Pool — PostgreSQL table + full CRUD API + review page at `/prospect-pool` (agent dedup sync target). AI Receptionist name corrected. GitNexus hooks disabled (Node 24 incompatibility). Repomix confirmed working. Schema pushed to Supabase.  
+>  
+> **v2.3.0 Changes:** Complete automated test suite (8 test files, 191 passing). Fixed auth middleware PUBLIC_PATHS bug, intake/sync endpoint contract, MemStorage field persistence, security token dynamic resolution. Purged 12 dead utility files. Hardcoded `userId` replaced with dynamic resolution.
 
 ## Table of Contents
 - [System Audit](#-critical-setup-requirements)
