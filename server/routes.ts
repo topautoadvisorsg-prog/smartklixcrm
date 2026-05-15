@@ -704,16 +704,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(contact);
     } catch (error) {
+      logger.error("Failed to fetch contact:", error);
       res.status(500).json({ error: "Failed to fetch contact" });
     }
   });
 
-  app.post("/api/contacts", async (req, res) => {
+  app.post("/api/contacts", requireAuth, async (req: any, res) => {
     try {
       const validated = insertContactSchema.parse(req.body);
       const contact = await storage.createContact(validated);
       await storage.createAuditLogEntry({
-        userId: null,
+        userId: req.userId || null,
         action: "create_contact",
         entityType: "contact",
         entityId: contact.id,
@@ -721,11 +722,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(201).json(contact);
     } catch (error) {
-      res.status(400).json({ error: "Invalid contact data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid contact data", details: error.errors });
+      }
+      logger.error("Failed to create contact:", error);
+      res.status(500).json({ error: "Failed to create contact" });
     }
   });
 
-  app.patch("/api/contacts/:id", async (req, res) => {
+  app.patch("/api/contacts/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertContactSchema.partial().parse(req.body);
       const contact = await storage.updateContact(req.params.id, validated);
@@ -733,7 +738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Contact not found" });
       }
       await storage.createAuditLogEntry({
-        userId: null,
+        userId: req.userId || null,
         action: "update_contact",
         entityType: "contact",
         entityId: contact.id,
@@ -744,11 +749,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid contact data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update contact" });
+      logger.error("Failed to update contact:", error);
+      res.status(500).json({ error: "Failed to update contact" });
     }
   });
 
-  app.delete("/api/contacts/:id", async (req, res) => {
+  app.delete("/api/contacts/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteContact(req.params.id);
       if (!success) {
@@ -763,6 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(204).send();
     } catch (error) {
+      logger.error("Failed to delete contact:", error);
       res.status(500).json({ error: "Failed to delete contact" });
     }
   });
@@ -841,6 +848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(jobsWithFinance);
       }
     } catch (error) {
+      logger.error("Failed to fetch jobs:", error);
       res.status(500).json({ error: "Failed to fetch jobs" });
     }
   });
@@ -853,11 +861,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(job);
     } catch (error) {
+      logger.error("Failed to fetch job:", error);
       res.status(500).json({ error: "Failed to fetch job" });
     }
   });
 
-  app.post("/api/jobs", async (req, res) => {
+  app.post("/api/jobs", requireAuth, async (req: any, res) => {
     try {
       // Support both contactId (user-friendly) and clientId (schema field)
       const body = { ...req.body };
@@ -876,11 +885,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(400).json({ error: "Invalid job data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid job data", details: error.errors });
+      }
+      logger.error("Failed to create job:", error);
+      res.status(500).json({ error: "Failed to create job" });
     }
   });
 
-  app.patch("/api/jobs/:id", async (req, res) => {
+  app.patch("/api/jobs/:id", requireAuth, async (req: any, res) => {
     try {
       // Support both contactId (user-friendly) and clientId (schema field)
       const body = { ...req.body };
@@ -905,7 +918,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid job data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update job" });
+      logger.error("Failed to update job:", error);
+      res.status(500).json({ error: "Failed to update job" });
     }
   });
 
@@ -915,11 +929,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tasks = await storage.getJobTasks(req.params.id);
       res.json(tasks);
     } catch (error) {
+      logger.error("Failed to fetch job tasks:", error);
       res.status(500).json({ error: "Failed to fetch job tasks" });
     }
   });
 
-  app.post("/api/jobs/:id/tasks", async (req, res) => {
+  app.post("/api/jobs/:id/tasks", requireAuth, async (req: any, res) => {
     try {
       const validated = insertJobTaskSchema.parse({
         ...req.body,
@@ -931,11 +946,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid task data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to create task" });
+      logger.error("Failed to create task:", error);
+      res.status(500).json({ error: "Failed to create task" });
     }
   });
 
-  app.patch("/api/jobs/:id/tasks/:taskId", async (req, res) => {
+  app.patch("/api/jobs/:id/tasks/:taskId", requireAuth, async (req: any, res) => {
     try {
       const validated = insertJobTaskSchema.partial().parse(req.body);
       const task = await storage.updateJobTask(req.params.taskId, validated);
@@ -947,11 +963,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid task data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update task" });
+      logger.error("Failed to update task:", error);
+      res.status(500).json({ error: "Failed to update task" });
     }
   });
 
-  app.delete("/api/jobs/:id/tasks/:taskId", async (req, res) => {
+  app.delete("/api/jobs/:id/tasks/:taskId", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteJobTask(req.params.taskId);
       if (!success) {
@@ -959,6 +976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(204).send();
     } catch (error) {
+      logger.error("Failed to delete task:", error);
       res.status(500).json({ error: "Failed to delete task" });
     }
   });
@@ -1061,7 +1079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/pipeline/transition - Move a card between pipeline stages
-  app.post("/api/pipeline/transition", async (req, res) => {
+  app.post("/api/pipeline/transition", requireAuth, async (req: any, res) => {
     try {
       const { cardId, fromStage, toStage } = req.body;
 
@@ -1118,7 +1136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/pipeline/book - Finalize booking for a job
-  app.post("/api/pipeline/book", async (req, res) => {
+  app.post("/api/pipeline/book", requireAuth, async (req: any, res) => {
     try {
       const { cardId, technicianId, scheduledStart, scheduledEnd, depositPaid } = req.body;
 
@@ -1180,11 +1198,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const notes = await storage.getNotes();
       res.json(notes);
     } catch (error) {
+      logger.error("Failed to fetch notes:", error);
       res.status(500).json({ error: "Failed to fetch notes" });
     }
   });
 
-  app.post("/api/notes", async (req, res) => {
+  app.post("/api/notes", requireAuth, async (req: any, res) => {
     try {
       const validated = insertNoteSchema.parse(req.body);
       const note = await storage.createNote(validated);
@@ -1197,11 +1216,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(201).json(note);
     } catch (error) {
-      res.status(400).json({ error: "Invalid note data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid note data", details: error.errors });
+      }
+      logger.error("Failed to create note:", error);
+      res.status(500).json({ error: "Failed to create note" });
     }
   });
 
-  app.patch("/api/notes/:id", async (req, res) => {
+  app.patch("/api/notes/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertNoteSchema.partial().parse(req.body);
       const note = await storage.updateNote(req.params.id, validated);
@@ -1218,13 +1241,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(note);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid note data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update note" });
+      logger.error("Failed to update note:", error);
+      res.status(500).json({ error: "Failed to update note" });
     }
   });
 
-  app.delete("/api/notes/:id", async (req, res) => {
+  app.delete("/api/notes/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteNote(req.params.id);
       if (!success) {
@@ -1239,6 +1263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(204).send();
     } catch (error) {
+      logger.error("Failed to delete note:", error);
       res.status(500).json({ error: "Failed to delete note" });
     }
   });
@@ -1248,11 +1273,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointments = await storage.getAppointments();
       res.json(appointments);
     } catch (error) {
+      logger.error("Failed to fetch appointments:", error);
       res.status(500).json({ error: "Failed to fetch appointments" });
     }
   });
 
-  app.post("/api/appointments", async (req, res) => {
+  app.post("/api/appointments", requireAuth, async (req: any, res) => {
     try {
       const validated = insertAppointmentSchema.parse(req.body);
       const appointment = await storage.createAppointment(validated);
@@ -1266,13 +1292,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(appointment);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid appointment data", details: error.errors });
       }
-      res.status(400).json({ error: "Invalid appointment data" });
+      logger.error("Failed to create appointment:", error);
+      res.status(500).json({ error: "Failed to create appointment" });
     }
   });
 
-  app.patch("/api/appointments/:id", async (req, res) => {
+  app.patch("/api/appointments/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertAppointmentSchema.partial().parse(req.body);
       const appointment = await storage.updateAppointment(req.params.id, validated);
@@ -1289,9 +1316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(appointment);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid appointment data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update appointment" });
+      logger.error("Failed to update appointment:", error);
+      res.status(500).json({ error: "Failed to update appointment" });
     }
   });
 
@@ -1300,6 +1328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const files = await storage.getFiles();
       res.json(files);
     } catch (error) {
+      logger.error("Failed to fetch files:", error);
       res.status(500).json({ error: "Failed to fetch files" });
     }
   });
@@ -1317,6 +1346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(files);
     } catch (error) {
+      logger.error("Failed to fetch workspace files:", error);
       res.status(500).json({ error: "Failed to fetch workspace files" });
     }
   });
@@ -1329,6 +1359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(file);
     } catch (error) {
+      logger.error("Failed to fetch workspace file:", error);
       res.status(500).json({ error: "Failed to fetch workspace file" });
     }
   });
@@ -1338,6 +1369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const logs = await storage.getAuditLog();
       res.json(logs);
     } catch (error) {
+      logger.error("Failed to fetch audit log:", error);
       res.status(500).json({ error: "Failed to fetch audit log" });
     }
   });
@@ -1357,6 +1389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json({ success: true });
     } catch (error) {
+      logger.error("Failed to create audit log entry:", error);
       res.status(500).json({ error: "Failed to create audit log entry" });
     }
   });
@@ -1395,6 +1428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(notifications);
     } catch (error) {
+      logger.error("Failed to fetch notifications:", error);
       res.status(500).json({ error: "Failed to fetch notifications" });
     }
   });
@@ -1461,6 +1495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(transformedEntries);
     } catch (error) {
+      logger.error("Failed to fetch automation ledger entries:", error);
       res.status(500).json({ error: "Failed to fetch automation ledger entries" });
     }
   });
@@ -1489,6 +1524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(entry);
     } catch (error) {
+      logger.error("Failed to fetch ledger entry:", error);
       res.status(500).json({ error: "Failed to fetch ledger entry" });
     }
   });
@@ -1536,6 +1572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(combinedEntries);
     } catch (error) {
+      logger.error("Failed to fetch ready execution queue:", error);
       res.status(500).json({ error: "Failed to fetch ready execution queue" });
     }
   });
@@ -1551,6 +1588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(entry);
     } catch (error) {
+      logger.error("Failed to fetch entry:", error);
       res.status(500).json({ error: "Failed to fetch entry" });
     }
   });
@@ -2447,6 +2485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(estimates);
       }
     } catch (error) {
+      logger.error("Failed to fetch estimates:", error);
       res.status(500).json({ error: "Failed to fetch estimates" });
     }
   });
@@ -2459,11 +2498,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(estimate);
     } catch (error) {
+      logger.error("Failed to fetch estimate:", error);
       res.status(500).json({ error: "Failed to fetch estimate" });
     }
   });
 
-  app.post("/api/estimates", async (req, res) => {
+  app.post("/api/estimates", requireAuth, async (req: any, res) => {
     try {
       const validated = insertEstimateSchema.parse(req.body);
       
@@ -2497,11 +2537,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(201).json(estimate);
     } catch (error) {
-      res.status(400).json({ error: "Invalid estimate data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid estimate data", details: error.errors });
+      }
+      logger.error("Failed to create estimate:", error);
+      res.status(500).json({ error: "Failed to create estimate" });
     }
   });
 
-  app.patch("/api/estimates/:id", async (req, res) => {
+  app.patch("/api/estimates/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertEstimateSchema.partial().parse(req.body);
       
@@ -2537,15 +2581,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(estimate);
     } catch (error) {
-      if (error instanceof Error) {
-        res.status(400).json({ error: error.message, details: error });
-      } else {
-        res.status(400).json({ error: "Failed to update estimate" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid estimate data", details: error.errors });
       }
+      logger.error("Failed to update estimate:", error);
+      res.status(500).json({ error: "Failed to update estimate" });
     }
   });
 
-  app.delete("/api/estimates/:id", async (req, res) => {
+  app.delete("/api/estimates/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteEstimate(req.params.id);
       if (!success) {
@@ -2560,6 +2604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(204).send();
     } catch (error) {
+      logger.error("Failed to delete estimate:", error);
       res.status(500).json({ error: "Failed to delete estimate" });
     }
   });
@@ -2582,6 +2627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(invoices);
       }
     } catch (error) {
+      logger.error("Failed to fetch invoices:", error);
       res.status(500).json({ error: "Failed to fetch invoices" });
     }
   });
@@ -2594,11 +2640,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(invoice);
     } catch (error) {
+      logger.error("Failed to fetch invoice:", error);
       res.status(500).json({ error: "Failed to fetch invoice" });
     }
   });
 
-  app.post("/api/invoices", async (req, res) => {
+  app.post("/api/invoices", requireAuth, async (req: any, res) => {
     try {
       const validated = insertInvoiceSchema.parse(req.body);
       
@@ -2632,11 +2679,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(201).json(invoice);
     } catch (error) {
-      res.status(400).json({ error: "Invalid invoice data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid invoice data", details: error.errors });
+      }
+      logger.error("Failed to create invoice:", error);
+      res.status(500).json({ error: "Failed to create invoice" });
     }
   });
 
-  app.patch("/api/invoices/:id", async (req, res) => {
+  app.patch("/api/invoices/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertInvoiceSchema.partial().parse(req.body);
       
@@ -2672,15 +2723,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(invoice);
     } catch (error) {
-      if (error instanceof Error) {
-        res.status(400).json({ error: error.message, details: error });
-      } else {
-        res.status(400).json({ error: "Failed to update invoice" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid invoice data", details: error.errors });
       }
+      logger.error("Failed to update invoice:", error);
+      res.status(500).json({ error: "Failed to update invoice" });
     }
   });
 
-  app.delete("/api/invoices/:id", async (req, res) => {
+  app.delete("/api/invoices/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteInvoice(req.params.id);
       if (!success) {
@@ -2695,6 +2746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(204).send();
     } catch (error) {
+      logger.error("Failed to delete invoice:", error);
       res.status(500).json({ error: "Failed to delete invoice" });
     }
   });
@@ -2704,6 +2756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const payments = await storage.getPayments();
       res.json(payments);
     } catch (error) {
+      logger.error("Failed to fetch payments:", error);
       res.status(500).json({ error: "Failed to fetch payments" });
     }
   });
@@ -2716,11 +2769,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(payment);
     } catch (error) {
+      logger.error("Failed to fetch payment:", error);
       res.status(500).json({ error: "Failed to fetch payment" });
     }
   });
 
-  app.post("/api/payments", async (req, res) => {
+  app.post("/api/payments", requireAuth, async (req: any, res) => {
     try {
       const validated = insertPaymentSchema.parse(req.body);
       const payment = await storage.createPayment(validated);
@@ -2733,11 +2787,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(201).json(payment);
     } catch (error) {
-      res.status(400).json({ error: "Invalid payment data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid payment data", details: error.errors });
+      }
+      logger.error("Failed to create payment:", error);
+      res.status(500).json({ error: "Failed to create payment" });
     }
   });
 
-  app.patch("/api/payments/:id", async (req, res) => {
+  app.patch("/api/payments/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertPaymentSchema.partial().parse(req.body);
       const payment = await storage.updatePayment(req.params.id, validated);
@@ -2754,9 +2812,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(payment);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid payment data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update payment" });
+      logger.error("Failed to update payment:", error);
+      res.status(500).json({ error: "Failed to update payment" });
     }
   });
 
@@ -2769,6 +2828,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const slips = await storage.getPaymentSlips();
       res.json(slips);
     } catch (error) {
+      logger.error("Failed to fetch payment slips:", error);
       res.status(500).json({ error: "Failed to fetch payment slips" });
     }
   });
@@ -2781,11 +2841,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(slip);
     } catch (error) {
+      logger.error("Failed to fetch payment slip:", error);
       res.status(500).json({ error: "Failed to fetch payment slip" });
     }
   });
 
-  app.post("/api/payment-slips", async (req, res) => {
+  app.post("/api/payment-slips", requireAuth, async (req: any, res) => {
     try {
       const { origin, amount, currency, contactId, customerEmail, customerName, description, memo, invoiceId, jobId, paymentMethodTypes } = req.body;
       
@@ -2815,11 +2876,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.status(201).json(slip);
     } catch (error) {
-      res.status(400).json({ error: "Failed to create payment slip" });
+      logger.error("Failed to create payment slip:", error);
+      res.status(500).json({ error: "Failed to create payment slip" });
     }
   });
 
-  app.post("/api/payment-slips/:id/execute", async (req, res) => {
+  app.post("/api/payment-slips/:id/execute", requireAuth, async (req: any, res) => {
     try {
       const slipId = req.params.id;
       const slip = await storage.getPaymentSlip(slipId);
@@ -2888,6 +2950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         note: "External dispatch disabled - use proposal-based dispatch",
       });
     } catch (error) {
+      logger.error("Failed to execute payment slip:", error);
       res.status(500).json({ error: "Failed to execute payment slip" });
     }
   });
@@ -2942,6 +3005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(maskSettingsCredentials(settings));
     } catch (error) {
+      logger.error("Failed to fetch settings:", error);
       res.status(500).json({ error: "Failed to fetch settings" });
     }
   });
@@ -2985,12 +3049,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid settings data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update settings" });
+      logger.error("Failed to update settings:", error);
+      res.status(500).json({ error: "Failed to update settings" });
     }
   });
 
   // Save a single credential
-  app.post("/api/settings/credentials", async (req, res) => {
+  app.post("/api/settings/credentials", requireAuth, async (req: any, res) => {
     try {
       const { key, value } = req.body;
       if (!CREDENTIAL_FIELDS.includes(key)) {
@@ -3008,12 +3073,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json({ success: true, key, masked: maskCredential(value) });
     } catch (error) {
+      logger.error("Failed to update credential:", error);
       res.status(500).json({ error: "Failed to update credential" });
     }
   });
 
   // One-time reveal of a credential
-  app.post("/api/settings/credentials/reveal", async (req, res) => {
+  app.post("/api/settings/credentials/reveal", requireAuth, async (req: any, res) => {
     try {
       const { key } = req.body;
       if (!CREDENTIAL_FIELDS.includes(key)) {
@@ -3033,6 +3099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json({ key, value: (settings as any)[key] });
     } catch (error) {
+      logger.error("Failed to reveal credential:", error);
       res.status(500).json({ error: "Failed to reveal credential" });
     }
   });
@@ -3048,6 +3115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const instructions = await storage.getCompanyInstructions();
       res.json(instructions);
     } catch (error) {
+      logger.error("Failed to fetch company instructions:", error);
       res.status(500).json({ error: "Failed to fetch company instructions" });
     }
   });
@@ -3060,11 +3128,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(instructions);
     } catch (error) {
+      logger.error("Failed to fetch company instructions:", error);
       res.status(500).json({ error: "Failed to fetch company instructions" });
     }
   });
 
-  app.post("/api/company-instructions", async (req, res) => {
+  app.post("/api/company-instructions", requireAuth, async (req: any, res) => {
     try {
       const validated = insertCompanyInstructionsSchema.parse(req.body);
       
@@ -3087,11 +3156,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to create company instructions" });
+      logger.error("Failed to create company instructions:", error);
+      res.status(500).json({ error: "Failed to create company instructions" });
     }
   });
 
-  app.patch("/api/company-instructions/:id", async (req, res) => {
+  app.patch("/api/company-instructions/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertCompanyInstructionsSchema.partial().parse(req.body);
       const instructions = await storage.updateCompanyInstructions(req.params.id, validated);
@@ -3110,11 +3180,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update company instructions" });
+      logger.error("Failed to update company instructions:", error);
+      res.status(500).json({ error: "Failed to update company instructions" });
     }
   });
 
-  app.delete("/api/company-instructions/:id", async (req, res) => {
+  app.delete("/api/company-instructions/:id", requireAuth, async (req: any, res) => {
     try {
       const existing = await storage.getCompanyInstructionsById(req.params.id);
       if (!existing) {
@@ -3130,6 +3201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(204).send();
     } catch (error) {
+      logger.error("Failed to delete company instructions:", error);
       res.status(500).json({ error: "Failed to delete company instructions" });
     }
   });
@@ -3190,11 +3262,12 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(settings);
     } catch (error) {
+      logger.error("Failed to fetch AI Settings:", error);
       res.status(500).json({ error: "Failed to fetch AI Settings" });
     }
   });
 
-  app.post("/api/ai/settings", async (req, res) => {
+  app.post("/api/ai/settings", requireAuth, async (req: any, res) => {
     try {
       const validated = insertAiSettingsSchema.partial().parse(req.body);
       const settings = await storage.updateAiSettings(validated);
@@ -3210,7 +3283,8 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid settings data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to save AI Settings" });
+      logger.error("Failed to save AI Settings:", error);
+      res.status(500).json({ error: "Failed to save AI Settings" });
     }
   });
 
@@ -3221,18 +3295,19 @@ After creating estimate, ALWAYS propose sending payment request.
   app.get("/api/ai/kill-switch", async (_req, res) => {
     try {
       const settings = await storage.getAiSettings();
-      res.json({ 
+      res.json({
         active: settings?.killSwitchActive ?? false,
         activatedAt: settings?.killSwitchActivatedAt ?? null,
         activatedBy: settings?.killSwitchActivatedBy ?? null,
         reason: settings?.killSwitchReason ?? null,
       });
     } catch (error) {
+      logger.error("Failed to get kill switch status:", error);
       res.status(500).json({ error: "Failed to get kill switch status" });
     }
   });
 
-  app.post("/api/ai/kill-switch/activate", async (req, res) => {
+  app.post("/api/ai/kill-switch/activate", requireAuth, async (req: any, res) => {
     try {
       const userId = (req as unknown as { userId?: string }).userId || null;
       const { reason } = req.body as { reason?: string };
@@ -3261,11 +3336,12 @@ After creating estimate, ALWAYS propose sending payment request.
         activatedAt: settings.killSwitchActivatedAt,
       });
     } catch (error) {
+      logger.error("Failed to activate kill switch:", error);
       res.status(500).json({ error: "Failed to activate kill switch" });
     }
   });
 
-  app.post("/api/ai/kill-switch/deactivate", async (req, res) => {
+  app.post("/api/ai/kill-switch/deactivate", requireAuth, async (req: any, res) => {
     try {
       const userId = (req as unknown as { userId?: string }).userId || null;
       
@@ -3286,12 +3362,13 @@ After creating estimate, ALWAYS propose sending payment request.
       
       logger.info(`[KILL SWITCH] Deactivated by ${userId || "system"}`);
       
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: "Kill switch deactivated - AI execution resumed",
         active: false,
       });
     } catch (error) {
+      logger.error("Failed to deactivate kill switch:", error);
       res.status(500).json({ error: "Failed to deactivate kill switch" });
     }
   });
@@ -3317,11 +3394,12 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(config);
     } catch (error) {
+      logger.error("Failed to fetch AI Voice Dispatch config:", error);
       res.status(500).json({ error: "Failed to fetch AI Voice Dispatch config" });
     }
   });
 
-  app.post("/api/ai/voice-dispatch/config", async (req, res) => {
+  app.post("/api/ai/voice-dispatch/config", requireAuth, async (req: any, res) => {
     try {
       const validated = insertAiVoiceDispatchConfigSchema.partial().parse(req.body);
       const config = await storage.updateAiVoiceDispatchConfig(validated);
@@ -3337,7 +3415,8 @@ After creating estimate, ALWAYS propose sending payment request.
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid config data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to save AI Voice Dispatch config" });
+      logger.error("Failed to save AI Voice Dispatch config:", error);
+      res.status(500).json({ error: "Failed to save AI Voice Dispatch config" });
     }
   });
 
@@ -3890,7 +3969,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
   // Accept Staged Actions - Send to Review Queue (NOT execute directly)
   // Flow: Staged Accept → Ledger (proposed) → AssistQueue → MA Review → Ready Execution → Execute
-  app.post("/api/ai/staged/accept", async (req, res) => {
+  app.post("/api/ai/staged/accept", requireAuth, async (req: any, res) => {
     try {
       // P0 HARDENING: Check kill switch BEFORE accepting staged actions
       const aiSettings = await storage.getAiSettings();
@@ -4014,7 +4093,7 @@ After creating estimate, ALWAYS propose sending payment request.
   });
 
   // Reject Staged Actions - Discard staged actions by ID
-  app.post("/api/ai/staged/reject", async (req, res) => {
+  app.post("/api/ai/staged/reject", requireAuth, async (req: any, res) => {
     try {
       const { stagedBundleId, reason } = req.body as {
         stagedBundleId: string;
@@ -4068,7 +4147,7 @@ After creating estimate, ALWAYS propose sending payment request.
   });
 
   // POST /api/proposals/:id/approve
-  app.post("/api/proposals/:id/approve", async (req, res) => {
+  app.post("/api/proposals/:id/approve", requireAuth, async (req: any, res) => {
     try {
       // P0 HARDENING: Check kill switch BEFORE approving proposal
       const aiSettings = await storage.getAiSettings();
@@ -4104,7 +4183,7 @@ After creating estimate, ALWAYS propose sending payment request.
   });
 
   // POST /api/proposals/:id/reject
-  app.post("/api/proposals/:id/reject", async (req, res) => {
+  app.post("/api/proposals/:id/reject", requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { reason } = req.body as { reason?: string };
@@ -4134,7 +4213,7 @@ After creating estimate, ALWAYS propose sending payment request.
   });
 
   // POST /api/proposals/:id/execute
-  app.post("/api/proposals/:id/execute", async (req, res) => {
+  app.post("/api/proposals/:id/execute", requireAuth, async (req: any, res) => {
     try {
       // P0 HARDENING: Check kill switch BEFORE executing proposal
       const aiSettings = await storage.getAiSettings();
@@ -4251,7 +4330,7 @@ After creating estimate, ALWAYS propose sending payment request.
   // POST /api/proposals/:id/finalize
   // Finalizes an "approved_pending_send" proposal — operator confirms the send step,
   // then the proposal is queued for execution via the outbox worker.
-  app.post("/api/proposals/:id/finalize", async (req, res) => {
+  app.post("/api/proposals/:id/finalize", requireAuth, async (req: any, res) => {
     try {
       const aiSettings = await storage.getAiSettings();
       if (aiSettings?.killSwitchActive) {
@@ -4396,6 +4475,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const events = await storage.getWebhookEvents(limit);
       res.json(events);
     } catch (error) {
+      logger.error("Failed to fetch webhook events:", error);
       res.status(500).json({ error: "Failed to fetch webhook events" });
     }
   });
@@ -4409,6 +4489,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const users = await storage.getUsers();
       res.json(users);
     } catch (error) {
+      logger.error("Failed to fetch users:", error);
       res.status(500).json({ error: "Failed to fetch users" });
     }
   });
@@ -4422,6 +4503,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(currentUser);
     } catch (error) {
+      logger.error("Failed to fetch current user:", error);
       res.status(500).json({ error: "Failed to fetch current user" });
     }
   });
@@ -4434,6 +4516,7 @@ After creating estimate, ALWAYS propose sending payment request.
       }
       res.json(user);
     } catch (error) {
+      logger.error("Failed to fetch user:", error);
       res.status(500).json({ error: "Failed to fetch user" });
     }
   });
@@ -4443,7 +4526,7 @@ After creating estimate, ALWAYS propose sending payment request.
     role: z.enum(validUserRoles).optional().default("technician"),
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", requireAuth, async (req: any, res) => {
     try {
       const parseResult = createUserSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -4491,7 +4574,7 @@ After creating estimate, ALWAYS propose sending payment request.
     role: z.enum(validUserRoles).optional(),
   });
 
-  app.patch("/api/users/:id", async (req, res) => {
+  app.patch("/api/users/:id", requireAuth, async (req: any, res) => {
     try {
       const parseResult = updateUserSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -4545,7 +4628,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/users/:id", async (req, res) => {
+  app.delete("/api/users/:id", requireAuth, async (req: any, res) => {
     try {
       const userId = req.params.id;
       
@@ -4988,6 +5071,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const entries = await storage.getMemoryEntries();
       res.json(entries);
     } catch (error) {
+      logger.error("Failed to fetch memory entries:", error);
       res.status(500).json({ error: "Failed to fetch memory entries" });
     }
   });
@@ -4997,6 +5081,7 @@ After creating estimate, ALWAYS propose sending payment request.
       const reflections = await storage.getAiReflections();
       res.json(reflections);
     } catch (error) {
+      logger.error("Failed to fetch AI reflections:", error);
       res.status(500).json({ error: "Failed to fetch AI reflections" });
     }
   });
@@ -5006,8 +5091,8 @@ After creating estimate, ALWAYS propose sending payment request.
       const tasks = await storage.getAiTasks();
       res.json(tasks);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to fetch AI tasks";
-      res.status(500).json({ error: message });
+      logger.error("Failed to fetch AI tasks:", error);
+      res.status(500).json({ error: "Failed to fetch AI tasks" });
     }
   });
 
@@ -5126,38 +5211,38 @@ After creating estimate, ALWAYS propose sending payment request.
   // PIPELINE OPERATIONS
   // ========================================
 
-  app.post("/api/estimates/:id/accept", async (req, res) => {
+  app.post("/api/estimates/:id/accept", requireAuth, async (req: any, res) => {
     try {
       const result = await acceptEstimate(req.params.id);
       res.json(result);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to accept estimate";
-      res.status(400).json({ error: message });
+      logger.error("Failed to accept estimate:", error);
+      res.status(500).json({ error: "Failed to accept estimate" });
     }
   });
 
-  app.post("/api/estimates/:id/reject", async (req, res) => {
+  app.post("/api/estimates/:id/reject", requireAuth, async (req: any, res) => {
     try {
       const estimate = await rejectEstimate(req.params.id);
       res.json(estimate);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to reject estimate";
-      res.status(400).json({ error: message });
+      logger.error("Failed to reject estimate:", error);
+      res.status(500).json({ error: "Failed to reject estimate" });
     }
   });
 
-  app.post("/api/estimates/:id/send", async (req, res) => {
+  app.post("/api/estimates/:id/send", requireAuth, async (req: any, res) => {
     try {
       const estimate = await sendEstimate(req.params.id);
       res.json(estimate);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to send estimate";
-      res.status(400).json({ error: message });
+      logger.error("Failed to send estimate:", error);
+      res.status(500).json({ error: "Failed to send estimate" });
     }
   });
 
   // POST /api/estimates/:id/convert-to-invoice
-  app.post("/api/estimates/:id/convert-to-invoice", async (req, res) => {
+  app.post("/api/estimates/:id/convert-to-invoice", requireAuth, async (req: any, res) => {
     try {
       const estimateId = req.params.id;
       const estimate = await storage.getEstimate(estimateId);
@@ -5199,79 +5284,80 @@ After creating estimate, ALWAYS propose sending payment request.
 
       res.json(invoice);
     } catch (error) {
+      logger.error("Failed to convert estimate to invoice:", error);
       res.status(500).json({ error: "Failed to convert estimate to invoice" });
     }
   });
 
-  app.post("/api/jobs/:id/start", async (req, res) => {
+  app.post("/api/jobs/:id/start", requireAuth, async (req: any, res) => {
     try {
       const job = await startJob(req.params.id);
       res.json(job);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to start job";
-      res.status(400).json({ error: message });
+      logger.error("Failed to start job:", error);
+      res.status(500).json({ error: "Failed to start job" });
     }
   });
 
-  app.post("/api/jobs/:id/complete", async (req, res) => {
+  app.post("/api/jobs/:id/complete", requireAuth, async (req: any, res) => {
     try {
       const job = await completeJob(req.params.id);
       res.json(job);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to complete job";
-      res.status(400).json({ error: message });
+      logger.error("Failed to complete job:", error);
+      res.status(500).json({ error: "Failed to complete job" });
     }
   });
 
-  app.post("/api/jobs/:id/assign-technician", async (req, res) => {
+  app.post("/api/jobs/:id/assign-technician", requireAuth, async (req: any, res) => {
     try {
       const validated = assignTechnicianSchema.parse(req.body);
       const job = await assignTechnician(req.params.id, validated.technicianId);
       res.json(job);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      const message = error instanceof Error ? error.message : "Failed to assign technician";
-      res.status(400).json({ error: message });
+      logger.error("Failed to assign technician:", error);
+      res.status(500).json({ error: "Failed to assign technician" });
     }
   });
 
-  app.post("/api/jobs/:id/update-status", async (req, res) => {
+  app.post("/api/jobs/:id/update-status", requireAuth, async (req: any, res) => {
     try {
       const validated = updateStatusSchema.parse(req.body);
       const job = await updateJobStatus(req.params.id, validated.status);
       res.json(job);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      const message = error instanceof Error ? error.message : "Failed to update job status";
-      res.status(400).json({ error: message });
+      logger.error("Failed to update job status:", error);
+      res.status(500).json({ error: "Failed to update job status" });
     }
   });
 
-  app.post("/api/invoices/:id/send", async (req, res) => {
+  app.post("/api/invoices/:id/send", requireAuth, async (req: any, res) => {
     try {
       const invoice = await sendInvoice(req.params.id);
       res.json(invoice);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to send invoice";
-      res.status(400).json({ error: message });
+      logger.error("Failed to send invoice:", error);
+      res.status(500).json({ error: "Failed to send invoice" });
     }
   });
 
-  app.post("/api/invoices/:id/record-payment", async (req, res) => {
+  app.post("/api/invoices/:id/record-payment", requireAuth, async (req: any, res) => {
     try {
       const validated = recordPaymentSchema.parse(req.body);
       const invoice = await recordPayment(req.params.id, validated.amount.toString(), validated.method, validated.transactionRef);
       res.json(invoice);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      const message = error instanceof Error ? error.message : "Failed to record payment";
-      res.status(400).json({ error: message });
+      logger.error("Failed to record payment:", error);
+      res.status(500).json({ error: "Failed to record payment" });
     }
   });
 
@@ -5279,6 +5365,7 @@ After creating estimate, ALWAYS propose sending payment request.
     try {
       res.json({ tools: aiToolDefinitions });
     } catch (error) {
+      logger.error("Failed to fetch AI tools:", error);
       res.status(500).json({ error: "Failed to fetch AI tools" });
     }
   });
@@ -5299,10 +5386,10 @@ After creating estimate, ALWAYS propose sending payment request.
       res.json(result);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      const message = error instanceof Error ? error.message : "Failed to execute AI tool";
-      res.status(500).json({ error: message });
+      logger.error("Failed to execute AI tool:", error);
+      res.status(500).json({ error: "Failed to execute AI tool" });
     }
   });
 
@@ -5323,9 +5410,10 @@ After creating estimate, ALWAYS propose sending payment request.
       res.json(job);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to update job status" });
+      logger.error("Failed to update job status:", error);
+      res.status(500).json({ error: "Failed to update job status" });
     }
   });
 
@@ -5336,10 +5424,10 @@ After creating estimate, ALWAYS propose sending payment request.
       res.json(estimate);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      const message = error instanceof Error ? error.message : "Failed to send estimate";
-      res.status(400).json({ error: message });
+      logger.error("Failed to send estimate:", error);
+      res.status(500).json({ error: "Failed to send estimate" });
     }
   });
 
@@ -5350,10 +5438,10 @@ After creating estimate, ALWAYS propose sending payment request.
       res.json(invoice);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      const message = error instanceof Error ? error.message : "Failed to send invoice";
-      res.status(400).json({ error: message });
+      logger.error("Failed to send invoice:", error);
+      res.status(500).json({ error: "Failed to send invoice" });
     }
   });
 
@@ -5378,9 +5466,10 @@ After creating estimate, ALWAYS propose sending payment request.
       res.json(updated);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
-      res.status(400).json({ error: "Failed to mark invoice as paid" });
+      logger.error("Failed to mark invoice as paid:", error);
+      res.status(500).json({ error: "Failed to mark invoice as paid" });
     }
   });
 
@@ -5535,6 +5624,7 @@ After creating estimate, ALWAYS propose sending payment request.
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to process Neo8 event";
+      logger.error("Failed to process Neo8 event:", error);
       await storage.createAuditLogEntry({
         userId: null,
         action: "neo8_event_error",
@@ -5542,7 +5632,7 @@ After creating estimate, ALWAYS propose sending payment request.
         entityId: "unknown",
         details: { error: message, body: req.body },
       });
-      res.status(400).json({ error: message });
+      res.status(500).json({ error: "Failed to process event" });
     }
   });
 
@@ -5583,8 +5673,11 @@ After creating estimate, ALWAYS propose sending payment request.
 
       res.json(response);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Chat failed";
-      res.status(400).json({ error: message });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      logger.error("Chat failed:", error);
+      res.status(500).json({ error: "Chat failed" });
     }
   });
 
@@ -6653,7 +6746,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/email-accounts", async (req, res) => {
+  app.post("/api/email-accounts", requireAuth, async (req: any, res) => {
     try {
       const validated = insertEmailAccountSchema.parse(req.body);
       const account = await storage.createEmailAccount(validated);
@@ -6667,7 +6760,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.patch("/api/email-accounts/:id", async (req, res) => {
+  app.patch("/api/email-accounts/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertEmailAccountSchema.partial().parse(req.body);
       const account = await storage.updateEmailAccount(req.params.id, validated);
@@ -6684,7 +6777,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/email-accounts/:id", async (req, res) => {
+  app.delete("/api/email-accounts/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteEmailAccount(req.params.id);
       if (!success) {
@@ -6744,7 +6837,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/emails", async (req, res) => {
+  app.post("/api/emails", requireAuth, async (req: any, res) => {
     try {
       const validated = insertEmailSchema.parse(req.body);
       const email = await storage.createEmail(validated);
@@ -6758,7 +6851,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.patch("/api/emails/:id", async (req, res) => {
+  app.patch("/api/emails/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertEmailSchema.partial().parse(req.body);
       const email = await storage.updateEmail(req.params.id, validated);
@@ -6775,7 +6868,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/emails/:id", async (req, res) => {
+  app.delete("/api/emails/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteEmail(req.params.id);
       if (!success) {
@@ -6790,7 +6883,7 @@ After creating estimate, ALWAYS propose sending payment request.
 
   // Email Dispatch - Authorizes and queues email for Neo8 Engine
   // Per README: CRM never sends directly, all dispatch goes through Neo8
-  app.post("/api/emails/dispatch", async (req, res) => {
+  app.post("/api/emails/dispatch", requireAuth, async (req: any, res) => {
     try {
       const { identity, to, subject, body, templateId, contactId } = req.body;
       
@@ -7128,7 +7221,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/whatsapp", async (req, res) => {
+  app.post("/api/whatsapp", requireAuth, async (req: any, res) => {
     try {
       const validated = insertWhatsappMessageSchema.parse(req.body);
       const message = await storage.createWhatsappMessage(validated);
@@ -7421,7 +7514,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/intakes", async (req, res) => {
+  app.post("/api/intakes", requireAuth, async (req: any, res) => {
     try {
       const validated = insertIntakeSchema.parse(req.body);
       const intake = await storage.createIntake(validated);
@@ -7435,7 +7528,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.patch("/api/intakes/:id", async (req, res) => {
+  app.patch("/api/intakes/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertIntakeSchema.partial().parse(req.body);
       const intake = await storage.updateIntake(req.params.id, validated);
@@ -7452,7 +7545,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/intakes/:id", async (req, res) => {
+  app.delete("/api/intakes/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteIntake(req.params.id);
       if (!success) {
@@ -7476,7 +7569,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/intakes/:intakeId/fields", async (req, res) => {
+  app.post("/api/intakes/:intakeId/fields", requireAuth, async (req: any, res) => {
     try {
       const validated = insertIntakeFieldSchema.parse({
         ...req.body,
@@ -7493,7 +7586,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.patch("/api/intake-fields/:id", async (req, res) => {
+  app.patch("/api/intake-fields/:id", requireAuth, async (req: any, res) => {
     try {
       const validated = insertIntakeFieldSchema.partial().parse(req.body);
       const field = await storage.updateIntakeField(req.params.id, validated);
@@ -7510,7 +7603,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/intake-fields/:id", async (req, res) => {
+  app.delete("/api/intake-fields/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteIntakeField(req.params.id);
       if (!success) {
@@ -7964,7 +8057,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/locations", async (req, res) => {
+  app.post("/api/locations", requireAuth, async (req: any, res) => {
     try {
       const location = await storage.createLocation(req.body);
       res.status(201).json(location);
@@ -7974,7 +8067,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.patch("/api/locations/:id", async (req, res) => {
+  app.patch("/api/locations/:id", requireAuth, async (req: any, res) => {
     try {
       const location = await storage.updateLocation(req.params.id, req.body);
       if (!location) {
@@ -7987,7 +8080,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/locations/:id", async (req, res) => {
+  app.delete("/api/locations/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteLocation(req.params.id);
       if (!success) {
@@ -8025,7 +8118,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/equipment", async (req, res) => {
+  app.post("/api/equipment", requireAuth, async (req: any, res) => {
     try {
       const equip = await storage.createEquipment(req.body);
       res.status(201).json(equip);
@@ -8035,7 +8128,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.patch("/api/equipment/:id", async (req, res) => {
+  app.patch("/api/equipment/:id", requireAuth, async (req: any, res) => {
     try {
       const equip = await storage.updateEquipment(req.params.id, req.body);
       if (!equip) {
@@ -8048,7 +8141,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/equipment/:id", async (req, res) => {
+  app.delete("/api/equipment/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteEquipment(req.params.id);
       if (!success) {
@@ -8090,7 +8183,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/pricebook", async (req, res) => {
+  app.post("/api/pricebook", requireAuth, async (req: any, res) => {
     try {
       const item = await storage.createPricebookItem(req.body);
       res.status(201).json(item);
@@ -8100,7 +8193,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.patch("/api/pricebook/:id", async (req, res) => {
+  app.patch("/api/pricebook/:id", requireAuth, async (req: any, res) => {
     try {
       const item = await storage.updatePricebookItem(req.params.id, req.body);
       if (!item) {
@@ -8113,7 +8206,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/pricebook/:id", async (req, res) => {
+  app.delete("/api/pricebook/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deletePricebookItem(req.params.id);
       if (!success) {
@@ -8137,7 +8230,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/tags", async (req, res) => {
+  app.post("/api/tags", requireAuth, async (req: any, res) => {
     try {
       const tag = await storage.createTag(req.body);
       res.status(201).json(tag);
@@ -8147,7 +8240,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.delete("/api/tags/:id", async (req, res) => {
+  app.delete("/api/tags/:id", requireAuth, async (req: any, res) => {
     try {
       const success = await storage.deleteTag(req.params.id);
       if (!success) {
@@ -8337,7 +8430,7 @@ After creating estimate, ALWAYS propose sending payment request.
     }
   });
 
-  app.post("/api/voice/dispatch", async (req, res) => {
+  app.post("/api/voice/dispatch", requireAuth, async (req: any, res) => {
     try {
       const { contactId, contactName, intent, contextNotes, engine } = req.body;
 

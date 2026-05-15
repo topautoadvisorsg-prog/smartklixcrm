@@ -188,6 +188,85 @@ export default function Invoices() {
     setDeleteDialogOpen(true);
   };
 
+  const handleDownloadPDF = (invoice: Invoice) => {
+    const contactName = getContactName(invoice.contactId);
+    const jobTitle = getJobTitle(invoice.jobId);
+    const lineItems: Array<{ description?: string; quantity?: number; unitPrice?: number }> =
+      Array.isArray(invoice.lineItems) ? (invoice.lineItems as any[]) : [];
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Invoice ${invoice.id}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #111; }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    .meta { color: #555; font-size: 13px; margin-bottom: 32px; }
+    .section { margin-bottom: 24px; }
+    .label { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 0.05em; }
+    .value { font-size: 15px; font-weight: 500; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th { text-align: left; border-bottom: 2px solid #e5e7eb; padding: 8px 4px; font-size: 12px; text-transform: uppercase; color: #888; }
+    td { padding: 10px 4px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+    .totals { margin-top: 16px; text-align: right; }
+    .totals .total-row { display: flex; justify-content: flex-end; gap: 40px; padding: 4px 0; font-size: 14px; }
+    .totals .grand-total { font-weight: 700; font-size: 18px; border-top: 2px solid #111; padding-top: 8px; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background: #f3f4f6; }
+    @media print { body { margin: 20px; } button { display: none; } }
+  </style>
+</head>
+<body>
+  <h1>Invoice</h1>
+  <div class="meta">#${invoice.id} &nbsp;·&nbsp; <span class="badge">${invoice.status?.toUpperCase() ?? "DRAFT"}</span></div>
+  <div style="display:flex;gap:60px;">
+    <div class="section">
+      <div class="label">Customer</div>
+      <div class="value">${contactName}</div>
+    </div>
+    ${jobTitle !== "-" ? `<div class="section"><div class="label">Project</div><div class="value">${jobTitle}</div></div>` : ""}
+    <div class="section">
+      <div class="label">Due Date</div>
+      <div class="value">${invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString() : "—"}</div>
+    </div>
+    <div class="section">
+      <div class="label">Issued</div>
+      <div class="value">${invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : "—"}</div>
+    </div>
+  </div>
+  ${lineItems.length > 0 ? `
+  <table>
+    <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th style="text-align:right">Amount</th></tr></thead>
+    <tbody>
+      ${lineItems.map(item => `
+        <tr>
+          <td>${item.description ?? "—"}</td>
+          <td>${item.quantity ?? 1}</td>
+          <td>$${Number(item.unitPrice ?? 0).toFixed(2)}</td>
+          <td style="text-align:right">$${(Number(item.quantity ?? 1) * Number(item.unitPrice ?? 0)).toFixed(2)}</td>
+        </tr>`).join("")}
+    </tbody>
+  </table>` : ""}
+  <div class="totals">
+    ${invoice.subtotal ? `<div class="total-row"><span>Subtotal</span><span>$${Number(invoice.subtotal).toFixed(2)}</span></div>` : ""}
+    ${invoice.taxTotal && Number(invoice.taxTotal) > 0 ? `<div class="total-row"><span>Tax</span><span>$${Number(invoice.taxTotal).toFixed(2)}</span></div>` : ""}
+    <div class="total-row grand-total"><span>Total</span><span>$${Number(invoice.totalAmount ?? 0).toFixed(2)}</span></div>
+  </div>
+  ${invoice.notes ? `<div class="section" style="margin-top:32px;"><div class="label">Notes</div><div style="font-size:14px;margin-top:4px;">${invoice.notes}</div></div>` : ""}
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      toast({ title: "Popup blocked", description: "Allow popups for this site to download PDFs.", variant: "destructive" });
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 400);
+  };
+
   const confirmDelete = () => {
     if (selectedInvoice) {
       deleteMutation.mutate(selectedInvoice.id);
@@ -305,7 +384,7 @@ export default function Invoices() {
                         <Eye className="w-4 h-4 mr-2" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
                         <Download className="w-4 h-4 mr-2" />
                         Download PDF
                       </DropdownMenuItem>
